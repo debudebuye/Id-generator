@@ -1,0 +1,1104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fyda - Ethiopian Digital ID</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #07813a; /* Ethiopian green */
+      --primary-dark: #056830;
+      --primary-light: #e6f4ea;
+      --accent: #f0b429; /* Ethiopian yellow */
+      --danger: #e74c3c;
+      --warning: #f39c12;
+      --success: #2ecc71;
+      --text: #2c3e50;
+      --text-light: #7f8c8d;
+      --border: #e0e0e0;
+      --bg-light: #f5f7fa;
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: var(--bg-light);
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: auto;
+      padding: 2rem;
+      width: 100%;
+    }
+
+    /* Header */
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+      position: relative;
+      z-index: 10;
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: white;
+    }
+
+    .logo img {
+      height: 40px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-subtext {
+      font-size: 0.8rem;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    /* Main Content */
+    .upload-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+      position: relative;
+    }
+
+    .card-header::after {
+      content: '';
+      display: block;
+      width: 80px;
+      height: 4px;
+      background: var(--accent);
+      margin: 1.5rem auto 0;
+      border-radius: 2px;
+    }
+
+    .card-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--primary);
+    }
+
+    .card-subtitle {
+      color: var(--text-light);
+      font-size: 1rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    /* Two-column layout */
+    .form-container {
+      display: flex;
+      gap: 2.5rem;
+    }
+
+    .form-left {
+      flex: 1;
+    }
+
+    .preview-right {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Drop Zone */
+    .drop-zone {
+      border: 2px dashed var(--border);
+      border-radius: 12px;
+      padding: 2.5rem 1.5rem;
+      text-align: center;
+      cursor: pointer;
+      transition: var(--transition);
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      background-color: var(--primary-light);
+    }
+
+    .drop-zone:hover {
+      border-color: var(--primary);
+      background-color: rgba(7, 129, 58, 0.08);
+    }
+
+    .drop-zone.dragover {
+      border-color: var(--primary);
+      background-color: rgba(7, 129, 58, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .drop-zone-icon {
+      font-size: 2.5rem;
+      color: var(--primary);
+      margin-bottom: 1rem;
+    }
+
+    .drop-zone-text {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--primary);
+    }
+
+    .drop-zone-hint {
+      color: var(--text-light);
+      font-size: 0.9rem;
+    }
+
+    #fileInput {
+      display: none;
+    }
+
+    /* File Info */
+    .file-info {
+      display: flex;
+      align-items: center;
+      background: var(--primary-light);
+      border-radius: 10px;
+      padding: 1.25rem;
+      margin-bottom: 1.5rem;
+      transition: var(--transition);
+      border: 1px solid rgba(7, 129, 58, 0.2);
+    }
+
+    .file-info.hidden {
+      opacity: 0;
+      height: 0;
+      padding: 0;
+      margin: 0;
+      overflow: hidden;
+    }
+
+    .file-icon {
+      color: var(--primary);
+      font-size: 1.75rem;
+      margin-right: 1.25rem;
+    }
+
+    .file-details {
+      flex: 1;
+    }
+
+    .file-name {
+      font-weight: 600;
+      margin-bottom: 0.25rem;
+      word-break: break-all;
+      color: var(--primary-dark);
+    }
+
+    .file-size {
+      color: var(--text-light);
+      font-size: 0.875rem;
+    }
+
+    .file-remove {
+      color: var(--danger);
+      cursor: pointer;
+      margin-left: 1rem;
+      font-size: 1.25rem;
+      transition: var(--transition);
+    }
+
+    .file-remove:hover {
+      transform: scale(1.1);
+    }
+
+    /* Preview */
+    .preview-container {
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      height: 420px;
+      margin-bottom: 1.5rem;
+      position: relative;
+      overflow: hidden;
+      background-color: #f5f5f5;
+      box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+      flex-grow: 1;
+    }
+
+    #pdfPreview {
+      width: 100%;
+      height: 100%;
+      border: none;
+      transition: opacity 0.3s ease;
+      opacity: 0;
+    }
+
+    #pdfPreview.show {
+      opacity: 1;
+    }
+
+    .preview-placeholder {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
+      color: var(--text-light);
+      width: 100%;
+      padding: 0 1.5rem;
+    }
+
+    .preview-icon {
+      font-size: 3.5rem;
+      margin-bottom: 1.5rem;
+      color: var(--border);
+      opacity: 0.5;
+    }
+
+    .preview-title {
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      color: var(--text);
+    }
+
+    /* Form */
+    .form-group {
+      margin-bottom: 1.75rem;
+      position: relative;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 1rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 1rem;
+      transition: var(--transition);
+      background-color: white;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(7, 129, 58, 0.2);
+    }
+
+    .form-control:invalid {
+      border-color: var(--danger);
+    }
+
+    .form-control:valid {
+      border-color: var(--success);
+    }
+
+    .form-hint {
+      display: block;
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-light);
+    }
+
+    /* PDF Format Options */
+    .pdf-format-options {
+      margin-bottom: 2rem;
+      background: var(--bg-light);
+      padding: 1.5rem;
+      border-radius: 10px;
+    }
+
+    .pdf-format-title {
+      font-weight: 600;
+      margin-bottom: 1rem;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .pdf-format-choices {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1.25rem;
+    }
+
+    .pdf-format-choice {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      cursor: pointer;
+    }
+
+    .pdf-format-choice input {
+      width: 18px;
+      height: 18px;
+      accent-color: var(--primary);
+      cursor: pointer;
+    }
+
+    .pdf-format-choice label {
+      cursor: pointer;
+      font-weight: 500;
+    }
+
+    /* Buttons */
+    .btn-container {
+      display: flex;
+      justify-content: center;
+      margin-top: 2.5rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.1rem 1.75rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+      width: 320px;
+      max-width: 100%;
+      gap: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 8px rgba(7, 129, 58, 0.2);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(7, 129, 58, 0.25);
+    }
+
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+      background-color: var(--primary);
+    }
+
+    /* Spinner */
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* Progress Bar */
+    .progress-container {
+      width: 100%;
+      height: 6px;
+      background: var(--border);
+      border-radius: 3px;
+      margin-bottom: 1.5rem;
+      overflow: hidden;
+      display: none;
+    }
+
+    .progress-bar {
+      height: 100%;
+      background: linear-gradient(90deg, var(--primary), var(--accent));
+      width: 0%;
+      transition: width 0.3s ease;
+    }
+
+    /* Status Messages */
+    .status-message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-message i {
+      font-size: 1.25rem;
+    }
+
+    .status-success {
+      background-color: rgba(46, 204, 113, 0.1);
+      color: var(--success);
+      border: 1px solid rgba(46, 204, 113, 0.2);
+    }
+
+    .status-error {
+      background-color: rgba(231, 76, 60, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(231, 76, 60, 0.2);
+    }
+
+    /* Footer */
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      color: var(--text-light);
+      font-size: 0.875rem;
+      margin-top: auto;
+      background-color: white;
+      border-top: 1px solid var(--border);
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 1.75rem;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .footer-links a {
+      color: var(--text-light);
+      text-decoration: none;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-weight: 500;
+    }
+
+    .footer-links a:hover {
+      color: var(--primary);
+    }
+
+    .footer-links i {
+      font-size: 0.9rem;
+    }
+
+    /* Step Indicator */
+    .steps {
+      display: flex;
+      justify-content: center;
+      margin-bottom: 2.5rem;
+      gap: 1rem;
+    }
+
+    .step {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      position: relative;
+      flex: 1;
+      max-width: 120px;
+    }
+
+    .step-number {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background-color: var(--border);
+      color: var(--text-light);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      margin-bottom: 0.5rem;
+      position: relative;
+      z-index: 2;
+    }
+
+    .step.active .step-number {
+      background-color: var(--primary);
+      color: white;
+    }
+
+    .step.completed .step-number {
+      background-color: var(--success);
+      color: white;
+    }
+
+    .step.completed .step-number::after {
+      content: '\f00c';
+      font-family: 'Font Awesome 6 Free';
+      font-weight: 900;
+    }
+
+    .step-title {
+      font-size: 0.85rem;
+      text-align: center;
+      color: var(--text-light);
+      font-weight: 500;
+    }
+
+    .step.active .step-title {
+      color: var(--primary);
+      font-weight: 600;
+    }
+
+    .step.completed .step-title {
+      color: var(--success);
+    }
+
+    .steps::before {
+      content: '';
+      position: absolute;
+      top: 20px;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background-color: var(--border);
+      z-index: 1;
+    }
+
+    /* Responsive */
+    @media (max-width: 992px) {
+      .form-container {
+        gap: 1.5rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1.5rem;
+      }
+      
+      .upload-card {
+        padding: 1.75rem;
+      }
+      
+      .form-container {
+        flex-direction: column;
+      }
+      
+      .preview-container {
+        height: 350px;
+      }
+
+      .steps {
+        margin-bottom: 2rem;
+      }
+
+      .step {
+        max-width: 90px;
+      }
+
+      .step-title {
+        font-size: 0.8rem;
+      }
+    }
+
+    @media (max-width: 576px) {
+      .header-content {
+        padding: 0 1rem;
+      }
+      
+      .logo-text {
+        font-size: 1.25rem;
+      }
+      
+      .card-title {
+        font-size: 1.5rem;
+      }
+      
+      .btn {
+        width: 100%;
+        padding: 1rem;
+      }
+      
+      .pdf-format-choices {
+        flex-direction: column;
+        gap: 0.75rem;
+      }
+
+      .steps {
+        gap: 0.5rem;
+      }
+
+      .step {
+        max-width: 70px;
+      }
+
+      .step-number {
+        width: 32px;
+        height: 32px;
+        font-size: 0.9rem;
+      }
+
+      .step-title {
+        font-size: 0.7rem;
+      }
+    }
+
+    /* Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .fade-in {
+      animation: fadeIn 0.5s ease-out forwards;
+    }
+
+    /* Tooltip */
+    .tooltip {
+      position: relative;
+      display: inline-block;
+    }
+
+    .tooltip .tooltiptext {
+      visibility: hidden;
+      width: 200px;
+      background-color: var(--text);
+      color: #fff;
+      text-align: center;
+      border-radius: 6px;
+      padding: 0.5rem;
+      position: absolute;
+      z-index: 1;
+      bottom: 125%;
+      left: 50%;
+      transform: translateX(-50%);
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 0.8rem;
+      font-weight: normal;
+    }
+
+    .tooltip:hover .tooltiptext {
+      visibility: visible;
+      opacity: 1;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <a href="#" class="logo">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/7/71/Flag_of_Ethiopia.svg" alt="Ethiopia Flag">
+        <div>
+          <div class="logo-text">Ethiopian Digital ID</div>
+          <div class="logo-subtext">Fyda Identification System</div>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="upload-card fade-in">
+        <div class="steps">
+          <div class="step active">
+            <div class="step-number">1</div>
+            <div class="step-title">Upload Documents</div>
+          </div>
+          <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-title">Verify Information</div>
+          </div>
+          <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-title">Receive Digital ID</div>
+          </div>
+        </div>
+
+        <div class="card-header">
+          <h1 class="card-title">Upload Your Documents</h1>
+          <p class="card-subtitle">Upload your official PDF document to generate your Ethiopian Digital ID (Fyda)</p>
+        </div>
+
+        <form id="uploadForm" action="{{ url_for('main.generate_id') }}" method="post" enctype="multipart/form-data">
+          <div class="form-container">
+            <div class="form-left">
+              <div class="form-group">
+                <label for="fin" class="form-label">
+                  FIN Number
+                  <span class="tooltip">
+                    <i class="fas fa-info-circle" style="color: var(--text-light); font-size: 0.9rem;"></i>
+                    <span class="tooltiptext">Your Foreign Identification Number (12 digits)</span>
+                  </span>
+                </label>
+                <input 
+                  type="text" 
+                  id="fin" 
+                  name="fin" 
+                  class="form-control" 
+                  placeholder="Enter 12-digit FIN number" 
+                  required
+                  pattern="\d{12}"
+                  maxlength="12"
+                  aria-describedby="finHelp"
+                >
+                <span id="finHelp" class="form-hint">Must be exactly 12 digits (numbers only)</span>
+              </div>
+
+              <div class="pdf-format-options">
+                <div class="pdf-format-title">Document Type:</div>
+                <div class="pdf-format-choices">
+                  <div class="pdf-format-choice">
+                    <input type="radio" id="formatDefault" name="pdf_format" value="default" checked>
+                    <label for="formatDefault">Standard Identification</label>
+                  </div>
+                  <div class="pdf-format-choice">
+                    <input type="radio" id="formatResidentialAddis" name="pdf_format" value="residential_addis">
+                    <label for="formatResidentialAddis">Residence (Addis)</label>
+                  </div>
+                  <div class="pdf-format-choice">
+                    <input type="radio" id="formatResidentialSheger" name="pdf_format" value="residential_sheger">
+                    <label for="formatResidentialSheger">Residence (Sheger)</label>
+                  </div>
+                </div>
+              </div>
+
+              <div class="drop-zone" id="dropZone">
+                <div class="drop-zone-icon">
+                  <i class="fas fa-cloud-upload-alt"></i>
+                </div>
+                <div class="drop-zone-text">Drag & drop your PDF here</div>
+                <div class="drop-zone-hint">or click to browse files (max 10MB)</div>
+                <input type="file" id="fileInput" name="pdf" accept="application/pdf" required>
+              </div>
+
+              <div class="file-info hidden" id="fileInfo">
+                <div class="file-icon">
+                  <i class="fas fa-file-pdf"></i>
+                </div>
+                <div class="file-details">
+                  <div class="file-name" id="fileName"></div>
+                  <div class="file-size" id="fileSize"></div>
+                </div>
+                <div class="file-remove" id="fileRemove">
+                  <i class="fas fa-times"></i>
+                </div>
+              </div>
+
+              <div class="status-message hidden" id="statusMessage">
+                <i class="fas fa-check-circle"></i>
+                <span id="statusText"></span>
+              </div>
+            </div>
+
+            <div class="preview-right">
+              <div class="preview-container">
+                <iframe id="pdfPreview"></iframe>
+                <div class="preview-placeholder" id="previewPlaceholder">
+                  <div class="preview-icon">
+                    <i class="far fa-file-pdf"></i>
+                  </div>
+                  <h3 class="preview-title">Document Preview</h3>
+                  <p>Your uploaded document will appear here</p>
+                </div>
+              </div>
+              <div class="form-hint" style="text-align: center;">
+                Ensure all information is clearly visible before submission
+              </div>
+            </div>
+          </div>
+
+          <div class="progress-container" id="progressContainer">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+
+          <div class="btn-container">
+            <button type="submit" class="btn btn-primary" id="submitBtn" disabled>
+              <span class="spinner" id="spinner"></span>
+              Generate Digital ID
+              <i class="fas fa-arrow-right" id="submitIcon"></i>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <div class="footer-links">
+      <a href="#"><i class="fas fa-shield-alt"></i> Privacy Policy</a>
+      <a href="#"><i class="fas fa-file-alt"></i> Terms of Service</a>
+      <a href="#"><i class="fas fa-question-circle"></i> Help Center</a>
+      <a href="#"><i class="fas fa-phone-alt"></i> Contact Support</a>
+    </div>
+    <p>&copy; 2025 Ethiopian Digital ID Authority. All rights reserved.</p>
+  </footer>
+
+  <script>
+    // DOM Elements
+    const dropZone = document.getElementById("dropZone");
+    const fileInput = document.getElementById("fileInput");
+    const fileInfo = document.getElementById("fileInfo");
+    const fileName = document.getElementById("fileName");
+    const fileSize = document.getElementById("fileSize");
+    const fileRemove = document.getElementById("fileRemove");
+    const preview = document.getElementById("pdfPreview");
+    const previewPlaceholder = document.getElementById("previewPlaceholder");
+    const form = document.getElementById("uploadForm");
+    const finInput = document.getElementById("fin");
+    const submitBtn = document.getElementById("submitBtn");
+    const spinner = document.getElementById("spinner");
+    const submitIcon = document.getElementById("submitIcon");
+    const progressContainer = document.getElementById("progressContainer");
+    const progressBar = document.getElementById("progressBar");
+    const pdfFormatRadios = document.querySelectorAll('input[name="pdf_format"]');
+    const statusMessage = document.getElementById("statusMessage");
+    const statusText = document.getElementById("statusText");
+
+    // Focus on FIN input when page loads
+    window.addEventListener("DOMContentLoaded", () => {
+      finInput.focus();
+    });
+
+    // Click on drop zone triggers file input
+    dropZone.addEventListener("click", () => fileInput.click());
+
+    // Handle file selection
+    fileInput.addEventListener("change", handleFileSelect);
+
+    // Handle drag and drop
+    dropZone.addEventListener("dragover", (e) => {
+      e.preventDefault();
+      dropZone.classList.add("dragover");
+    });
+
+    ["dragleave", "dragend"].forEach(type => {
+      dropZone.addEventListener(type, () => {
+        dropZone.classList.remove("dragover");
+      });
+    });
+
+    dropZone.addEventListener("drop", (e) => {
+      e.preventDefault();
+      dropZone.classList.remove("dragover");
+      
+      if (e.dataTransfer.files.length) {
+        fileInput.files = e.dataTransfer.files;
+        handleFileSelect();
+      }
+    });
+
+    // Remove file
+    fileRemove.addEventListener("click", (e) => {
+      e.stopPropagation();
+      resetFileInput();
+    });
+
+    // Form submission
+    form.addEventListener("submit", function(e) {
+      e.preventDefault();
+      
+      if (!validateForm()) {
+        return;
+      }
+      
+      // Show loading state
+      submitBtn.disabled = true;
+      spinner.style.display = "block";
+      submitIcon.style.display = "none";
+      progressContainer.style.display = "block";
+      
+      // Simulate progress (in a real app, this would be tied to actual upload progress)
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += Math.random() * 10;
+        if (progress >= 100) {
+          progress = 100;
+          clearInterval(progressInterval);
+        }
+        progressBar.style.width = `${progress}%`;
+      }, 200);
+      
+      // In a real application, you would use fetch/XHR to track actual upload progress
+      setTimeout(() => {
+        // Submit the form (in a real app, you might use AJAX)
+        form.submit();
+      }, 3000);
+    });
+
+    // Validate form inputs
+    function validateForm() {
+      // Validate FIN
+      if (!/^\d{12}$/.test(finInput.value.trim())) {
+        showStatus("Please enter a valid 12-digit FIN number.", "error");
+        finInput.focus();
+        return false;
+      }
+      
+      // Validate file
+      if (!fileInput.files || !fileInput.files[0]) {
+        showStatus("Please select a PDF file to upload.", "error");
+        return false;
+      }
+      
+      // Validate file size (10MB max)
+      if (fileInput.files[0].size > 10 * 1024 * 1024) {
+        showStatus("File size exceeds 10MB limit. Please choose a smaller file.", "error");
+        return false;
+      }
+      
+      // Validate PDF format selection
+      const selectedFormat = document.querySelector('input[name="pdf_format"]:checked');
+      if (!selectedFormat) {
+        showStatus("Please select a document type.", "error");
+        return false;
+      }
+      
+      return true;
+    }
+
+    // Show status message
+    function showStatus(message, type) {
+      statusText.textContent = message;
+      statusMessage.className = `status-message status-${type}`;
+      statusMessage.style.display = "flex";
+      
+      // Hide after 5 seconds
+      setTimeout(() => {
+        statusMessage.style.display = "none";
+      }, 5000);
+    }
+
+    // Handle file selection
+    function handleFileSelect() {
+      const file = fileInput.files[0];
+      
+      if (file && file.type === "application/pdf") {
+        // Update file info
+        fileName.textContent = file.name;
+        fileSize.textContent = formatFileSize(file.size);
+        fileInfo.classList.remove("hidden");
+        
+        // Show preview
+        const fileURL = URL.createObjectURL(file);
+        preview.src = fileURL;
+        preview.classList.add("show");
+        previewPlaceholder.style.display = "none";
+        
+        // Enable submit button if FIN is valid
+        updateSubmitButton();
+        
+        // Show success message
+        showStatus("Document successfully uploaded. Please review the preview.", "success");
+      } else {
+        showStatus("Please select a valid PDF file (application/pdf).", "error");
+        resetFileInput();
+      }
+    }
+
+    // Reset file input
+    function resetFileInput() {
+      fileInput.value = "";
+      fileInfo.classList.add("hidden");
+      preview.src = "";
+      preview.classList.remove("show");
+      previewPlaceholder.style.display = "block";
+      updateSubmitButton();
+    }
+
+    // Format file size
+    function formatFileSize(bytes) {
+      if (bytes === 0) return "0 Bytes";
+      
+      const k = 1024;
+      const sizes = ["Bytes", "KB", "MB", "GB"];
+      const i = Math.floor(Math.log(bytes) / Math.log(k));
+      
+      return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    }
+
+    // Update submit button state
+    function updateSubmitButton() {
+      const isFileValid = fileInput.files && fileInput.files[0];
+      const isFinValid = /^\d{12}$/.test(finInput.value.trim());
+      const isFormatSelected = document.querySelector('input[name="pdf_format"]:checked');
+      
+      submitBtn.disabled = !(isFileValid && isFinValid && isFormatSelected);
+    }
+
+    // Validate FIN as user types
+    finInput.addEventListener("input", () => {
+      updateSubmitButton();
+      
+      // Visual feedback
+      if (finInput.value.length === 12 && /^\d+$/.test(finInput.value)) {
+        finInput.classList.add("valid");
+        finInput.classList.remove("invalid");
+      } else {
+        finInput.classList.remove("valid");
+        if (finInput.value.length > 0) {
+          finInput.classList.add("invalid");
+        }
+      }
+    });
+
+    // Update submit button when PDF format changes
+    pdfFormatRadios.forEach(radio => {
+      radio.addEventListener("change", updateSubmitButton);
+    });
+
+    // Add animation to elements as they come into view
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          entry.target.classList.add('fade-in');
+          observer.unobserve(entry.target);
+        }
+      });
+    }, { threshold: 0.1 });
+
+    document.querySelectorAll('.upload-card, .form-group, .pdf-format-options, .drop-zone').forEach(el => {
+      observer.observe(el);
+    });
+  </script>
+</body>
+</html>
