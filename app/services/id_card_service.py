@@ -500,34 +500,42 @@ class IDCardService:
 
         return processed_data
 
-    def extract_pdf_data(self, pdf_path: str, fin_number: str, pdf_format: str = 'default') -> Dict:
-        """Extract data from PDF file based on format."""
-        doc = fitz.open(pdf_path)
-        page = doc[0]
-        text = page.get_text()
-        images = page.get_images(full=True)
-        lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
-
-        extracted_data = {}
-        if pdf_format == 'default':
-            extracted_data = self._extract_default_pdf_data(doc, lines, images, fin_number)
-        elif pdf_format == 'residential_addis':
-            extracted_data = self._extract_residential_addis_pdf_data(doc, lines, images, fin_number)
-        elif pdf_format == 'residential_sheger':
-            extracted_data = self._extract_residential_sheger_pdf_data(doc, lines, images, fin_number)
+    def extract_pdf_data(self, pdf_input, fin_number: str, pdf_format: str = 'default') -> Dict:
+        """Extract data from PDF file or stream based on format."""
+        # Handle both file path and BytesIO input
+        if isinstance(pdf_input, str):
+            doc = fitz.open(pdf_input)
         else:
-            raise ValueError(f"Unknown PDF format: {pdf_format}")
+            doc = fitz.open(stream=pdf_input, filetype="pdf")
+            
+        try:
+            page = doc[0]
+            text = page.get_text()
+            images = page.get_images(full=True)
+            lines = [line.strip() for line in text.strip().split('\n') if line.strip()]
 
-        # Common barcode generation after data is extracted
-        barcode_filename, formatted_fcn = self.generate_barcode(extracted_data['fcn_full'])
-        if barcode_filename:
-            extracted_data['fcn_barcode'] = barcode_filename
-            extracted_data['fcn_formatted'] = formatted_fcn
-        else:
-            extracted_data['fcn_barcode'] = None
-            extracted_data['fcn_formatted'] = extracted_data['fcn_full'] # Fallback if barcode fails
+            extracted_data = {}
+            if pdf_format == 'default':
+                extracted_data = self._extract_default_pdf_data(doc, lines, images, fin_number)
+            elif pdf_format == 'residential_addis':
+                extracted_data = self._extract_residential_addis_pdf_data(doc, lines, images, fin_number)
+            elif pdf_format == 'residential_sheger':
+                extracted_data = self._extract_residential_sheger_pdf_data(doc, lines, images, fin_number)
+            else:
+                raise ValueError(f"Unknown PDF format: {pdf_format}")
 
-        return extracted_data
+            # Common barcode generation after data is extracted
+            barcode_filename, formatted_fcn = self.generate_barcode(extracted_data['fcn_full'])
+            if barcode_filename:
+                extracted_data['fcn_barcode'] = barcode_filename
+                extracted_data['fcn_formatted'] = formatted_fcn
+            else:
+                extracted_data['fcn_barcode'] = None
+                extracted_data['fcn_formatted'] = extracted_data['fcn_full'] # Fallback if barcode fails
+
+            return extracted_data
+        finally:
+            doc.close()
 
     def generate_id_card(self, data: Dict, city_option: str = 'default', remove_white: bool = False, remove_black: bool = False) -> Dict[str, str]:
         """Generate ID card images."""

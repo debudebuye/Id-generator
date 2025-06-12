@@ -2,6 +2,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, sessio
 from werkzeug.utils import secure_filename
 import os
 from typing import Dict, Optional
+from io import BytesIO
 
 from .config.settings import Config
 from .services.id_card_service import IDCardService
@@ -58,14 +59,13 @@ def generate_id():
         return "Invalid FIN number. Please enter exactly 12 digits."
     fin_number = f"{clean_fin[:4]}-{clean_fin[4:8]}-{clean_fin[8:12]}"
 
-    # Save PDF
-    filename = secure_filename(pdf.filename)
-    filepath = os.path.join(config.UPLOAD_FOLDER, filename)
-    pdf.save(filepath)
-
     try:
-        # Extract data from PDF
-        extracted = id_service.extract_pdf_data(filepath, fin_number, pdf_format)
+        # Read PDF into memory
+        pdf_bytes = pdf.read()
+        pdf_stream = BytesIO(pdf_bytes)
+        
+        # Extract data from PDF in memory
+        extracted = id_service.extract_pdf_data(pdf_stream, fin_number, pdf_format)
         
         # Add address fields
         extracted["address_am"] = f"{extracted['region_am']}, {extracted['subcity_am']}, {extracted['woreda_am']}"
