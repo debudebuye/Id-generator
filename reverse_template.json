@@ -13,7 +13,7 @@
       "position": [564, 210],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -25,7 +25,7 @@
       "position": [564, 250],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -37,7 +37,7 @@
       "position": [1450, 570],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 24
       },
       "color": [0, 0, 0],
@@ -49,7 +49,7 @@
       "position": [564, 330],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 32
       },
       "color": [0, 0, 0],
@@ -61,7 +61,7 @@
       "position": [740, 330],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 32
       },
       "color": [0, 0, 0],
@@ -73,7 +73,7 @@
       "position": [564, 395],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 30
       },
       "color": [0, 0, 0],
@@ -85,7 +85,7 @@
       "position": [650, 395],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 30
       },
       "color": [0, 0, 0],
@@ -97,7 +97,7 @@
       "position": [2135, 625],  
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -108,7 +108,7 @@
       "position": [1340, 200],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 30
       },
       "color": [0, 0, 0],
@@ -120,7 +120,7 @@
       "position": [1490, 200],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 30
       },
       "color": [0, 0, 0],
@@ -132,7 +132,7 @@
       "position": [1340, 105],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 32
       },
       "color": [0, 0, 0],
@@ -143,7 +143,7 @@
       "position": [1400, 20],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 30
       },
       "color": [0, 0, 0],
@@ -155,7 +155,7 @@
       "position": [155, 220],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 20
       },
       "color": [0, 0, 0],
@@ -166,7 +166,7 @@
       "position": [155, -20],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 20
       },
       "color": [0, 0, 0],
@@ -178,7 +178,7 @@
       "position": [564, 462],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 28
       },
       "color": [0, 0, 0],
@@ -190,7 +190,7 @@
       "position": [740, 462],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 28
       },
       "color": [0, 0, 0],
@@ -202,7 +202,7 @@
       "position": [600, 500],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 44
       },
       "color": [100, 100, 100],
@@ -214,7 +214,7 @@
       "position": [1340, 270],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -226,7 +226,7 @@
       "position": [1340, 300],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -238,7 +238,7 @@
       "position": [1340, 340],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -250,7 +250,7 @@
       "position": [1340, 370],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -262,7 +262,7 @@
       "position": [1340, 420],
       "font": {
         "family": "am",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],
@@ -274,7 +274,7 @@
       "position": [1340, 470],
       "font": {
         "family": "en",
-        "weight": 700,
+        "weight": 800,
         "size": 34
       },
       "color": [0, 0, 0],

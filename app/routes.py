@@ -104,6 +104,9 @@ def confirm_generate():
             extracted['nationality_am'] = session['nationality_am']
             extracted['nationality_en'] = session['nationality_en']
         
+        # Debug print before generation
+        print("Data before generation:", extracted)
+        
         # Generate ID card
         generated_files = id_service.generate_id_card(
             data=extracted,
@@ -114,15 +117,27 @@ def confirm_generate():
         
         # Store in session
         session['generated_files'] = generated_files
+        session['extracted'] = extracted  # Ensure data is still in session
+        
+        # Debug print after storing in session
+        print("Generated files:", generated_files)
+        print("Stored data:", session.get('extracted'))
+        
         return redirect(url_for('main.result'))
 
     except Exception as e:
+        print("Error in confirm_generate:", str(e))  # Debug print for errors
         return f"Failed to generate ID: {str(e)}"
 
 @bp.route('/result')
 def result():
     """Show generated ID card results."""
     files = session.get('generated_files', {})
+    data = session.get('extracted', {})  # Get the extracted data from session
+    
+    # Debug print
+    print("Session data:", data)
+    print("Files:", files)
 
     def verify_file(filename: Optional[str]) -> Optional[str]:
         if not filename or filename == 'default.png':
@@ -130,11 +145,30 @@ def result():
         path = os.path.join(config.STATIC_FOLDER, filename)
         return filename if os.path.exists(path) else None
 
+    # Ensure we have the name
+    if not data.get('name_en'):
+        print("Warning: name_en not found in session data")
+    else:
+        print("Found name_en:", data['name_en'])
+    
+    # Debug print for files being passed to template
+    front_color = verify_file(files.get('front_color'))
+    front_bw = verify_file(files.get('front_bw'))
+    reverse = verify_file(files.get('reverse'))
+    reverse_bw = verify_file(files.get('reverse_bw'))
+    
+    print("Files being passed to template:")
+    print("front_color:", front_color)
+    print("front_bw:", front_bw)
+    print("reverse:", reverse)
+    print("reverse_bw:", reverse_bw)
+        
     return render_template('result.html',
-                         front_color=verify_file(files.get('front_color')),
-                         front_bw=verify_file(files.get('front_bw')),
-                         reverse=verify_file(files.get('reverse')),
-                         reverse_bw=verify_file(files.get('reverse_bw')))
+                         data=data,  # Pass the data to the template
+                         front_color=front_color,
+                         front_bw=front_bw,
+                         reverse=reverse,
+                         reverse_bw=reverse_bw)
 
 @bp.route('/update_address', methods=['POST'])
 def update_address():

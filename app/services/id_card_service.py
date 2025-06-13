@@ -369,13 +369,26 @@ class IDCardService:
                 else:
                     extracted["dob_eth"] = line
             elif line.strip() in ["ሴት", "ወንድ"]:
-                extracted["gender_am"] = line
-                extracted["gender_en"] = lines[i+1] if i+1 < len(lines) else ""
-            elif line.strip() in ["ኢትዮጵያዊ", "Ethiopian"]:
-                extracted["nationality_am"] = line
-                extracted["nationality_en"] = lines[i+1] if i+1 < len(lines) else ""
+                extracted["gender_am"] = line.strip()
+                if i+1 < len(lines) and lines[i+1].strip() in ["Female", "Male"]:
+                    extracted["gender_en"] = lines[i+1].strip()
+            elif line.strip() in ["ኢትዮጵያዊ", "ኢትዮጵያ"]:  # Fix: Added "ኢትዮጵያ" as possible Amharic value
+                extracted["nationality_am"] = line.strip()
+                # Look for English nationality in next few lines
+                for j in range(i+1, min(i+4, len(lines))):
+                    if lines[j].strip() in ["Ethiopian", "Ethiopia"]:  # Fix: Added "Ethiopia" as possible English value
+                        extracted["nationality_en"] = "Ethiopian"  # Fix: Always set to "Ethiopian"
+                        break
             elif line.replace(" ", "").isdigit() and len(line.replace(" ", "")) == 10:
-                extracted["phone"] = line
+                extracted["phone"] = line.strip()
+
+        # If nationality is still not set but we found Amharic, set default English
+        if extracted["nationality_am"] and not extracted["nationality_en"]:
+            extracted["nationality_en"] = "Ethiopian"
+        # If we found neither, but we know this is an Ethiopian ID
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            extracted["nationality_am"] = "ኢትዮጵያዊ"
+            extracted["nationality_en"] = "Ethiopian"
 
         # Improved address field extraction
         address_fields = []
@@ -543,6 +556,9 @@ class IDCardService:
             # Get address positions for selected city type
             address_positions = self.config.ADDRESS_POSITIONS.get(city_option, self.config.ADDRESS_POSITIONS['default'])
             
+            # Get the person's name for filenames
+            name = data.get('name_en', '').replace(' ', '_')
+            
             # === Generate Front Side ===
             template = Image.open(self.config.TEMPLATE_IMG).convert("RGBA")
             draw = ImageDraw.Draw(template)
@@ -562,7 +578,12 @@ class IDCardService:
                 color = tuple(field.get("color", (0, 0, 0)))
                 align = field.get("align", "left")
                 font_spec = field["font"]
-                font = ImageFont.truetype(self.config.FONT_PATH, font_spec["size"])
+                
+                # Choose font based on language
+                if key.endswith('_am'):
+                    font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
+                else:
+                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
                 
                 if key in ["issue_date_am", "issue_date_en"]:
                     rotated_img, pos = draw_rotated_text(draw, content, pos, font, color)
@@ -572,8 +593,8 @@ class IDCardService:
                     draw_text_with_alignment(draw, content, pos, font, color, align, max_width)
             
             # Handle address fields
-            font_am = ImageFont.truetype(self.config.FONT_PATH, 48)
-            font_en = ImageFont.truetype(self.config.FONT_PATH, 50)
+            font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 48)
+            font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 50)
             
             for key, pos in address_positions['front'].items():
                 content = data.get(key, '')
@@ -607,13 +628,13 @@ class IDCardService:
                     template.paste(barcode_img, (857, 930))
                     
                     # Draw FCN text
-                    font = ImageFont.truetype(self.config.FONT_PATH, 28)
+                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 28)
                     text_width = draw.textlength(data['fcn_formatted'], font=font)
                     center_x = 830 + (500 - text_width) // 2
                     draw.text((center_x, 888), data['fcn_formatted'], font=font, fill=(0, 0, 0))
             
-            # Save color output
-            color_filename = 'front_color.png'
+            # Save color output with person's name
+            color_filename = f"{name}_Front_Color.png"
             color_path = os.path.join(self.config.STATIC_FOLDER, color_filename)
             template.save(color_path)
             
@@ -630,11 +651,13 @@ class IDCardService:
                 except Exception as e:
                     print(f"B&W photo processing failed: {e}")
                     bw_large_photo = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['large'])
-                    bw_small_photo = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['small'])
                     bw_template.paste(bw_large_photo, (128, 225))
+                    
+                    bw_small_photo = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['small'])
                     bw_template.paste(bw_small_photo, (1493, 860))
             
-            bw_filename = 'front_grayscale.png'
+            # Save B&W version with person's name
+            bw_filename = f"{name}_Front_Grayscale.png"
             bw_path = os.path.join(self.config.STATIC_FOLDER, bw_filename)
             bw_template.save(bw_path)
             
@@ -658,7 +681,12 @@ class IDCardService:
                 color = tuple(field.get("color", (0, 0, 0)))
                 align = field.get("align", "left")
                 font_spec = field["font"]
-                font = ImageFont.truetype(self.config.FONT_PATH, font_spec["size"])
+                
+                # Choose font based on language
+                if key.endswith('_am'):
+                    font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
+                else:
+                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
                 
                 if key in ["issue_date_am", "issue_date_en"]:
                     rotated_img, pos = draw_rotated_text(draw_data, content, pos, font, color)
@@ -668,8 +696,8 @@ class IDCardService:
                     draw_text_with_alignment(draw_data, content, pos, font, color, align, max_width)
             
             # Handle address fields
-            font_am = ImageFont.truetype(self.config.FONT_PATH, 34)
-            font_en = ImageFont.truetype(self.config.FONT_PATH, 34)
+            font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 34)
+            font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 34)
             
             for key, pos in address_positions['reverse'].items():
                 content = data.get(key, '')
@@ -698,7 +726,7 @@ class IDCardService:
                     reverse_template.paste(barcode_img, (1578, 536))
                     
                     # Draw FCN text
-                    font = ImageFont.truetype(self.config.FONT_PATH, 16)
+                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 16)
                     text_width = draw_data.textlength(data['fcn_formatted'], font=font)
                     center_x = 700 + (120 - text_width) // 2
                     draw_data.text((center_x, 517), data['fcn_formatted'], font=font, fill=(0, 0, 0))
@@ -707,8 +735,8 @@ class IDCardService:
             flipped_data = data_layer.transpose(Image.FLIP_LEFT_RIGHT)
             reverse_template.alpha_composite(flipped_data)
             
-            # Save reverse output
-            reverse_filename = 'reverse_color.png'
+            # Save reverse output with person's name
+            reverse_filename = f"{name}_Reverse_Color.png"
             reverse_path = os.path.join(self.config.STATIC_FOLDER, reverse_filename)
             reverse_template.save(reverse_path)
             
@@ -731,7 +759,8 @@ class IDCardService:
                     bw_reverse_small = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['reverse_small'])
                     bw_template_reverse.paste(bw_reverse_small, (1398, 510))
             
-            bw_filename_reverse = 'reverse_grayscale.png'
+            # Save reverse B&W version with person's name
+            bw_filename_reverse = f"{name}_Reverse_Grayscale.png"
             bw_path_reverse = os.path.join(self.config.STATIC_FOLDER, bw_filename_reverse)
             bw_template_reverse.save(bw_path_reverse)
             

@@ -1067,18 +1067,40 @@
 
     // Validate FIN as user types
     finInput.addEventListener("input", () => {
+      // Clean the input value to keep only numbers
+      const cleanedValue = finInput.value.replace(/[^0-9]/g, '');
+      if (cleanedValue !== finInput.value) {
+        finInput.value = cleanedValue;
+      }
+      
       updateSubmitButton();
       
       // Visual feedback
-      if (finInput.value.length === 12 && /^\d+$/.test(finInput.value)) {
+      if (cleanedValue.length === 12) {
         finInput.classList.add("valid");
         finInput.classList.remove("invalid");
       } else {
         finInput.classList.remove("valid");
-        if (finInput.value.length > 0) {
+        if (cleanedValue.length > 0) {
           finInput.classList.add("invalid");
         }
       }
+    });
+
+    // Handle paste event for FIN input
+    finInput.addEventListener("paste", (e) => {
+      e.preventDefault();
+      // Get pasted text and clean it
+      const pastedText = (e.clipboardData || window.clipboardData).getData('text');
+      const cleanedText = pastedText.replace(/[^0-9]/g, '').slice(0, 12);
+      // Insert cleaned text at cursor position
+      const start = finInput.selectionStart;
+      const end = finInput.selectionEnd;
+      const currentValue = finInput.value;
+      const newValue = currentValue.slice(0, start) + cleanedText + currentValue.slice(end);
+      finInput.value = newValue.slice(0, 12);
+      // Trigger input event to update validation
+      finInput.dispatchEvent(new Event('input'));
     });
 
     // Update submit button when PDF format changes

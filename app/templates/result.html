@@ -327,11 +327,14 @@
     <header>
         <div class="container">
             <div class="logo">
-                <img src="https://upload.wikimedia.org/wikipedia/commons/7/71/Flag_of_Ethiopia.svg" alt="Ethiopia Flag">
-                <div class="logo-text">Ethiopian Digital ID</div>
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Fyda Logo">
+                <span class="logo-text">Fyda</span>
             </div>
-            <h1 class="header-title">Your Digital ID is Ready!</h1>
-            <p class="header-subtitle">Click to preview or download your ID cards</p>
+            <h1 class="header-title">Generated ID Cards</h1>
+            <p class="header-subtitle">Your ID cards have been generated successfully</p>
+            {% if data and data.name_en %}
+            <p class="header-subtitle">ID Cards for: {{ data.name_en }}</p>
+            {% endif %}
         </div>
     </header>
 
@@ -344,10 +347,12 @@
                 </div>
                 <div class="card-body">
                     {% if front_color %}
-                    <img src="{{ url_for('static', filename=front_color) }}" alt="ID Front Color" class="card-image"
-                        onclick="openModal('{{ url_for('static', filename=front_color) }}', 'Front Side - Color')">
-                    <a href="{{ url_for('static', filename=front_color) }}" download class="btn btn-primary">
-                        <i class="fas fa-download"></i> Download
+                    <img src="{{ url_for('static', filename=front_color) }}" alt="ID Front Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=front_color) }}" data-title="Front Side - Color">
+                    <a href="{{ url_for('static', filename=front_color) }}" 
+                       download="{{ data.name_en.replace(' ', '_') }}_Front_Color.png" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Front Color
                     </a>
                     {% else %}
                     <div class="empty-state">
@@ -358,38 +363,42 @@
                 </div>
             </div>
 
-            <!-- Front B&W Card -->
+            <!-- Front Grayscale Card -->
             <div class="card">
                 <div class="card-header">
-                    Front Side (Black & White)
+                    Front Side (Grayscale)
                 </div>
                 <div class="card-body">
                     {% if front_bw %}
-                    <img src="{{ url_for('static', filename=front_bw) }}" alt="ID Front B&W" class="card-image"
-                        onclick="openModal('{{ url_for('static', filename=front_bw) }}', 'Front Side - Black & White')">
-                    <a href="{{ url_for('static', filename=front_bw) }}" download class="btn btn-primary">
-                        <i class="fas fa-download"></i> Download
+                    <img src="{{ url_for('static', filename=front_bw) }}" alt="ID Front Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=front_bw) }}" data-title="Front Side - Grayscale">
+                    <a href="{{ url_for('static', filename=front_bw) }}" 
+                       download="{{ data.name_en.replace(' ', '_') }}_Front_Grayscale.png" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Front Grayscale
                     </a>
                     {% else %}
                     <div class="empty-state">
                         <i class="fas fa-image" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                        <p>B&W version not available</p>
+                        <p>Grayscale version not available</p>
                     </div>
                     {% endif %}
                 </div>
             </div>
 
-            <!-- Reverse Side Card -->
+            <!-- Reverse Color Card -->
             <div class="card">
                 <div class="card-header">
                     Reverse Side (Color)
                 </div>
                 <div class="card-body">
                     {% if reverse %}
-                    <img src="{{ url_for('static', filename=reverse) }}" alt="ID Reverse Side" class="card-image"
-                        onclick="openModal('{{ url_for('static', filename=reverse) }}', 'Reverse Side - Black & White')">
-                    <a href="{{ url_for('static', filename=reverse) }}" download class="btn btn-primary">
-                        <i class="fas fa-download"></i> Download
+                    <img src="{{ url_for('static', filename=reverse) }}" alt="ID Reverse Side" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=reverse) }}" data-title="Reverse Side - Color">
+                    <a href="{{ url_for('static', filename=reverse) }}" 
+                       download="{{ data.name_en.replace(' ', '_') }}_Reverse_Color.png" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Reverse Color
                     </a>
                     {% else %}
                     <div class="empty-state">
@@ -400,21 +409,24 @@
                 </div>
             </div>
 
+            <!-- Reverse Grayscale Card -->
             <div class="card">
                 <div class="card-header">
-                    Reverse Side (Black & White)
+                    Reverse Side (Grayscale)
                 </div>
                 <div class="card-body">
                     {% if reverse_bw %}
-                    <img src="{{ url_for('static', filename=reverse_bw) }}" alt="ID Reverse Side B&W" class="card-image"
-                        onclick="openModal('{{ url_for('static', filename=reverse_bw) }}', 'Reverse Side - Black & White')">
-                    <a href="{{ url_for('static', filename=reverse_bw) }}" download class="btn btn-secondary">
-                        <i class="fas fa-download"></i> Download
+                    <img src="{{ url_for('static', filename=reverse_bw) }}" alt="ID Reverse Side Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=reverse_bw) }}" data-title="Reverse Side - Grayscale">
+                    <a href="{{ url_for('static', filename=reverse_bw) }}" 
+                       download="{{ data.name_en.replace(' ', '_') }}_Reverse_Grayscale.png" 
+                       class="btn btn-secondary download-link">
+                        <i class="fas fa-download"></i> Download Reverse Grayscale
                     </a>
                     {% else %}
                     <div class="empty-state">
                         <i class="fas fa-image" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                        <p>Reverse B&W version not available</p>
+                        <p>Reverse grayscale version not available</p>
                     </div>
                     {% endif %}
                 </div>
@@ -489,93 +501,155 @@
             const previewContainer = document.getElementById('previewContainer');
             previewContent.innerHTML = '';
 
-            const images = [
-                {% if front_color %} { src: "{{ url_for('static', filename=front_color) }}", title: "Front Side (Color)" }, {% endif %}
-        {% if front_bw %} { src: "{{ url_for('static', filename=front_bw) }}", title: "Front Side (B&W)" }, {% endif %}
-        {% if reverse %} { src: "{{ url_for('static', filename=reverse) }}", title: "Reverse Side (Color)" }, {% endif %}
-        {% if reverse_bw %} { src: "{{ url_for('static', filename=reverse_bw) }}", title: "Reverse Side (B&W)" }, {% endif %}
-        ].filter(img => img.src && !img.src.includes('None'));
+            const images = [];
+            {% if front_color %}
+            images.push({
+                src: "{{ url_for('static', filename=front_color) }}",
+                title: "Front Side (Color)"
+            });
+            {% endif %}
+            {% if front_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=front_bw) }}",
+                title: "Front Side (Grayscale)"
+            });
+            {% endif %}
+            {% if reverse %}
+            images.push({
+                src: "{{ url_for('static', filename=reverse) }}",
+                title: "Reverse Side (Color)"
+            });
+            {% endif %}
+            {% if reverse_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=reverse_bw) }}",
+                title: "Reverse Side (Grayscale)"
+            });
+            {% endif %}
 
-        if (images.length === 0) {
-            alert('No ID cards available to preview');
-            return;
+            const filteredImages = images.filter(img => img.src && !img.src.includes('None'));
+
+            if (filteredImages.length === 0) {
+                alert('No ID cards available to preview');
+                return;
+            }
+
+            filteredImages.forEach(img => {
+                const section = document.createElement('div');
+                section.style.marginBottom = '30px';
+                section.style.textAlign = 'center';
+
+                const title = document.createElement('h3');
+                title.textContent = img.title;
+                section.appendChild(title);
+
+                const image = document.createElement('img');
+                image.src = img.src;
+                image.style.maxWidth = '90%';
+                image.style.border = '1px solid #ccc';
+                image.style.borderRadius = '8px';
+                image.style.marginTop = '10px';
+                section.appendChild(image);
+
+                previewContent.appendChild(section);
+            });
+
+            previewContainer.style.display = 'block';
+            document.body.style.overflow = 'hidden';
         }
-
-        images.forEach(img => {
-            const section = document.createElement('div');
-            section.style.marginBottom = '30px';
-            section.style.textAlign = 'center';
-
-            const title = document.createElement('h3');
-            title.textContent = img.title;
-            section.appendChild(title);
-
-            const image = document.createElement('img');
-            image.src = img.src;
-            image.style.maxWidth = '90%';
-            image.style.border = '1px solid #ccc';
-            image.style.borderRadius = '8px';
-            image.style.marginTop = '10px';
-            section.appendChild(image);
-
-            previewContent.appendChild(section);
-        });
-
-        previewContainer.style.display = 'block';
-        document.body.style.overflow = 'hidden';
-    }
 
         function closePreview() {
             document.getElementById('previewContainer').style.display = 'none';
             document.body.style.overflow = 'auto';
         }
 
-        // Download all function
-        function downloadAll() {
-            const downloadLinks = [
-                {% if front_color %} { url: "{{ url_for('static', filename=front_color) }}", name: "Front_Side_Color.png" }, {% endif %}
-        {% if front_bw %} { url: "{{ url_for('static', filename=front_bw) }}", name: "Front_Side_BW.png" }, {% endif %}
-        {% if reverse %} { url: "{{ url_for('static', filename=reverse) }}", name: "Reverse_Side_Color.png" }, {% endif %}
-        {% if reverse_bw %} { url: "{{ url_for('static', filename=reverse_bw) }}", name: "Reverse_Side_BW.png" } {% endif %}
-    ].filter(Boolean);
-
-        if (downloadLinks.length === 0) {
-            alert('No ID cards available to download');
-            return;
+        // Function to generate unique filename with timestamp
+        function getUniqueFilename(baseName) {
+            const timestamp = new Date().getTime();
+            const parts = baseName.split('.');
+            const ext = parts.pop();
+            return `${parts.join('.')}_${timestamp}.${ext}`;
         }
 
-        const downloadBtn = document.getElementById('downloadAllBtn');
-        const spinner = document.getElementById('downloadSpinner');
+        // Download all function
+        function downloadAll() {
+            const links = [];
+            
+            {% if front_color %}
+            links.push({
+                url: "{{ url_for('static', filename=front_color) }}",
+                name: "{{ data.name_en.replace(' ', '_') }}_Front_Color.png"
+            });
+            {% endif %}
+            
+            {% if front_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=front_bw) }}",
+                name: "{{ data.name_en.replace(' ', '_') }}_Front_Grayscale.png"
+            });
+            {% endif %}
+            
+            {% if reverse %}
+            links.push({
+                url: "{{ url_for('static', filename=reverse) }}",
+                name: "{{ data.name_en.replace(' ', '_') }}_Reverse_Color.png"
+            });
+            {% endif %}
+            
+            {% if reverse_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=reverse_bw) }}",
+                name: "{{ data.name_en.replace(' ', '_') }}_Reverse_Grayscale.png"
+            });
+            {% endif %}
 
-        // Show loading state
-        downloadBtn.disabled = true;
-        spinner.style.display = 'inline-block';
-        downloadBtn.querySelector('i').style.display = 'none';
+            const filteredLinks = links.filter(Boolean);
 
-        downloadLinks.forEach((link, index) => {
+            if (filteredLinks.length === 0) {
+                alert('No files to download');
+                return;
+            }
+
+            const downloadBtn = document.getElementById('downloadAllBtn');
+            const spinner = document.getElementById('downloadSpinner');
+            
+            downloadBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+            downloadBtn.querySelector('i').style.display = 'none';
+
+            filteredLinks.forEach((link, index) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = link.url;
+                    a.download = link.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }, index * 500);
+            });
+
             setTimeout(() => {
-                const a = document.createElement('a');
-                a.href = link.url;
-                a.download = link.name;
-                document.body.appendChild(a);
-                a.click();
-                document.body.removeChild(a);
-            }, index * 500); // Slight delay between each to prevent browser spam blocking
+                downloadBtn.disabled = false;
+                spinner.style.display = 'none';
+                downloadBtn.querySelector('i').style.display = 'inline-block';
+            }, filteredLinks.length * 500 + 1000);
+        }
+
+        // Add this after the modal initialization code
+        document.addEventListener('DOMContentLoaded', function() {
+            const previewImages = document.querySelectorAll('.preview-image');
+            previewImages.forEach(img => {
+                img.addEventListener('click', function() {
+                    const src = this.getAttribute('data-src');
+                    const title = this.getAttribute('data-title');
+                    openModal(src, title);
+                });
+            });
         });
-
-        // Reset button state after all downloads triggered
-        setTimeout(() => {
-            downloadBtn.disabled = false;
-            spinner.style.display = 'none';
-            downloadBtn.querySelector('i').style.display = 'inline-block';
-        }, downloadLinks.length * 500 + 1000);
-}
-
     </script>
 
     <!-- JSZip for creating zip files -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
-
 
     <div id="previewContainer"
         style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:white; overflow:auto; z-index:9999; padding:20px;">
@@ -585,7 +659,6 @@
         </button>
         <div id="previewContent" style="margin-top:60px;"></div>
     </div>
-
 </body>
 
 </html>
