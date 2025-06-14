@@ -12,7 +12,7 @@ class Config:
     STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
     UPLOAD_FOLDER = os.path.join(BASE_DIR.parent, 'uploads')
     AMHARIC_FONT_PATH = os.path.join(BASE_DIR.parent, 'fonts', 'AbyssinicaSIL-2.300', 'AbyssinicaSIL-Regular.ttf')
-    ENGLISH_FONT_PATH = os.path.join(BASE_DIR.parent, 'fonts', 'Inter', 'static', 'Inter_24pt-SemiBold.ttf')
+    ENGLISH_FONT_PATH = os.path.join(BASE_DIR.parent, 'fonts', 'Inter', 'static', 'Inter_24pt-Bold.ttf')
     TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'normal_template.png')
     REVERSE_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'reverse-template.png')
     TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'template.json')

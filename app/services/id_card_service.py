@@ -579,10 +579,17 @@ class IDCardService:
                 align = field.get("align", "left")
                 font_spec = field["font"]
                 
-                # Choose font based on language
+                # Choose font based on language and content type
                 if key.endswith('_am'):
-                    font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
+                    # For Amharic fields, use Amharic font for text but English font for numbers
+                    if any(c.isdigit() for c in content):
+                        # If content contains numbers, use English font
+                        font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
+                    else:
+                        # For pure Amharic text, use Amharic font
+                        font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
                 else:
+                    # For English fields, always use English font
                     font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
                 
                 if key in ["issue_date_am", "issue_date_en"]:
@@ -646,7 +653,7 @@ class IDCardService:
                     processed_photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black)
                     bw_large = processed_photo_large.convert('LA').convert('RGBA')
                     bw_small = processed_photo_small.convert('LA').convert('RGBA')
-                    bw_template.paste(bw_large, (128, 225), bw_large)
+                    bw_template.paste(bw_large, (128, 250), bw_large)
                     bw_template.paste(bw_small, (1493, 860), bw_small)
                 except Exception as e:
                     print(f"B&W photo processing failed: {e}")
@@ -682,10 +689,17 @@ class IDCardService:
                 align = field.get("align", "left")
                 font_spec = field["font"]
                 
-                # Choose font based on language
+                # Choose font based on language and content type
                 if key.endswith('_am'):
-                    font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
+                    # For Amharic fields, use Amharic font for text but English font for numbers
+                    if any(c.isdigit() for c in content):
+                        # If content contains numbers, use English font
+                        font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
+                    else:
+                        # For pure Amharic text, use Amharic font
+                        font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
                 else:
+                    # For English fields, always use English font
                     font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
                 
                 if key in ["issue_date_am", "issue_date_en"]:

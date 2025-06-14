@@ -38,7 +38,7 @@
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 24
+        "size": 22
       },
       "color": [0, 0, 0],
       "align": "left"
@@ -179,7 +179,7 @@
       "font": {
         "family": "am",
         "weight": 800,
-        "size": 28
+        "size": 26
       },
       "color": [0, 0, 0],
       "align": "left"
@@ -191,7 +191,7 @@
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 28
+        "size": 27
       },
       "color": [0, 0, 0],
       "align": "left"
