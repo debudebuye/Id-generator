@@ -8,6 +8,8 @@ import random
 import fitz # PyMuPDF
 from datetime import datetime, date # Needed for dob parsing in new logic
 from dateutil.relativedelta import relativedelta # Added for date calculations
+from concurrent.futures import ThreadPoolExecutor
+from io import BytesIO
 
 from ..config.settings import Config
 from ..utils.image_utils import process_photo, draw_text_with_alignment, draw_rotated_text
@@ -163,14 +165,15 @@ class IDCardService:
 
         if len(images) > photo_idx:
             photo_bytes = doc.extract_image(images[photo_idx][0])['image']
-            with open(os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png'), 'wb') as f:
-                f.write(photo_bytes)
+            photo_img = Image.open(BytesIO(photo_bytes)).convert("RGBA")
+            # Save to disk only if needed for downstream
+            photo_img.save(os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png'))
             extracted_data["photo"] = 'static/photo_temp.png' 
                 
         if len(images) > qr_idx:
             qr_bytes = doc.extract_image(images[qr_idx][0])['image']
-            with open(os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png'), 'wb') as f:
-                f.write(qr_bytes)
+            qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+            qr_img.save(os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png'))
             extracted_data["qr_path"] = 'static/qr_temp.png' 
 
         return extracted_data
@@ -324,14 +327,14 @@ class IDCardService:
 
         if len(images) > photo_idx:
             photo_bytes = doc.extract_image(images[photo_idx][0])['image']
-            with open(os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png'), 'wb') as f:
-                f.write(photo_bytes)
+            photo_img = Image.open(BytesIO(photo_bytes)).convert("RGBA")
+            photo_img.save(os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png'))
             processed_data["photo"] = 'static/photo_temp.png'
 
         if len(images) > qr_idx:
             qr_bytes = doc.extract_image(images[qr_idx][0])['image']
-            with open(os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png'), 'wb') as f:
-                f.write(qr_bytes)
+            qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+            qr_img.save(os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png'))
             processed_data["qr_path"] = 'static/qr_temp.png'
 
         return processed_data
@@ -501,14 +504,14 @@ class IDCardService:
 
         if len(images) > photo_idx:
             photo_bytes = doc.extract_image(images[photo_idx][0])['image']
-            with open(os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png'), 'wb') as f:
-                f.write(photo_bytes)
+            photo_img = Image.open(BytesIO(photo_bytes)).convert("RGBA")
+            photo_img.save(os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png'))
             processed_data["photo"] = 'static/photo_temp.png'
 
         if len(images) > qr_idx:
             qr_bytes = doc.extract_image(images[qr_idx][0])['image']
-            with open(os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png'), 'wb') as f:
-                f.write(qr_bytes)
+            qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+            qr_img.save(os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png'))
             processed_data["qr_path"] = 'static/qr_temp.png'
 
         return processed_data
@@ -551,244 +554,158 @@ class IDCardService:
             doc.close()
 
     def generate_id_card(self, data: Dict, city_option: str = 'default', remove_white: bool = False, remove_black: bool = False) -> Dict[str, str]:
-        """Generate ID card images."""
+        """Generate ID card images (optimized for speed)."""
         try:
-            # Get address positions for selected city type
             address_positions = self.config.ADDRESS_POSITIONS.get(city_option, self.config.ADDRESS_POSITIONS['default'])
-            
-            # Get the person's name for filenames
             name = data.get('name_en', '').replace(' ', '_')
-            
-            # === Generate Front Side ===
-            template = Image.open(self.config.TEMPLATE_IMG).convert("RGBA")
-            draw = ImageDraw.Draw(template)
-            
-            # Load template configuration
-            with open(self.config.TEMPLATE_JSON, encoding='utf-8') as f:
-                template_json = json.load(f)
-            
-            # Process non-address fields
-            for field in template_json['fields']:
-                key = field.get("key")
-                if key in address_positions['front']:
-                    continue
-                    
-                content = data.get(key, field.get("label", ""))
-                pos = tuple(field["position"])
-                color = tuple(field.get("color", (0, 0, 0)))
-                align = field.get("align", "left")
-                font_spec = field["font"]
-                
-                # Choose font based on language and content type
-                if key.endswith('_am'):
-                    # For Amharic fields, use Amharic font for text but English font for numbers
-                    if any(c.isdigit() for c in content):
-                        # If content contains numbers, use English font
-                        font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
-                    else:
-                        # For pure Amharic text, use Amharic font
-                        font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
-                else:
-                    # For English fields, always use English font
-                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
-                
-                if key in ["issue_date_am", "issue_date_en"]:
-                    rotated_img, pos = draw_rotated_text(draw, content, pos, font, color)
-                    template.paste(rotated_img, pos, rotated_img)
-                else:
-                    max_width = field.get("wrap_width")
-                    draw_text_with_alignment(draw, content, pos, font, color, align, max_width)
-            
-            # Handle address fields
-            font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 48)
-            font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 50)
-            
-            for key, pos in address_positions['front'].items():
-                content = data.get(key, '')
-                font = font_am if key.endswith('_am') else font_en
-                max_width = self.config.TEXT_MAX_WIDTH['front'].get(key, None)
-                draw_text_with_alignment(draw, content, tuple(pos), font, (0, 0, 0), "left", max_width)
-            
-            # Process photos
             photo_path = os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png')
-            if os.path.exists(photo_path):
-                # Large photo
-                large_photo = process_photo(photo_path, self.config.PHOTO_SIZES['large'], remove_white, remove_black)
-                template.paste(large_photo, (128, 250), large_photo)
-                
-                # Small photo
-                small_photo = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black)
-                template.paste(small_photo, (1493, 860), small_photo)
-            
-            # Process QR code
             qr_path = os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png')
-            if os.path.exists(qr_path):
-                qr_img = Image.open(qr_path).resize((934, 937))
-                template.paste(qr_img, (2875, 90))
-            
-            # Process barcode
             barcode_path = data.get('fcn_barcode')
-            if barcode_path:
-                barcode_full_path = os.path.join(self.config.STATIC_FOLDER, barcode_path)
-                if os.path.exists(barcode_full_path):
+            barcode_full_path = os.path.join(self.config.STATIC_FOLDER, barcode_path) if barcode_path else None
+
+            # Preload and process photo once per size
+            photo_large = process_photo(photo_path, self.config.PHOTO_SIZES['large'], remove_white, remove_black) if os.path.exists(photo_path) else None
+            photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black) if os.path.exists(photo_path) else None
+            photo_reverse_large = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_large'], remove_white, remove_black) if os.path.exists(photo_path) else None
+            photo_reverse_small = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_small'], remove_white, remove_black) if os.path.exists(photo_path) else None
+
+            def make_front(color: bool):
+                template = Image.open(self.config.TEMPLATE_IMG).convert("RGBA")
+                draw = ImageDraw.Draw(template)
+                with open(self.config.TEMPLATE_JSON, encoding='utf-8') as f:
+                    template_json = json.load(f)
+                for field in template_json['fields']:
+                    key = field.get("key")
+                    if key in address_positions['front']:
+                        continue
+                    content = data.get(key, field.get("label", ""))
+                    pos = tuple(field["position"])
+                    color_val = tuple(field.get("color", (0, 0, 0)))
+                    align = field.get("align", "left")
+                    font_spec = field["font"]
+                    if key.endswith('_am'):
+                        if any(c.isdigit() for c in content):
+                            font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
+                        else:
+                            font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
+                    else:
+                        font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
+                    if key in ["issue_date_am", "issue_date_en"]:
+                        rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val)
+                        template.paste(rotated_img, pos2, rotated_img)
+                    else:
+                        max_width = field.get("wrap_width")
+                        draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width)
+                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 48)
+                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 50)
+                for key, pos in address_positions['front'].items():
+                    content = data.get(key, '')
+                    font = font_am if key.endswith('_am') else font_en
+                    max_width = self.config.TEXT_MAX_WIDTH['front'].get(key, None)
+                    draw_text_with_alignment(draw, content, tuple(pos), font, (0, 0, 0), "left", max_width)
+                if photo_large:
+                    img = photo_large if color else photo_large.convert('LA').convert('RGBA')
+                    template.paste(img, (128, 250), img)
+                if photo_small:
+                    img = photo_small if color else photo_small.convert('LA').convert('RGBA')
+                    template.paste(img, (1493, 860), img)
+                if os.path.exists(qr_path):
+                    qr_img = Image.open(qr_path).resize((934, 937))
+                    template.paste(qr_img, (2875, 90))
+                if barcode_full_path and os.path.exists(barcode_full_path):
                     barcode_img = Image.open(barcode_full_path)
-                    # --- Crop white part ---
-                    # Convert to grayscale and get bounding box of non-white area
                     gray = barcode_img.convert('L')
                     bbox = gray.point(lambda x: 0 if x > 250 else 255, '1').getbbox()
                     if bbox:
                         barcode_img = barcode_img.crop(bbox)
-                    # Resize to fit the target area
                     barcode_img = barcode_img.resize((487, 87))
                     template.paste(barcode_img, (857, 930))
-                    
-                    # Draw FCN text
                     font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 42)
                     text_width = draw.textlength(data['fcn_formatted'], font=font)
                     center_x = 850 + (500 - text_width) // 2
                     draw.text((center_x, 878), data['fcn_formatted'], font=font, fill=(0, 0, 0))
-            
-            # Save color output with person's name
-            color_filename = f"{name}_Front_Color.png"
-            color_path = os.path.join(self.config.STATIC_FOLDER, color_filename)
-            template.save(color_path)
-            
-            # Generate B&W version
-            bw_template = template.copy()
-            if os.path.exists(photo_path):
-                try:
-                    processed_photo_large = process_photo(photo_path, self.config.PHOTO_SIZES['large'], remove_white, remove_black)
-                    processed_photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black)
-                    bw_large = processed_photo_large.convert('LA').convert('RGBA')
-                    bw_small = processed_photo_small.convert('LA').convert('RGBA')
-                    bw_template.paste(bw_large, (128, 250), bw_large)
-                    bw_template.paste(bw_small, (1493, 860), bw_small)
-                except Exception as e:
-                    print(f"B&W photo processing failed: {e}")
-                    bw_large_photo = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['large'])
-                    bw_template.paste(bw_large_photo, (128, 225))
-                    
-                    bw_small_photo = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['small'])
-                    bw_template.paste(bw_small_photo, (1493, 860))
-            
-            bw_filename = f"{name}_Front_Grayscale.png"
-            bw_path = os.path.join(self.config.STATIC_FOLDER, bw_filename)
-            bw_template.save(bw_path)
-            
-            # === Generate Reverse Side ===
-            reverse_template = Image.open(self.config.REVERSE_TEMPLATE_IMG).convert("RGBA")
-            data_layer = Image.new("RGBA", reverse_template.size, (255, 255, 255, 0))
-            draw_data = ImageDraw.Draw(data_layer)
-            
-            # Load reverse template configuration
-            with open(self.config.REVERSE_TEMPLATE_JSON, encoding='utf-8') as f:
-                reverse_json = json.load(f)
-            
-            # Process non-address fields
-            for field in reverse_json['fields']:
-                key = field.get("key")
-                if key in address_positions['reverse']:
-                    continue
-                    
-                content = data.get(key, field.get("label", ""))
-                pos = tuple(field["position"])
-                color = tuple(field.get("color", (0, 0, 0)))
-                align = field.get("align", "left")
-                font_spec = field["font"]
-                
-                # Choose font based on language and content type
-                if key.endswith('_am'):
-                    # For Amharic fields, use Amharic font for text but English font for numbers
-                    if any(c.isdigit() for c in content):
-                        # If content contains numbers, use English font
-                        font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
+                return template
+
+            def make_reverse(color: bool):
+                reverse_template = Image.open(self.config.REVERSE_TEMPLATE_IMG).convert("RGBA")
+                data_layer = Image.new("RGBA", reverse_template.size, (255, 255, 255, 0))
+                draw_data = ImageDraw.Draw(data_layer)
+                with open(self.config.REVERSE_TEMPLATE_JSON, encoding='utf-8') as f:
+                    reverse_json = json.load(f)
+                for field in reverse_json['fields']:
+                    key = field.get("key")
+                    if key in address_positions['reverse']:
+                        continue
+                    content = data.get(key, field.get("label", ""))
+                    pos = tuple(field["position"])
+                    color_val = tuple(field.get("color", (0, 0, 0)))
+                    align = field.get("align", "left")
+                    font_spec = field["font"]
+                    if key.endswith('_am'):
+                        if any(c.isdigit() for c in content):
+                            font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
+                        else:
+                            font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
                     else:
-                        # For pure Amharic text, use Amharic font
-                        font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
-                else:
-                    # For English fields, always use English font
-                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
-                
-                if key in ["issue_date_am", "issue_date_en"]:
-                    rotated_img, pos = draw_rotated_text(draw_data, content, pos, font, color)
-                    data_layer.paste(rotated_img, pos, rotated_img)
-                else:
-                    max_width = field.get("wrap_width")
-                    draw_text_with_alignment(draw_data, content, pos, font, color, align, max_width)
-            
-            # Handle address fields
-            font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 34)
-            font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 34)
-            
-            for key, pos in address_positions['reverse'].items():
-                content = data.get(key, '')
-                font = font_am if key.endswith('_am') else font_en
-                max_width = self.config.TEXT_MAX_WIDTH['reverse'].get(key, None)
-                draw_text_with_alignment(draw_data, content, tuple(pos), font, (0, 0, 0), "left", max_width)
-            
-            # Process photos
-            if os.path.exists(photo_path):
-                reverse_photo_lg = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_large'], remove_white, remove_black)
-                reverse_template.paste(reverse_photo_lg, (1978, 170), reverse_photo_lg)
-                
-                reverse_photo_sm = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_small'], remove_white, remove_black)
-                reverse_template.paste(reverse_photo_sm, (1398, 510), reverse_photo_sm)
-            
-            # Process QR code
-            if os.path.exists(qr_path):
-                qr_img = Image.open(qr_path).resize((530, 530))
-                reverse_template.paste(qr_img, (180, 70))
-            
-            # Process barcode
-            if barcode_path:
-                barcode_full_path = os.path.join(self.config.STATIC_FOLDER, barcode_path)
-                if os.path.exists(barcode_full_path):
+                        font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
+                    if key in ["issue_date_am", "issue_date_en"]:
+                        rotated_img, pos2 = draw_rotated_text(draw_data, content, pos, font, color_val)
+                        data_layer.paste(rotated_img, pos2, rotated_img)
+                    else:
+                        max_width = field.get("wrap_width")
+                        draw_text_with_alignment(draw_data, content, pos, font, color_val, align, max_width)
+                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 34)
+                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 34)
+                for key, pos in address_positions['reverse'].items():
+                    content = data.get(key, '')
+                    font = font_am if key.endswith('_am') else font_en
+                    max_width = self.config.TEXT_MAX_WIDTH['reverse'].get(key, None)
+                    draw_text_with_alignment(draw_data, content, tuple(pos), font, (0, 0, 0), "left", max_width)
+                if photo_reverse_large:
+                    img = photo_reverse_large if color else photo_reverse_large.convert('LA').convert('RGBA')
+                    reverse_template.paste(img, (1978, 170), img)
+                if photo_reverse_small:
+                    img = photo_reverse_small if color else photo_reverse_small.convert('LA').convert('RGBA')
+                    reverse_template.paste(img, (1398, 510), img)
+                if os.path.exists(qr_path):
+                    qr_img = Image.open(qr_path).resize((530, 530))
+                    reverse_template.paste(qr_img, (180, 70))
+                if barcode_full_path and os.path.exists(barcode_full_path):
                     barcode_img = Image.open(barcode_full_path)
-                    # --- Crop white part ---
                     gray = barcode_img.convert('L')
                     bbox = gray.point(lambda x: 0 if x > 250 else 255, '1').getbbox()
                     if bbox:
                         barcode_img = barcode_img.crop(bbox)
                     barcode_img = barcode_img.resize((287, 62))
                     reverse_template.paste(barcode_img, (1578, 536))
-                    # Draw FCN text
                     font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 22)
                     text_width = draw_data.textlength(data['fcn_formatted'], font=font)
                     center_x = 700 + (120 - text_width) // 2
                     draw_data.text((center_x, 512), data['fcn_formatted'], font=font, fill=(0, 0, 0))
-            
-            # Mirror the data layer
-            flipped_data = data_layer.transpose(Image.FLIP_LEFT_RIGHT)
-            reverse_template.alpha_composite(flipped_data)
-            
-            # Save reverse output with person's name
+                flipped_data = data_layer.transpose(Image.FLIP_LEFT_RIGHT)
+                reverse_template.alpha_composite(flipped_data)
+                return reverse_template
+
+            # Parallel image generation
+            with ThreadPoolExecutor() as executor:
+                futures = {
+                    'front_color': executor.submit(make_front, True),
+                    'front_bw': executor.submit(make_front, False),
+                    'reverse': executor.submit(make_reverse, True),
+                    'reverse_bw': executor.submit(make_reverse, False)
+                }
+                results = {k: f.result() for k, f in futures.items()}
+
+            # Save images
+            color_filename = f"{name}_Front_Color.png"
+            bw_filename = f"{name}_Front_Grayscale.png"
             reverse_filename = f"{name}_Reverse_Color.png"
-            reverse_path = os.path.join(self.config.STATIC_FOLDER, reverse_filename)
-            reverse_template.save(reverse_path)
-            
-            # Generate reverse B&W version
-            bw_template_reverse = reverse_template.copy()
-            if os.path.exists(photo_path):
-                try:
-                    processed_photo = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_large'], remove_white, remove_black)
-                    bw_reverse_large = processed_photo.convert('LA').convert('RGBA')
-                    bw_template_reverse.paste(bw_reverse_large, (1978, 170), bw_reverse_large)
-                    
-                    processed_photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_small'], remove_white, remove_black)
-                    bw_reverse_small = processed_photo_small.convert('LA').convert('RGBA')
-                    bw_template_reverse.paste(bw_reverse_small, (1398, 510), bw_reverse_small)
-                except Exception as e:
-                    print(f"Reverse B&W photo processing failed: {e}")
-                    bw_reverse_large = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['reverse_large'])
-                    bw_template_reverse.paste(bw_reverse_large, (1978, 170))
-                    
-                    bw_reverse_small = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['reverse_small'])
-                    bw_template_reverse.paste(bw_reverse_small, (1398, 510))
-            
             bw_filename_reverse = f"{name}_Reverse_Grayscale.png"
-            bw_path_reverse = os.path.join(self.config.STATIC_FOLDER, bw_filename_reverse)
-            bw_template_reverse.save(bw_path_reverse)
-            
+            results['front_color'].save(os.path.join(self.config.STATIC_FOLDER, color_filename))
+            results['front_bw'].save(os.path.join(self.config.STATIC_FOLDER, bw_filename))
+            results['reverse'].save(os.path.join(self.config.STATIC_FOLDER, reverse_filename))
+            results['reverse_bw'].save(os.path.join(self.config.STATIC_FOLDER, bw_filename_reverse))
+
             return {
                 'front_color': color_filename,
                 'front_bw': bw_filename,
@@ -796,7 +713,6 @@ class IDCardService:
                 'reverse_bw': bw_filename_reverse,
                 'city_option': city_option
             }
-            
         except Exception as e:
             print(f"Error generating ID card: {str(e)}")
             raise 

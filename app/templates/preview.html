@@ -685,6 +685,15 @@
 
 <body>
 
+  <!-- Page transition/loading spinner -->
+  <div id="pageLoadSpinner" style="position:fixed;top:0;left:0;width:100vw;height:4px;z-index:9999;background:linear-gradient(90deg,#34a853 0%,#1a73e8 100%);box-shadow:0 2px 8px rgba(26,115,232,0.12);animation:loadBar 1.2s cubic-bezier(.4,0,.2,1) infinite alternate;"></div>
+  <style>
+    @keyframes loadBar {
+      0% { width: 0vw; }
+      100% { width: 100vw; }
+    }
+  </style>
+
   <header>
     <div class="container header-content">
       <a href="#" class="logo">
@@ -1131,6 +1140,45 @@
         showToast('Failed to save changes', 'error');
       }
     }
+
+    document.getElementById('generateForm').addEventListener('submit', function() {
+      sessionStorage.setItem('idGenStart', Date.now());
+    });
+
+    // Show PDF extraction time if available
+    document.addEventListener('DOMContentLoaded', function() {
+      const start = sessionStorage.getItem('pdfExtractStart');
+      if (start) {
+        const elapsed = (Date.now() - parseInt(start, 10)) / 1000;
+        let timerDiv = document.createElement('div');
+        timerDiv.style = `
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          margin: 2rem auto 1.5rem auto;
+          padding: 0.7rem 1.5rem;
+          background: linear-gradient(90deg, #34a853 0%, #1a73e8 100%);
+          color: #fff;
+          font-size: 1.1rem;
+          font-weight: 700;
+          border-radius: 14px;
+          box-shadow: 0 4px 24px rgba(26, 115, 232, 0.12);
+          letter-spacing: 0.5px;
+          text-shadow: 0 2px 8px rgba(0,0,0,0.08);
+          max-width: 320px;
+        `;
+        timerDiv.innerHTML = `<i class='fas fa-stopwatch' style='margin-right: 10px; font-size:1.2rem;'></i> <span style='font-weight:600;'>PDF extraction time:</span> <span style='margin-left:8px; font-weight:800;'>${elapsed.toFixed(1)}s</span>`;
+        const container = document.querySelector('.container');
+        if (container) container.insertBefore(timerDiv, container.firstChild);
+        sessionStorage.removeItem('pdfExtractStart');
+      }
+    });
+
+    // Remove page load spinner when page is fully loaded
+    window.addEventListener('DOMContentLoaded', function() {
+      const spinner = document.getElementById('pageLoadSpinner');
+      if (spinner) spinner.remove();
+    });
   </script>
 </body>
 </html>

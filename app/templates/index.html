@@ -937,7 +937,7 @@
     // Form submission
     form.addEventListener("submit", function(e) {
       e.preventDefault();
-      
+      sessionStorage.setItem('pdfExtractStart', Date.now());
       if (!validateForm()) {
         return;
       }
