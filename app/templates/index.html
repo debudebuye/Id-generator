@@ -859,6 +859,7 @@
             </button>
           </div>
         </form>
+        <div id="resetSessionContainer" style="text-align:center; margin-top:2rem;"></div>
       </div>
     </div>
   </main>
@@ -981,8 +982,8 @@
       }
       
       // Validate file size (10MB max)
-      if (fileInput.files[0].size > 10 * 1024 * 1024) {
-        showStatus("File size exceeds 10MB limit. Please choose a smaller file.", "error");
+      if (fileInput.files[0].size > 30 * 1024 * 1024) {
+        showStatus("File size exceeds 30 MB limit. Please choose a smaller file.", "error");
         return false;
       }
       
@@ -1121,6 +1122,22 @@
     document.querySelectorAll('.upload-card, .form-group, .pdf-format-options, .drop-zone').forEach(el => {
       observer.observe(el);
     });
+
+    // Add Reset Session button if session is not empty
+    fetch('/check_session')
+      .then(res => res.json())
+      .then(data => {
+        if (data.has_session) {
+          const container = document.getElementById('resetSessionContainer');
+          const btn = document.createElement('button');
+          btn.className = 'btn btn-outline';
+          btn.textContent = 'Reset Session';
+          btn.onclick = function() {
+            fetch('/reset_session', {method: 'POST'}).then(() => window.location.reload());
+          };
+          container.appendChild(btn);
+        }
+      });
   </script>
 </body>
 </html>

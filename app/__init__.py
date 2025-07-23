@@ -14,6 +14,10 @@ app.config.from_object(Config)
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs(app.config['STATIC_FOLDER'], exist_ok=True)
 
+# Initialize Swagger
+from flasgger import Swagger
+Swagger(app)
+
 # Import routes after app initialization
 from .routes import bp
 app.register_blueprint(bp)

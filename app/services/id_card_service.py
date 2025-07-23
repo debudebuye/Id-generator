@@ -631,14 +631,22 @@ class IDCardService:
             if barcode_path:
                 barcode_full_path = os.path.join(self.config.STATIC_FOLDER, barcode_path)
                 if os.path.exists(barcode_full_path):
-                    barcode_img = Image.open(barcode_full_path).resize((487, 87))
+                    barcode_img = Image.open(barcode_full_path)
+                    # --- Crop white part ---
+                    # Convert to grayscale and get bounding box of non-white area
+                    gray = barcode_img.convert('L')
+                    bbox = gray.point(lambda x: 0 if x > 250 else 255, '1').getbbox()
+                    if bbox:
+                        barcode_img = barcode_img.crop(bbox)
+                    # Resize to fit the target area
+                    barcode_img = barcode_img.resize((487, 87))
                     template.paste(barcode_img, (857, 930))
                     
                     # Draw FCN text
-                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 28)
+                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 42)
                     text_width = draw.textlength(data['fcn_formatted'], font=font)
-                    center_x = 830 + (500 - text_width) // 2
-                    draw.text((center_x, 888), data['fcn_formatted'], font=font, fill=(0, 0, 0))
+                    center_x = 850 + (500 - text_width) // 2
+                    draw.text((center_x, 878), data['fcn_formatted'], font=font, fill=(0, 0, 0))
             
             # Save color output with person's name
             color_filename = f"{name}_Front_Color.png"
@@ -663,7 +671,6 @@ class IDCardService:
                     bw_small_photo = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['small'])
                     bw_template.paste(bw_small_photo, (1493, 860))
             
-            # Save B&W version with person's name
             bw_filename = f"{name}_Front_Grayscale.png"
             bw_path = os.path.join(self.config.STATIC_FOLDER, bw_filename)
             bw_template.save(bw_path)
@@ -736,14 +743,19 @@ class IDCardService:
             if barcode_path:
                 barcode_full_path = os.path.join(self.config.STATIC_FOLDER, barcode_path)
                 if os.path.exists(barcode_full_path):
-                    barcode_img = Image.open(barcode_full_path).resize((287, 62))
+                    barcode_img = Image.open(barcode_full_path)
+                    # --- Crop white part ---
+                    gray = barcode_img.convert('L')
+                    bbox = gray.point(lambda x: 0 if x > 250 else 255, '1').getbbox()
+                    if bbox:
+                        barcode_img = barcode_img.crop(bbox)
+                    barcode_img = barcode_img.resize((287, 62))
                     reverse_template.paste(barcode_img, (1578, 536))
-                    
                     # Draw FCN text
-                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 16)
+                    font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 22)
                     text_width = draw_data.textlength(data['fcn_formatted'], font=font)
                     center_x = 700 + (120 - text_width) // 2
-                    draw_data.text((center_x, 517), data['fcn_formatted'], font=font, fill=(0, 0, 0))
+                    draw_data.text((center_x, 512), data['fcn_formatted'], font=font, fill=(0, 0, 0))
             
             # Mirror the data layer
             flipped_data = data_layer.transpose(Image.FLIP_LEFT_RIGHT)
@@ -773,7 +785,6 @@ class IDCardService:
                     bw_reverse_small = Image.open(photo_path).convert('L').resize(self.config.PHOTO_SIZES['reverse_small'])
                     bw_template_reverse.paste(bw_reverse_small, (1398, 510))
             
-            # Save reverse B&W version with person's name
             bw_filename_reverse = f"{name}_Reverse_Grayscale.png"
             bw_path_reverse = os.path.join(self.config.STATIC_FOLDER, bw_filename_reverse)
             bw_template_reverse.save(bw_path_reverse)

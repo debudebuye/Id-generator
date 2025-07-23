@@ -346,20 +346,13 @@
                     Front Side (Color)
                 </div>
                 <div class="card-body">
-                    {% if front_color %}
                     <img src="{{ url_for('static', filename=front_color) }}" alt="ID Front Color" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=front_color) }}" data-title="Front Side - Color">
                     <a href="{{ url_for('static', filename=front_color) }}" 
-                       download="{{ data.name_en.replace(' ', '_') }}_Front_Color.png" 
+                       download="{{ front_color }}" 
                        class="btn btn-primary download-link">
                         <i class="fas fa-download"></i> Download Front Color
                     </a>
-                    {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-image" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                        <p>Color version not available</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -369,20 +362,13 @@
                     Front Side (Grayscale)
                 </div>
                 <div class="card-body">
-                    {% if front_bw %}
                     <img src="{{ url_for('static', filename=front_bw) }}" alt="ID Front Grayscale" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=front_bw) }}" data-title="Front Side - Grayscale">
                     <a href="{{ url_for('static', filename=front_bw) }}" 
-                       download="{{ data.name_en.replace(' ', '_') }}_Front_Grayscale.png" 
+                       download="{{ front_bw }}" 
                        class="btn btn-primary download-link">
                         <i class="fas fa-download"></i> Download Front Grayscale
                     </a>
-                    {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-image" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                        <p>Grayscale version not available</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -392,20 +378,13 @@
                     Reverse Side (Color)
                 </div>
                 <div class="card-body">
-                    {% if reverse %}
                     <img src="{{ url_for('static', filename=reverse) }}" alt="ID Reverse Side" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=reverse) }}" data-title="Reverse Side - Color">
                     <a href="{{ url_for('static', filename=reverse) }}" 
-                       download="{{ data.name_en.replace(' ', '_') }}_Reverse_Color.png" 
+                       download="{{ reverse }}" 
                        class="btn btn-primary download-link">
                         <i class="fas fa-download"></i> Download Reverse Color
                     </a>
-                    {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-image" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                        <p>Reverse side not available</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
 
@@ -415,20 +394,13 @@
                     Reverse Side (Grayscale)
                 </div>
                 <div class="card-body">
-                    {% if reverse_bw %}
                     <img src="{{ url_for('static', filename=reverse_bw) }}" alt="ID Reverse Side Grayscale" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=reverse_bw) }}" data-title="Reverse Side - Grayscale">
                     <a href="{{ url_for('static', filename=reverse_bw) }}" 
-                       download="{{ data.name_en.replace(' ', '_') }}_Reverse_Grayscale.png" 
+                       download="{{ reverse_bw }}" 
                        class="btn btn-secondary download-link">
                         <i class="fas fa-download"></i> Download Reverse Grayscale
                     </a>
-                    {% else %}
-                    <div class="empty-state">
-                        <i class="fas fa-image" style="font-size: 2rem; margin-bottom: 1rem;"></i>
-                        <p>Reverse grayscale version not available</p>
-                    </div>
-                    {% endif %}
                 </div>
             </div>
         </div>
@@ -441,7 +413,7 @@
                 <span class="spinner" id="downloadSpinner" style="display: none;"></span>
                 <i class="fas fa-download"></i> Download All
             </button>
-            <a href="{{ url_for('main.index') }}" class="btn btn-outline">
+            <a href="{{ url_for('main.index') }}" class="btn btn-outline" id="generateNewIdBtn">
                 <i class="fas fa-id-card"></i> Generate Another ID
             </a>
             <button class="btn btn-primary" onclick="previewAll()">
@@ -502,30 +474,22 @@
             previewContent.innerHTML = '';
 
             const images = [];
-            {% if front_color %}
             images.push({
                 src: "{{ url_for('static', filename=front_color) }}",
                 title: "Front Side (Color)"
             });
-            {% endif %}
-            {% if front_bw %}
             images.push({
                 src: "{{ url_for('static', filename=front_bw) }}",
                 title: "Front Side (Grayscale)"
             });
-            {% endif %}
-            {% if reverse %}
             images.push({
                 src: "{{ url_for('static', filename=reverse) }}",
                 title: "Reverse Side (Color)"
             });
-            {% endif %}
-            {% if reverse_bw %}
             images.push({
                 src: "{{ url_for('static', filename=reverse_bw) }}",
                 title: "Reverse Side (Grayscale)"
             });
-            {% endif %}
 
             const filteredImages = images.filter(img => img.src && !img.src.includes('None'));
 
@@ -574,34 +538,22 @@
         // Download all function
         function downloadAll() {
             const links = [];
-            
-            {% if front_color %}
             links.push({
                 url: "{{ url_for('static', filename=front_color) }}",
-                name: "{{ data.name_en.replace(' ', '_') }}_Front_Color.png"
+                name: "{{ front_color }}"
             });
-            {% endif %}
-            
-            {% if front_bw %}
             links.push({
                 url: "{{ url_for('static', filename=front_bw) }}",
-                name: "{{ data.name_en.replace(' ', '_') }}_Front_Grayscale.png"
+                name: "{{ front_bw }}"
             });
-            {% endif %}
-            
-            {% if reverse %}
             links.push({
                 url: "{{ url_for('static', filename=reverse) }}",
-                name: "{{ data.name_en.replace(' ', '_') }}_Reverse_Color.png"
+                name: "{{ reverse }}"
             });
-            {% endif %}
-            
-            {% if reverse_bw %}
             links.push({
                 url: "{{ url_for('static', filename=reverse_bw) }}",
-                name: "{{ data.name_en.replace(' ', '_') }}_Reverse_Grayscale.png"
+                name: "{{ reverse_bw }}"
             });
-            {% endif %}
 
             const filteredLinks = links.filter(Boolean);
 
@@ -645,6 +597,19 @@
                     openModal(src, title);
                 });
             });
+        });
+
+        // Intercept Generate Another ID button to reset session before redirect
+        document.addEventListener('DOMContentLoaded', function() {
+            const btn = document.getElementById('generateNewIdBtn');
+            if (btn) {
+                btn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    fetch('/reset_session', {method: 'POST'}).then(() => {
+                        window.location.href = btn.getAttribute('href');
+                    });
+                });
+            }
         });
     </script>
 

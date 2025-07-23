@@ -55,8 +55,8 @@ class Config:
     
     # Barcode settings
     BARCODE_OPTIONS = {
-        'module_width': 0.2,
-        'module_height': 10,
+        'module_width': 1,  # Increased from 0.2 for wider bars
+        'module_height': 40,  # Increased from 10 for taller barcode
         'font_size': 10,
         'quiet_zone': 5,
         'text_distance': 2,

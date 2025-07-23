@@ -1,4 +1,4 @@
-from flask import Blueprint, request, render_template, redirect, url_for, session, jsonify
+from flask import Blueprint, request, render_template, redirect, url_for, session, jsonify, current_app
 from werkzeug.utils import secure_filename
 import os
 from typing import Dict, Optional
@@ -209,3 +209,41 @@ def update_nationality():
         return jsonify({'success': True})
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}) 
+
+@bp.route('/api/latest_images')
+def latest_images():
+    import os
+    from flask import current_app, jsonify
+    static_folder = current_app.static_folder
+    patterns = ['Front_Color', 'Front_Grayscale', 'Reverse_Color', 'Reverse_Grayscale']
+    files = []
+    for fname in os.listdir(static_folder):
+        if fname.endswith('.png') and any(p in fname for p in patterns):
+            files.append(fname)
+    # Sort by modification time, newest first
+    files = sorted(files, key=lambda x: os.path.getmtime(os.path.join(static_folder, x)), reverse=True)
+    return jsonify(files[:4]) 
+
+@bp.route('/reset_session', methods=['POST'])
+def reset_session():
+    """Reset the session and delete generated ID images for the previous person."""
+    # Delete generated images for the previous person
+    extracted = session.get('extracted', {})
+    name_en = extracted.get('name_en', '').replace(' ', '_') if extracted else ''
+    if name_en:
+        static_folder = current_app.static_folder
+        patterns = [
+            f"{name_en}_Front_Color.png",
+            f"{name_en}_Front_Grayscale.png",
+            f"{name_en}_Reverse_Color.png",
+            f"{name_en}_Reverse_Grayscale.png"
+        ]
+        for fname in patterns:
+            fpath = os.path.join(static_folder, fname)
+            if os.path.exists(fpath):
+                try:
+                    os.remove(fpath)
+                except Exception as e:
+                    print(f"Failed to delete {fpath}: {e}")
+    session.clear()
+    return ('', 204) 
