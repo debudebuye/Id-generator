@@ -18,16 +18,48 @@ def allowed_file(filename: str) -> bool:
 
 @bp.route('/')
 def index():
-    """Render the index page."""
+    """
+    ---
+    get:
+      summary: Render the index page
+      responses:
+        200:
+          description: Index page
+    """
     return render_template('index.html')
 
 @bp.route('/health')
 def health_check():
+    """
+    ---
+    get:
+      summary: Health check endpoint
+      responses:
+        200:
+          description: Healthy status
+    """
     return jsonify({"status": "healthy"})
 
 @bp.route('/upload_photo', methods=['POST'])
 def upload_photo():
-    """Handle photo upload."""
+    """
+    ---
+    post:
+      summary: Upload a photo for the ID
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: photo
+          type: file
+          required: true
+          description: Photo to upload
+      responses:
+        200:
+          description: Photo uploaded successfully
+        400:
+          description: Invalid file or no photo uploaded
+    """
     if 'photo' not in request.files:
         return jsonify({'error': 'No photo uploaded'}), 400
     
@@ -45,7 +77,35 @@ def upload_photo():
 
 @bp.route('/generate_id', methods=['POST'])
 def generate_id():
-    """Handle ID generation request."""
+    """
+    ---
+    post:
+      summary: Generate ID from PDF
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: pdf
+          type: file
+          required: true
+          description: PDF document to extract data from
+        - in: formData
+          name: fin
+          type: string
+          required: true
+          description: 12-digit FIN number
+        - in: formData
+          name: pdf_format
+          type: string
+          required: false
+          enum: [default, residential_addis, residential_sheger]
+          description: PDF format type
+      responses:
+        302:
+          description: Redirects to preview page
+        400:
+          description: Invalid input
+    """
     if 'pdf' not in request.files:
         return redirect(request.url)
 
@@ -80,7 +140,14 @@ def generate_id():
 
 @bp.route('/preview')
 def preview():
-    """Show preview of extracted data."""
+    """
+    ---
+    get:
+      summary: Show preview of extracted data
+      responses:
+        200:
+          description: Preview page
+    """
     data = session.get('extracted', {})
     photo_path = 'static/photo_temp.png' if os.path.exists(os.path.join(config.STATIC_FOLDER, 'photo_temp.png')) else None
     qr_path = 'static/qr_temp.png' if os.path.exists(os.path.join(config.STATIC_FOLDER, 'qr_temp.png')) else None
@@ -88,7 +155,31 @@ def preview():
 
 @bp.route('/confirm_generate', methods=['POST'])
 def confirm_generate():
-    """Handle ID card generation confirmation."""
+    """
+    ---
+    post:
+      summary: Confirm and generate ID card images
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - in: formData
+          name: remove_white_bg
+          type: boolean
+          required: false
+        - in: formData
+          name: remove_black_bg
+          type: boolean
+          required: false
+        - in: formData
+          name: city_type
+          type: string
+          required: false
+      responses:
+        302:
+          description: Redirects to result page
+        400:
+          description: Invalid input
+    """
     try:
         extracted = session.get('extracted', {})
         if not extracted:
@@ -131,7 +222,14 @@ def confirm_generate():
 
 @bp.route('/result')
 def result():
-    """Show generated ID card results."""
+    """
+    ---
+    get:
+      summary: Show generated ID card results
+      responses:
+        200:
+          description: Result page with generated ID cards
+    """
     files = session.get('generated_files', {})
     data = session.get('extracted', {})  # Get the extracted data from session
     
@@ -172,7 +270,43 @@ def result():
 
 @bp.route('/update_address', methods=['POST'])
 def update_address():
-    """Update address information."""
+    """
+    ---
+    post:
+      summary: Update address information
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - in: formData
+          name: region_am
+          type: string
+          required: false
+        - in: formData
+          name: region_en
+          type: string
+          required: false
+        - in: formData
+          name: subcity_am
+          type: string
+          required: false
+        - in: formData
+          name: subcity_en
+          type: string
+          required: false
+        - in: formData
+          name: woreda_am
+          type: string
+          required: false
+        - in: formData
+          name: woreda_en
+          type: string
+          required: false
+      responses:
+        200:
+          description: Address updated
+        400:
+          description: Error updating address
+    """
     try:
         # Get the current data from session
         extracted = session.get('extracted', {})
@@ -198,6 +332,27 @@ def update_address():
 
 @bp.route('/update_nationality', methods=['POST'])
 def update_nationality():
+    """
+    ---
+    post:
+      summary: Update nationality information
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - in: formData
+          name: nationality_am
+          type: string
+          required: false
+        - in: formData
+          name: nationality_en
+          type: string
+          required: false
+      responses:
+        200:
+          description: Nationality updated
+        400:
+          description: Error updating nationality
+    """
     try:
         nationality_am = request.form.get('nationality_am')
         nationality_en = request.form.get('nationality_en')
@@ -212,6 +367,14 @@ def update_nationality():
 
 @bp.route('/api/latest_images')
 def latest_images():
+    """
+    ---
+    get:
+      summary: Get latest generated ID images
+      responses:
+        200:
+          description: List of latest image filenames
+    """
     import os
     from flask import current_app, jsonify
     static_folder = current_app.static_folder
@@ -226,7 +389,14 @@ def latest_images():
 
 @bp.route('/reset_session', methods=['POST'])
 def reset_session():
-    """Reset the session and delete generated ID images for the previous person."""
+    """
+    ---
+    post:
+      summary: Reset the session and delete generated ID images for the previous person
+      responses:
+        204:
+          description: Session reset successfully
+    """
     # Delete generated images for the previous person
     extracted = session.get('extracted', {})
     name_en = extracted.get('name_en', '').replace(' ', '_') if extracted else ''
