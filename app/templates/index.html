@@ -936,34 +936,18 @@
 
     // Form submission
     form.addEventListener("submit", function(e) {
-      e.preventDefault();
-      sessionStorage.setItem('pdfExtractStart', Date.now());
+      // Only prevent default if validation fails
       if (!validateForm()) {
+        e.preventDefault();
         return;
       }
-      
+      sessionStorage.setItem('pdfExtractStart', Date.now());
       // Show loading state
       submitBtn.disabled = true;
       spinner.style.display = "block";
       submitIcon.style.display = "none";
       progressContainer.style.display = "block";
-      
-      // Simulate progress (in a real app, this would be tied to actual upload progress)
-      let progress = 0;
-      const progressInterval = setInterval(() => {
-        progress += Math.random() * 10;
-        if (progress >= 100) {
-          progress = 100;
-          clearInterval(progressInterval);
-        }
-        progressBar.style.width = `${progress}%`;
-      }, 200);
-      
-      // In a real application, you would use fetch/XHR to track actual upload progress
-      setTimeout(() => {
-        // Submit the form (in a real app, you might use AJAX)
-        form.submit();
-      }, 3000);
+      // Let the form submit normally (Enter key or button)
     });
 
     // Validate form inputs
