@@ -359,29 +359,21 @@
       font-size: 0.95rem;
     }
 
-    .pdf-format-choices {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 1.25rem;
-    }
-
-    .pdf-format-choice {
+    .pdf-format-info {
       display: flex;
       align-items: center;
-      gap: 0.75rem;
-      cursor: pointer;
+      padding: 1rem;
+      background: rgba(7, 129, 58, 0.1);
+      border: 1px solid rgba(7, 129, 58, 0.2);
+      border-radius: 8px;
+      color: var(--primary-dark);
+      font-size: 0.9rem;
+      line-height: 1.4;
     }
 
-    .pdf-format-choice input {
-      width: 18px;
-      height: 18px;
-      accent-color: var(--primary);
-      cursor: pointer;
-    }
-
-    .pdf-format-choice label {
-      cursor: pointer;
-      font-weight: 500;
+    .pdf-format-info i {
+      font-size: 1.1rem;
+      flex-shrink: 0;
     }
 
     /* Buttons */
@@ -430,6 +422,27 @@
       transform: none !important;
       box-shadow: none !important;
       background-color: var(--primary);
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+      font-weight: 600;
+    }
+
+    .btn-outline:hover {
+      background-color: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(7, 129, 58, 0.2);
+    }
+
+    .btn-outline:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
     }
 
     /* Spinner */
@@ -658,9 +671,10 @@
         padding: 1rem;
       }
       
-      .pdf-format-choices {
+      .pdf-format-info {
         flex-direction: column;
-        gap: 0.75rem;
+        text-align: center;
+        gap: 0.5rem;
       }
 
       .steps {
@@ -785,21 +799,12 @@
               </div>
 
               <div class="pdf-format-options">
-                <div class="pdf-format-title">Document Type:</div>
-                <div class="pdf-format-choices">
-                  <div class="pdf-format-choice">
-                    <input type="radio" id="formatDefault" name="pdf_format" value="default" checked>
-                    <label for="formatDefault">Standard Identification</label>
-                  </div>
-                  <div class="pdf-format-choice">
-                    <input type="radio" id="formatResidentialAddis" name="pdf_format" value="residential_addis">
-                    <label for="formatResidentialAddis">Residence (Addis)</label>
-                  </div>
-                  <div class="pdf-format-choice">
-                    <input type="radio" id="formatResidentialSheger" name="pdf_format" value="residential_sheger">
-                    <label for="formatResidentialSheger">Residence (Sheger)</label>
-                  </div>
+                <div class="pdf-format-title">Document Processing:</div>
+                <div class="pdf-format-info">
+                  <i class="fas fa-magic" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                  <span>Automatic format detection - The system will automatically identify and process your document type</span>
                 </div>
+                <input type="hidden" name="pdf_format" value="auto">
               </div>
 
               <div class="drop-zone" id="dropZone">
@@ -859,7 +864,11 @@
             </button>
           </div>
         </form>
-        <div id="resetSessionContainer" style="text-align:center; margin-top:2rem;"></div>
+        <div id="resetSessionContainer" style="text-align:center; margin-top:2rem; padding:1rem; background:rgba(7, 129, 58, 0.05); border-radius:10px; border:1px solid rgba(7, 129, 58, 0.1);">
+          <div id="sessionMessage" style="display:none; margin-bottom:1rem; color:var(--primary-dark); font-weight:500;">
+            <i class="fas fa-info-circle"></i> Previous session data found. You can clear it to start fresh or continue with existing data.
+          </div>
+        </div>
       </div>
     </div>
   </main>
@@ -891,7 +900,6 @@
     const submitIcon = document.getElementById("submitIcon");
     const progressContainer = document.getElementById("progressContainer");
     const progressBar = document.getElementById("progressBar");
-    const pdfFormatRadios = document.querySelectorAll('input[name="pdf_format"]');
     const statusMessage = document.getElementById("statusMessage");
     const statusText = document.getElementById("statusText");
 
@@ -965,16 +973,9 @@
         return false;
       }
       
-      // Validate file size (10MB max)
+      // Validate file size (30MB max)
       if (fileInput.files[0].size > 30 * 1024 * 1024) {
         showStatus("File size exceeds 30 MB limit. Please choose a smaller file.", "error");
-        return false;
-      }
-      
-      // Validate PDF format selection
-      const selectedFormat = document.querySelector('input[name="pdf_format"]:checked');
-      if (!selectedFormat) {
-        showStatus("Please select a document type.", "error");
         return false;
       }
       
@@ -1045,9 +1046,8 @@
     function updateSubmitButton() {
       const isFileValid = fileInput.files && fileInput.files[0];
       const isFinValid = /^\d{12}$/.test(finInput.value.trim());
-      const isFormatSelected = document.querySelector('input[name="pdf_format"]:checked');
       
-      submitBtn.disabled = !(isFileValid && isFinValid && isFormatSelected);
+      submitBtn.disabled = !(isFileValid && isFinValid);
     }
 
     // Validate FIN as user types
@@ -1088,10 +1088,7 @@
       finInput.dispatchEvent(new Event('input'));
     });
 
-    // Update submit button when PDF format changes
-    pdfFormatRadios.forEach(radio => {
-      radio.addEventListener("change", updateSubmitButton);
-    });
+
 
     // Add animation to elements as they come into view
     const observer = new IntersectionObserver((entries) => {
@@ -1107,21 +1104,83 @@
       observer.observe(el);
     });
 
-    // Add Reset Session button if session is not empty
-    fetch('/check_session')
-      .then(res => res.json())
-      .then(data => {
-        if (data.has_session) {
-          const container = document.getElementById('resetSessionContainer');
-          const btn = document.createElement('button');
-          btn.className = 'btn btn-outline';
-          btn.textContent = 'Reset Session';
-          btn.onclick = function() {
-            fetch('/reset_session', {method: 'POST'}).then(() => window.location.reload());
-          };
-          container.appendChild(btn);
-        }
-      });
+    // Check for existing session and show clear session button
+    function checkAndShowSessionButton() {
+      fetch('/check_session')
+        .then(res => res.json())
+        .then(data => {
+          if (data.has_session) {
+            // Show session message
+            const sessionMessage = document.getElementById('sessionMessage');
+            if (sessionMessage) {
+              sessionMessage.style.display = 'block';
+            }
+            
+            const container = document.getElementById('resetSessionContainer');
+            const btn = document.createElement('button');
+            btn.className = 'btn btn-outline';
+            btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Session Data';
+            btn.onclick = function() {
+              btn.disabled = true;
+              btn.innerHTML = '<span class="spinner"></span> Clearing...';
+              
+              fetch('/reset_session', {method: 'POST'})
+                .then(response => response.json())
+                .then(result => {
+                  if (result.success) {
+                    btn.innerHTML = '<i class="fas fa-check"></i> Cleared!';
+                    setTimeout(() => {
+                      window.location.reload();
+                    }, 1000);
+                  } else {
+                    alert('Failed to clear session. Please try again.');
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Session Data';
+                  }
+                })
+                .catch(error => {
+                  console.error('Error clearing session:', error);
+                  alert('Error clearing session. Please try again.');
+                  btn.disabled = false;
+                  btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Session Data';
+                });
+            };
+            container.appendChild(btn);
+          }
+        })
+        .catch(error => {
+          console.error('Error checking session:', error);
+        });
+    }
+
+    // Check for existing session on page load
+    checkAndShowSessionButton();
+
+    // Clear session automatically on page refresh if there's existing data
+    if (performance.navigation.type === 1) { // Page refresh
+      fetch('/check_session')
+        .then(res => res.json())
+        .then(data => {
+          if (data.has_session) {
+            // Ask user if they want to clear the session
+            if (confirm('Previous session data found. Would you like to clear it and start fresh?')) {
+              fetch('/reset_session', {method: 'POST'})
+                .then(response => response.json())
+                .then(result => {
+                  if (result.success) {
+                    console.log('Session cleared automatically on refresh');
+                  }
+                })
+                .catch(error => {
+                  console.error('Error clearing session on refresh:', error);
+                });
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error checking session on refresh:', error);
+        });
+    }
   </script>
 </body>
 </html>

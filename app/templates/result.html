@@ -337,6 +337,7 @@
 
     <div class="container">
         <div class="card-grid">
+            {% if front_color %}
             <!-- Front Color Card -->
             <div class="card">
                 <div class="card-header">
@@ -352,7 +353,9 @@
                     </a>
                 </div>
             </div>
+            {% endif %}
 
+            {% if front_bw %}
             <!-- Front Grayscale Card -->
             <div class="card">
                 <div class="card-header">
@@ -368,7 +371,9 @@
                     </a>
                 </div>
             </div>
+            {% endif %}
 
+            {% if reverse %}
             <!-- Reverse Color Card -->
             <div class="card">
                 <div class="card-header">
@@ -384,7 +389,9 @@
                     </a>
                 </div>
             </div>
+            {% endif %}
 
+            {% if reverse_bw %}
             <!-- Reverse Grayscale Card -->
             <div class="card">
                 <div class="card-header">
@@ -400,6 +407,115 @@
                     </a>
                 </div>
             </div>
+            {% endif %}
+
+            {% if mini_front_color %}
+            <!-- Mini Front Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Mini Front Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=mini_front_color) }}" alt="Mini ID Front Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=mini_front_color) }}" data-title="Mini Front Side - Color">
+                    <a href="{{ url_for('static', filename=mini_front_color) }}" 
+                       download="{{ mini_front_color }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Mini Front Color
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if mini_front_bw %}
+            <!-- Mini Front Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Mini Front Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=mini_front_bw) }}" alt="Mini ID Front Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=mini_front_bw) }}" data-title="Mini Front Side - Grayscale">
+                    <a href="{{ url_for('static', filename=mini_front_bw) }}" 
+                       download="{{ mini_front_bw }}" 
+                       class="btn btn-secondary download-link">
+                        <i class="fas fa-download"></i> Download Mini Front Grayscale
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_front_color %}
+            <!-- Old Front Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Front Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_front_color) }}" alt="Old ID Front Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_front_color) }}" data-title="Old Front Side - Color">
+                    <a href="{{ url_for('static', filename=old_front_color) }}" 
+                       download="{{ old_front_color }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Old Front Color
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_front_bw %}
+            <!-- Old Front Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Front Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_front_bw) }}" alt="Old ID Front Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_front_bw) }}" data-title="Old Front Side - Grayscale">
+                    <a href="{{ url_for('static', filename=old_front_bw) }}" 
+                       download="{{ old_front_bw }}" 
+                       class="btn btn-secondary download-link">
+                        <i class="fas fa-download"></i> Download Old Front Grayscale
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_reverse_color %}
+            <!-- Old Reverse Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Reverse Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_reverse_color) }}" alt="Old ID Reverse Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_reverse_color) }}" data-title="Old Reverse Side - Color">
+                    <a href="{{ url_for('static', filename=old_reverse_color) }}" 
+                       download="{{ old_reverse_color }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Old Reverse Color
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_reverse_bw %}
+            <!-- Old Reverse Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Reverse Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_reverse_bw) }}" alt="Old ID Reverse Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_reverse_bw) }}" data-title="Old Reverse Side - Grayscale">
+                    <a href="{{ url_for('static', filename=old_reverse_bw) }}" 
+                       download="{{ old_reverse_bw }}" 
+                       class="btn btn-secondary download-link">
+                        <i class="fas fa-download"></i> Download Old Reverse Grayscale
+                    </a>
+                </div>
+            </div>
+            {% endif %}
         </div>
 
         <div class="btn-group">
@@ -410,9 +526,9 @@
                 <span class="spinner" id="downloadSpinner" style="display: none;"></span>
                 <i class="fas fa-download"></i> Download All
             </button>
-            <a href="{{ url_for('main.index') }}" class="btn btn-outline" id="generateNewIdBtn">
+            <button class="btn btn-outline" id="generateNewIdBtn" onclick="clearSessionAndRedirect()">
                 <i class="fas fa-id-card"></i> Generate Another ID
-            </a>
+            </button>
             <button class="btn btn-primary" onclick="previewAll()">
                 <i class="fas fa-eye"></i> Preview All
             </button>
@@ -471,22 +587,66 @@
             previewContent.innerHTML = '';
 
             const images = [];
+            {% if front_color %}
             images.push({
                 src: "{{ url_for('static', filename=front_color) }}",
                 title: "Front Side (Color)"
             });
+            {% endif %}
+            {% if front_bw %}
             images.push({
                 src: "{{ url_for('static', filename=front_bw) }}",
                 title: "Front Side (Grayscale)"
             });
+            {% endif %}
+            {% if reverse %}
             images.push({
                 src: "{{ url_for('static', filename=reverse) }}",
                 title: "Reverse Side (Color)"
             });
+            {% endif %}
+            {% if reverse_bw %}
             images.push({
                 src: "{{ url_for('static', filename=reverse_bw) }}",
                 title: "Reverse Side (Grayscale)"
             });
+            {% endif %}
+            {% if mini_front_color %}
+            images.push({
+                src: "{{ url_for('static', filename=mini_front_color) }}",
+                title: "Mini Front Side (Color)"
+            });
+            {% endif %}
+            {% if mini_front_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=mini_front_bw) }}",
+                title: "Mini Front Side (Grayscale)"
+            });
+            {% endif %}
+            {% if old_front_color %}
+            images.push({
+                src: "{{ url_for('static', filename=old_front_color) }}",
+                title: "Old Front Side (Color)"
+            });
+            {% endif %}
+            {% if old_front_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=old_front_bw) }}",
+                title: "Old Front Side (Grayscale)"
+            });
+            {% endif %}
+            {% if old_reverse_color %}
+            images.push({
+                src: "{{ url_for('static', filename=old_reverse_color) }}",
+                title: "Old Reverse Side (Color)"
+            });
+            {% endif %}
+            {% if old_reverse_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=old_reverse_bw) }}",
+                title: "Old Reverse Side (Grayscale)"
+            });
+            {% endif %}
 
             const filteredImages = images.filter(img => img.src && !img.src.includes('None'));
 
@@ -535,22 +695,66 @@
         // Download all function
         function downloadAll() {
             const links = [];
+            {% if front_color %}
             links.push({
                 url: "{{ url_for('static', filename=front_color) }}",
                 name: "{{ front_color }}"
             });
+            {% endif %}
+            {% if front_bw %}
             links.push({
                 url: "{{ url_for('static', filename=front_bw) }}",
                 name: "{{ front_bw }}"
             });
+            {% endif %}
+            {% if reverse %}
             links.push({
                 url: "{{ url_for('static', filename=reverse) }}",
                 name: "{{ reverse }}"
             });
+            {% endif %}
+            {% if reverse_bw %}
             links.push({
                 url: "{{ url_for('static', filename=reverse_bw) }}",
                 name: "{{ reverse_bw }}"
             });
+            {% endif %}
+            {% if mini_front_color %}
+            links.push({
+                url: "{{ url_for('static', filename=mini_front_color) }}",
+                name: "{{ mini_front_color }}"
+            });
+            {% endif %}
+            {% if mini_front_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=mini_front_bw) }}",
+                name: "{{ mini_front_bw }}"
+            });
+            {% endif %}
+            {% if old_front_color %}
+            links.push({
+                url: "{{ url_for('static', filename=old_front_color) }}",
+                name: "{{ old_front_color }}"
+            });
+            {% endif %}
+            {% if old_front_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=old_front_bw) }}",
+                name: "{{ old_front_bw }}"
+            });
+            {% endif %}
+            {% if old_reverse_color %}
+            links.push({
+                url: "{{ url_for('static', filename=old_reverse_color) }}",
+                name: "{{ old_reverse_color }}"
+            });
+            {% endif %}
+            {% if old_reverse_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=old_reverse_bw) }}",
+                name: "{{ old_reverse_bw }}"
+            });
+            {% endif %}
 
             const filteredLinks = links.filter(Boolean);
 
@@ -596,18 +800,37 @@
             });
         });
 
-        // Intercept Generate Another ID button to reset session before redirect
-        document.addEventListener('DOMContentLoaded', function() {
+        // Function to clear session and redirect to generate new ID
+        function clearSessionAndRedirect() {
             const btn = document.getElementById('generateNewIdBtn');
             if (btn) {
-                btn.addEventListener('click', function(e) {
-                    e.preventDefault();
-                    fetch('/reset_session', {method: 'POST'}).then(() => {
-                        window.location.href = btn.getAttribute('href');
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner"></span> Clearing Session...';
+                
+                fetch('/reset_session', {method: 'POST'})
+                    .then(response => {
+                        if (response.status === 204) {
+                            // 204 No Content means success
+                            window.location.href = "{{ url_for('main.index') }}";
+                        } else {
+                            // Try to parse JSON for error details
+                            return response.json().then(data => {
+                                if (data.success) {
+                                    window.location.href = "{{ url_for('main.index') }}";
+                                } else {
+                                    throw new Error(data.error || 'Failed to clear session');
+                                }
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error clearing session:', error);
+                        alert('Error clearing session. Please try again.');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-id-card"></i> Generate Another ID';
                     });
-                });
             }
-        });
+        }
 
         // Show image generation time if available
         document.addEventListener('DOMContentLoaded', function() {

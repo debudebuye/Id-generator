@@ -98,7 +98,7 @@ def generate_id():
           name: pdf_format
           type: string
           required: false
-          enum: [default, residential_addis, residential_sheger]
+          enum: [default, residential_sheger]
           description: PDF format type
       responses:
         302:
@@ -111,7 +111,7 @@ def generate_id():
 
     pdf = request.files['pdf']
     raw_fin = request.form.get('fin', '').strip()
-    pdf_format = request.form.get('pdf_format', 'default')
+    pdf_format = request.form.get('pdf_format', 'auto')
 
     # Validate FIN number
     clean_fin = raw_fin.replace('-', '')
@@ -189,21 +189,45 @@ def confirm_generate():
         remove_white = request.form.get('remove_white_bg') == '1'
         remove_black = request.form.get('remove_black_bg') == '1'
         city_option = request.form.get('city_type', 'default')
+        generate_mini_id = request.form.get('generate_mini_id') == '1'
+        generate_old_id = request.form.get('generate_old_id') == '1'
         
-        # Update nationality from session if available
+        # Debug print before generation
+        print("DEBUG: Session keys:", list(session.keys()))
+        print("DEBUG: Extracted data keys:", list(extracted.keys()))
+        print("DEBUG: Data before generation:", extracted)
+        
+        # Ensure we have the latest data from individual field updates
+        # The extracted data should already contain all the updated fields
+        # since update_field() updates session['extracted'] directly
+        
+        # Update nationality from session if available (legacy support)
         if 'nationality_am' in session and 'nationality_en' in session:
             extracted['nationality_am'] = session['nationality_am']
             extracted['nationality_en'] = session['nationality_en']
+            print("DEBUG: Updated nationality from legacy session fields")
         
-        # Debug print before generation
-        print("Data before generation:", extracted)
+        # Ensure address fields are properly formatted
+        if all(key in extracted for key in ['region_am', 'subcity_am', 'woreda_am']):
+            extracted["address_am"] = f"{extracted['region_am']}, {extracted['subcity_am']}, {extracted['woreda_am']}"
+        if all(key in extracted for key in ['region_en', 'subcity_en', 'woreda_en']):
+            extracted["address_en"] = f"{extracted['region_en']}, {extracted['subcity_en']}, {extracted['woreda_en']}"
+        
+        # Explicitly save the updated data back to session to ensure it's current
+        session['extracted'] = extracted
+        session.modified = True  # Force session to be saved
+        
+        print("DEBUG: Final data for generation:", extracted)
+        print("DEBUG: Session data after update:", session.get('extracted'))
         
         # Generate ID card
         generated_files = id_service.generate_id_card(
             data=extracted,
             city_option=city_option,
             remove_white=remove_white,
-            remove_black=remove_black
+            remove_black=remove_black,
+            generate_mini_id=generate_mini_id,
+            generate_old_id=generate_old_id
         )
         
         # Store in session
@@ -250,23 +274,59 @@ def result():
         print("Found name_en:", data['name_en'])
     
     # Debug print for files being passed to template
-    front_color = verify_file(files.get('front_color'))
-    front_bw = verify_file(files.get('front_bw'))
-    reverse = verify_file(files.get('reverse'))
-    reverse_bw = verify_file(files.get('reverse_bw'))
+    # Check if we have normal ID cards or old ID cards
+    has_normal_ids = any(files.get(key) for key in ['front_color', 'front_bw', 'reverse', 'reverse_bw'])
+    has_old_ids = any(files.get(key) for key in ['old_front_color', 'old_front_bw', 'old_reverse_color', 'old_reverse_bw'])
+    
+    if has_old_ids and not has_normal_ids:
+        # Only old ID cards were generated
+        front_color = None
+        front_bw = None
+        reverse = None
+        reverse_bw = None
+        mini_front_color = None
+        mini_front_bw = None
+        old_front_color = verify_file(files.get('old_front_color'))
+        old_front_bw = verify_file(files.get('old_front_bw'))
+        old_reverse_color = verify_file(files.get('old_reverse_color'))
+        old_reverse_bw = verify_file(files.get('old_reverse_bw'))
+    else:
+        # Normal ID cards were generated (with optional mini/old)
+        front_color = verify_file(files.get('front_color'))
+        front_bw = verify_file(files.get('front_bw'))
+        reverse = verify_file(files.get('reverse'))
+        reverse_bw = verify_file(files.get('reverse_bw'))
+        mini_front_color = verify_file(files.get('mini_front_color'))
+        mini_front_bw = verify_file(files.get('mini_front_bw'))
+        old_front_color = verify_file(files.get('old_front_color'))
+        old_front_bw = verify_file(files.get('old_front_bw'))
+        old_reverse_color = verify_file(files.get('old_reverse_color'))
+        old_reverse_bw = verify_file(files.get('old_reverse_bw'))
     
     print("Files being passed to template:")
     print("front_color:", front_color)
     print("front_bw:", front_bw)
     print("reverse:", reverse)
     print("reverse_bw:", reverse_bw)
+    print("mini_front_color:", mini_front_color)
+    print("mini_front_bw:", mini_front_bw)
+    print("old_front_color:", old_front_color)
+    print("old_front_bw:", old_front_bw)
+    print("old_reverse_color:", old_reverse_color)
+    print("old_reverse_bw:", old_reverse_bw)
         
     return render_template('result.html',
                          data=data,  # Pass the data to the template
                          front_color=front_color,
                          front_bw=front_bw,
                          reverse=reverse,
-                         reverse_bw=reverse_bw)
+                         reverse_bw=reverse_bw,
+                         mini_front_color=mini_front_color,
+                         mini_front_bw=mini_front_bw,
+                         old_front_color=old_front_color,
+                         old_front_bw=old_front_bw,
+                         old_reverse_color=old_reverse_color,
+                         old_reverse_bw=old_reverse_bw)
 
 @bp.route('/update_address', methods=['POST'])
 def update_address():
@@ -365,6 +425,68 @@ def update_nationality():
     except Exception as e:
         return jsonify({'success': False, 'error': str(e)}) 
 
+@bp.route('/update_field', methods=['POST'])
+def update_field():
+    """
+    ---
+    post:
+      summary: Update individual field in session data
+      consumes:
+        - application/x-www-form-urlencoded
+      parameters:
+        - in: formData
+          name: field_name
+          type: string
+          required: true
+          description: Name of the field to update (e.g., name_am, name_en, phone)
+        - in: formData
+          name: value
+          type: string
+          required: true
+          description: New value for the field
+      responses:
+        200:
+          description: Field updated successfully
+        400:
+          description: Error updating field
+    """
+    try:
+        field_name = request.form.get('field_name')
+        value = request.form.get('value')
+        
+        print(f"DEBUG: Received field_name='{field_name}', value='{value}'")
+        print(f"DEBUG: Form data: {dict(request.form)}")
+        
+        if not field_name:
+            print("DEBUG: Field name is missing")
+            return jsonify({'success': False, 'error': 'Field name is required'})
+        
+        # Get the current data from session
+        extracted = session.get('extracted', {})
+        print(f"DEBUG: Current session data keys: {list(extracted.keys())}")
+        
+        # Update the specific field
+        extracted[field_name] = value
+        print(f"DEBUG: Updated {field_name} to '{value}'")
+        
+        # Update combined address fields if address components were changed
+        if field_name in ['region_am', 'region_en', 'subcity_am', 'subcity_en', 'woreda_am', 'woreda_en']:
+            if all(key in extracted for key in ['region_am', 'subcity_am', 'woreda_am']):
+                extracted["address_am"] = f"{extracted['region_am']}, {extracted['subcity_am']}, {extracted['woreda_am']}"
+                print(f"DEBUG: Updated address_am to '{extracted['address_am']}'")
+            if all(key in extracted for key in ['region_en', 'subcity_en', 'woreda_en']):
+                extracted["address_en"] = f"{extracted['region_en']}, {extracted['subcity_en']}, {extracted['woreda_en']}"
+                print(f"DEBUG: Updated address_en to '{extracted['address_en']}'")
+        
+        # Save back to session
+        session['extracted'] = extracted
+        print(f"DEBUG: Session saved successfully")
+        
+        return jsonify({'success': True})
+    except Exception as e:
+        print(f"DEBUG: Error in update_field: {str(e)}")
+        return jsonify({'success': False, 'error': str(e)})
+
 @bp.route('/api/latest_images')
 def latest_images():
     """
@@ -406,7 +528,9 @@ def reset_session():
             f"{name_en}_Front_Color.png",
             f"{name_en}_Front_Grayscale.png",
             f"{name_en}_Reverse_Color.png",
-            f"{name_en}_Reverse_Grayscale.png"
+            f"{name_en}_Reverse_Grayscale.png",
+            f"{name_en}_Mini_Front_Color.png",
+            f"{name_en}_Mini_Front_Grayscale.png"
         ]
         for fname in patterns:
             fpath = os.path.join(static_folder, fname)

@@ -17,6 +17,15 @@ class Config:
     REVERSE_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'reverse-template.png')
     TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'template.json')
     REVERSE_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'reverse_template.json')
+    # Mini template paths
+    MINI_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'mini_normal_template.png')
+    MINI_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'mini_template.json')
+    
+    # Old template paths
+    OLD_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'old_template.png')
+    OLD_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'old_template.json')
+    OLD_REVERSE_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'old_reverse_template.png')
+    OLD_REVERSE_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'old_reverse_template.json')
     
     # Allowed file extensions
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
@@ -123,7 +132,6 @@ class Config:
             }
         },
         'tafo': {
-
             'front': {
                 'region_am': [2120, 450],
                 'region_en': [2120, 510],
@@ -140,6 +148,157 @@ class Config:
                 'woreda_am': [1340, 495],
                 'woreda_en': [1340, 525]
             }
-            
+        }
+    } 
+    
+    # Old ID specific address positions (using the old template layout)
+    OLD_ADDRESS_POSITIONS = {
+        'default': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 610],
+                'subcity_en': [2120, 660],
+                'woreda_am': [2120, 760],
+                'woreda_en': [2120, 810]
+            },
+            'reverse': {
+                'region_am': [1340, 270],
+                'region_en': [1340, 300],
+                'subcity_am': [1340, 340],
+                'subcity_en': [1340, 370],
+                'woreda_am': [1340, 420],
+                'woreda_en': [1340, 470]
+            }
+        },
+        'shger': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 580],
+                'subcity_en': [2120, 690],
+                'woreda_am': [2120, 810],
+                'woreda_en': [2120, 850]
+            },
+            'reverse': {
+                'region_am': [1340, 260],
+                'region_en': [1340, 290],
+                'subcity_am': [1340, 320],
+                'subcity_en': [1340, 390],
+                'woreda_am': [1340, 495],
+                'woreda_en': [1340, 525]
+            }
+        },
+        'koye': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 550],
+                'subcity_en': [2120, 600],
+                'woreda_am': [2120, 650],
+                'woreda_en': [2120, 700]
+            },
+            'reverse': {
+                'region_am': [1340, 270],
+                'region_en': [1340, 270],
+                'subcity_am': [1340, 270],
+                'subcity_en': [1340, 270],
+                'woreda_am': [1340, 270],
+                'woreda_en': [1340, 270]
+            }
+        },
+        'tafo': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 570],
+                'subcity_en': [2120, 670],
+                'woreda_am': [2120, 830],
+                'woreda_en': [2120, 870]
+            },
+            'reverse': {
+                'region_am': [1340, 260],
+                'region_en': [1340, 290],
+                'subcity_am': [1340, 320],
+                'subcity_en': [1340, 390],
+                'woreda_am': [1340, 495],
+                'woreda_en': [1340, 525]
+            }
+        }
+    }
+    
+    # Mini ID specific address positions (currently same as default, but can be adjusted independently)
+    MINI_ADDRESS_POSITIONS = {
+        'default': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 610],
+                'subcity_en': [2120, 660],
+                'woreda_am': [2120, 760],
+                'woreda_en': [2120, 810]
+            },
+            'reverse': {
+                'region_am': [1340, 270],
+                'region_en': [1340, 300],
+                'subcity_am': [1340, 340],
+                'subcity_en': [1340, 370],
+                'woreda_am': [1340, 420],
+                'woreda_en': [1340, 470]
+            }
+        },
+        'shger': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 580],
+                'subcity_en': [2120, 690],
+                'woreda_am': [2120, 810],
+                'woreda_en': [2120, 850]
+            },
+            'reverse': {
+                'region_am': [1340, 260],
+                'region_en': [1340, 290],
+                'subcity_am': [1340, 320],
+                'subcity_en': [1340, 390],
+                'woreda_am': [1340, 495],
+                'woreda_en': [1340, 525]
+            }
+        },
+        'koye': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 550],
+                'subcity_en': [2120, 600],
+                'woreda_am': [2120, 650],
+                'woreda_en': [2120, 700]
+            },
+            'reverse': {
+                'region_am': [1340, 270],
+                'region_en': [1340, 270],
+                'subcity_am': [1340, 270],
+                'subcity_en': [1340, 270],
+                'woreda_am': [1340, 270],
+                'woreda_en': [1340, 270]
+            }
+        },
+        'tafo': {
+            'front': {
+                'region_am': [2120, 450],
+                'region_en': [2120, 510],
+                'subcity_am': [2120, 570],
+                'subcity_en': [2120, 670],
+                'woreda_am': [2120, 830],
+                'woreda_en': [2120, 870]
+            },
+            'reverse': {
+                'region_am': [1340, 260],
+                'region_en': [1340, 290],
+                'subcity_am': [1340, 320],
+                'subcity_en': [1340, 390],
+                'woreda_am': [1340, 495],
+                'woreda_en': [1340, 525]
+            }
         }
     } 

@@ -305,6 +305,27 @@
       word-break: break-word;
     }
 
+    .detail-input {
+      width: 100%;
+      padding: 0.5rem;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      font-size: 1rem;
+      margin-top: 0.5rem;
+      transition: var(--transition);
+      font-family: inherit;
+    }
+
+    .detail-input:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(7, 129, 58, 0.1);
+    }
+
+    .detail-input:hover {
+      border-color: var(--primary);
+    }
+
     .signature-section {
       margin-top: 2rem;
       padding-top: 1.5rem;
@@ -481,6 +502,12 @@
       position: relative;
       margin: 0 auto;
       width: fit-content;
+      cursor: pointer;
+      transition: var(--transition);
+    }
+
+    .photo-preview-container:hover {
+      transform: scale(1.02);
     }
 
     .photo-loading {
@@ -494,6 +521,45 @@
       align-items: center;
       justify-content: center;
       border-radius: 8px;
+    }
+
+    /* Drag and Drop Styles */
+    .drag-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: rgba(7, 129, 58, 0.9);
+      color: white;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      flex-direction: column;
+      border-radius: 8px;
+      border: 2px dashed rgba(255, 255, 255, 0.6);
+      z-index: 10;
+    }
+
+    .drag-overlay i {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.9;
+    }
+
+    .drag-overlay p {
+      font-size: 1rem;
+      font-weight: 600;
+      margin: 0;
+      text-align: center;
+    }
+
+    .photo-preview-container.drag-over {
+      transform: scale(1.05);
+    }
+
+    .photo-preview-container.drag-over .drag-overlay {
+      display: flex;
     }
 
     /* Form Row Layout */
@@ -769,6 +835,24 @@
                   </span>
                 </label>
               </div>
+              <div class="checkbox-container">
+                <label class="checkbox-label">
+                  <input type="checkbox" name="generate_mini_id" value="1" class="styled-checkbox">
+                  <span class="checkmark"></span>
+                  <span class="option-text">
+                    <i class="fas fa-id-badge"></i> Generate Mini ID Cards
+                  </span>
+                </label>
+              </div>
+              <div class="checkbox-container">
+                <label class="checkbox-label">
+                  <input type="checkbox" name="generate_old_id" value="1" class="styled-checkbox">
+                  <span class="checkmark"></span>
+                  <span class="option-text">
+                    <i class="fas fa-id-card"></i> Generate Old ID Cards
+                  </span>
+                </label>
+              </div>
             </div>
           </div>
 
@@ -824,11 +908,16 @@
           {% if photo %}
           <div class="image-card">
             <h3>Passport Photo</h3>
-            <div class="photo-preview-container">
+            <div class="photo-preview-container" id="photoDropZone">
               <img id="userPhoto" src="{{ url_for('static', filename='photo_temp.png') }}?t={{ timestamp }}"
                 class="uniform-img" alt="User Photo">
               <div id="photoLoading" class="photo-loading" style="display: none;">
                 <i class="fas fa-spinner fa-spin"></i>
+              </div>
+              <!-- Drag and drop overlay -->
+              <div id="dragOverlay" class="drag-overlay">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drop your photo here</p>
               </div>
             </div>
 
@@ -869,39 +958,83 @@
             <span class="id-status">VALID</span>
           </div>
 
+                      <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+              <i class="fas fa-save"></i>
+              <div>
+                <strong>Auto-Save Enabled:</strong> All changes to Address, Nationality, and Personal Information fields are saved automatically. No need to click a save button!
+              </div>
+            </div>
+
           <div class="details-grid">
+            <!-- FIN and FAN Numbers -->
+            <div class="detail-item">
+              <span class="detail-label">FIN Number</span>
+              <div class="detail-value">{{ data.fin or '—' }}</div>
+            </div>
+            <div class="detail-item">
+              <span class="detail-label">FAN Number (FCN)</span>
+              <div class="detail-value">{{ data.fcn_full or '—' }}</div>
+            </div>
+            
             {% for key, value in data.items() %}
-            {% if key not in ['photo', 'qr', 'fcn_barcode', 'fcn_full', 'region_am', 'region_en', 'subcity_am', 'subcity_en', 'woreda_am', 'woreda_en'] %}
+            {% if key not in ['photo', 'qr', 'fcn_barcode', 'fcn_full', 'region_am', 'region_en', 'subcity_am', 'subcity_en', 'woreda_am', 'woreda_en', 'name_am', 'name_en', 'phone', 'fin', 'fan'] %}
             {% if key == 'address_am' %}
             <div class="detail-item" style="grid-column: 1 / -1;">
-              <form id="addressNationalityForm" onsubmit="saveAddressAndNationality(event)">
+              <div id="addressNationalityForm">
                 <span class="detail-label">Address</span>
                 <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem;">
                   <!-- Region -->
                   <div>
-                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">Region</div>
+                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      Region (Amharic)
+                    </div>
                     <input type="text" name="region_am" class="detail-input" value="{{ data.region_am or '' }}" 
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;">
+                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                           onchange="updateField('region_am', this.value)">
+                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      Region (English)
+                    </div>
                     <input type="text" name="region_en" class="detail-input" value="{{ data.region_en or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; color: var(--text-light); font-weight: 700;" placeholder="English">
+                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                           onchange="updateField('region_en', this.value)">
                   </div>
                   
                   <!-- Sub City -->
                   <div>
-                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">Sub City</div>
+                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      Sub City (Amharic)
+                    </div>
                     <input type="text" name="subcity_am" class="detail-input" value="{{ data.subcity_am or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;">
+                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                           onchange="updateField('subcity_am', this.value)">
+                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      Sub City (English)
+                    </div>
                     <input type="text" name="subcity_en" class="detail-input" value="{{ data.subcity_en or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; color: var(--text-light); font-weight: 700;" placeholder="English">
+                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                           onchange="updateField('subcity_en', this.value)">
                   </div>
                   
                   <!-- Woreda -->
                   <div>
-                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">Woreda</div>
+                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      Woreda (Amharic)
+                    </div>
                     <input type="text" name="woreda_am" class="detail-input" value="{{ data.woreda_am or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;">
+                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                           onchange="updateField('woreda_am', this.value)">
+                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      Woreda (English)
+                    </div>
                     <input type="text" name="woreda_en" class="detail-input" value="{{ data.woreda_en or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; color: var(--text-light); font-weight: 700;" placeholder="English">
+                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                           onchange="updateField('woreda_en', this.value)">
                   </div>
                 </div>
 
@@ -910,26 +1043,64 @@
                   <span class="detail-label">Nationality</span>
                   <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                     <div>
-                      <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">Nationality (Amharic)</div>
+                      <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        Nationality (Amharic)
+                      </div>
                       <input type="text" name="nationality_am" class="detail-input" value="{{ data.nationality_am or '' }}"
-                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;">
+                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                             onchange="updateField('nationality_am', this.value)">
                     </div>
                     <div>
-                      <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">Nationality (English)</div>
+                      <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        Nationality (English)
+                      </div>
                       <input type="text" name="nationality_en" class="detail-input" value="{{ data.nationality_en or '' }}"
-                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; color: var(--text-light); font-weight: 700;">
+                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                             onchange="updateField('nationality_en', this.value)">
                     </div>
                   </div>
                 </div>
 
-                <!-- Single Save Button -->
-                <div style="margin-top: 1rem; text-align: right;">
-                  <button type="submit" class="btn btn-primary">
-                    <i class="fas fa-save"></i> Save Changes
-                  </button>
+                <!-- Personal Information Section -->
+                <div style="margin-top: 1.5rem;">
+                  <span class="detail-label">Personal Information</span>
+                  <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
+                    <div>
+                      <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        Name (Amharic)
+                      </div>
+                      <input type="text" name="name_am" class="detail-input" value="{{ data.name_am or '' }}"
+                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                             onchange="updateField('name_am', this.value)">
+                    </div>
+                    <div>
+                      <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        Name (English)
+                      </div>
+                      <input type="text" name="name_en" class="detail-input" value="{{ data.name_en or '' }}"
+                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                             onchange="updateField('name_en', this.value)">
+                    </div>
+                  </div>
+                  
+                  <!-- Phone field in full width -->
+                  <div style="margin-top: 1rem;">
+                    <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      Phone
+                    </div>
+                    <input type="text" name="phone" class="detail-input" value="{{ data.phone or '' }}"
+                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                           onchange="updateField('phone', this.value)">
+                  </div>
                 </div>
-              </form>
+              </div>
             </div>
+
             {% elif key == 'nationality_am' %}
             <!-- Skip nationality section as it's now part of the address form -->
             {% elif key != 'address_en' and key != 'nationality_en' %}
@@ -991,9 +1162,8 @@
       showToast('Photo downloaded successfully');
     }
 
-    // Handle photo upload
-    document.getElementById('photoUpload').addEventListener('change', function (e) {
-      const file = e.target.files[0];
+    // Function to handle photo upload (used by both file input and drag & drop)
+    function handlePhotoUpload(file) {
       if (!file) return;
 
       // Validate file type
@@ -1048,7 +1218,58 @@
           uploadBtn.disabled = false;
           photoLoading.style.display = 'none';
         });
+    }
+
+    // Handle photo upload from file input
+    document.getElementById('photoUpload').addEventListener('change', function (e) {
+      const file = e.target.files[0];
+      handlePhotoUpload(file);
     });
+
+    // Drag and Drop functionality
+    const photoDropZone = document.getElementById('photoDropZone');
+    
+    if (photoDropZone) {
+      // Prevent default drag behaviors
+      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        photoDropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+      });
+
+      // Highlight drop zone when item is dragged over it
+      ['dragenter', 'dragover'].forEach(eventName => {
+        photoDropZone.addEventListener(eventName, highlight, false);
+      });
+
+      ['dragleave', 'drop'].forEach(eventName => {
+        photoDropZone.addEventListener(eventName, unhighlight, false);
+      });
+
+      // Handle dropped files
+      photoDropZone.addEventListener('drop', handleDrop, false);
+    }
+
+    function preventDefaults(e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+
+    function highlight(e) {
+      photoDropZone.classList.add('drag-over');
+    }
+
+    function unhighlight(e) {
+      photoDropZone.classList.remove('drag-over');
+    }
+
+    function handleDrop(e) {
+      const dt = e.dataTransfer;
+      const files = dt.files;
+
+      if (files.length > 0) {
+        handlePhotoUpload(files[0]);
+      }
+    }
 
     // Toast notification
     function showToast(message, type = 'success') {
@@ -1111,33 +1332,37 @@
       });
     });
 
-    async function saveAddressAndNationality(event) {
-      event.preventDefault();
-      
-      const form = event.target;
-      const formData = new FormData(form);
-      
+
+
+    // Function to update individual fields (name_am, name_en, phone)
+    async function updateField(fieldName, value) {
       try {
-        // Save address
-        const addressResponse = await fetch('/update_address', {
+        const formData = new FormData();
+        formData.append('field_name', fieldName);
+        formData.append('value', value);
+        
+        const response = await fetch('/update_field', {
           method: 'POST',
           body: formData
         });
         
-        // Save nationality
-        const nationalityResponse = await fetch('/update_nationality', {
-          method: 'POST',
-          body: formData
-        });
-        
-        if (addressResponse.ok && nationalityResponse.ok) {
-          showToast('Changes saved successfully', 'success');
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            showToast(`${fieldName.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase())} updated successfully`, 'success');
+            // Update the session data to reflect changes
+            if (window.sessionData) {
+              window.sessionData[fieldName] = value;
+            }
+          } else {
+            showToast(`Failed to update ${fieldName}: ${result.error || 'Unknown error'}`, 'error');
+          }
         } else {
-          showToast('Failed to save changes', 'error');
+          showToast(`Failed to update ${fieldName}`, 'error');
         }
       } catch (error) {
-        console.error('Error:', error);
-        showToast('Failed to save changes', 'error');
+        console.error('Error updating field:', error);
+        showToast(`Failed to update ${fieldName}`, 'error');
       }
     }
 
