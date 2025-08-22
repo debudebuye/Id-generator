@@ -49,6 +49,83 @@ class IDCardService:
     def __init__(self):
         self.config = Config()
         
+    def cleanup_old_images(self, keep_current_files: List[str] = None):
+        """Clean up old generated ID images to prevent disk space issues.
+        
+        Args:
+            keep_current_files: List of current file names to keep (optional)
+        """
+        try:
+            static_folder = self.config.STATIC_FOLDER
+            if not os.path.exists(static_folder):
+                return
+                
+            # Define patterns for files to clean up
+            cleanup_patterns = [
+                '*_Front_Color.png',
+                '*_Front_Grayscale.png', 
+                '*_Reverse_Color.png',
+                '*_Reverse_Grayscale.png',
+                '*_Mini_Front_Color.png',
+                '*_Mini_Front_Grayscale.png',
+                '*_Old_Front_Color.png',
+                '*_Old_Front_Grayscale.png',
+                '*_Old_Reverse_Color.png',
+                '*_Old_Reverse_Grayscale.png'
+            ]
+            
+            # Keep essential files
+            keep_files = {
+                'fcn_barcode.png',
+                'photo_temp.png',
+                'qr_temp.png'
+            }
+            
+            # Add current files to keep list
+            if keep_current_files:
+                keep_files.update(keep_current_files)
+            
+            import glob
+            total_cleaned = 0
+            total_size_cleaned = 0
+            
+            for pattern in cleanup_patterns:
+                files = glob.glob(os.path.join(static_folder, pattern))
+                for file_path in files:
+                    filename = os.path.basename(file_path)
+                    
+                    # Skip if this is a file we want to keep
+                    if filename in keep_files:
+                        continue
+                        
+                    try:
+                        # Get file size before deletion
+                        file_size = os.path.getsize(file_path)
+                        
+                        # Remove the file
+                        os.remove(file_path)
+                        total_cleaned += 1
+                        total_size_cleaned += file_size
+                        
+                        print(f"Cleaned up: {filename} ({file_size / (1024*1024):.2f} MB)")
+                        
+                    except Exception as e:
+                        print(f"Error cleaning up {filename}: {str(e)}")
+            
+            if total_cleaned > 0:
+                print(f"✅ Cleanup completed: {total_cleaned} files removed, {total_size_cleaned / (1024*1024):.2f} MB freed")
+            else:
+                print("ℹ️ No old files to clean up")
+                
+        except Exception as e:
+            print(f"Error during cleanup: {str(e)}")
+    
+    def manual_cleanup(self):
+        """Manually trigger cleanup of all old generated images."""
+        print("🧹 Starting manual cleanup of old generated images...")
+        self.cleanup_old_images()
+        print("✅ Manual cleanup completed!")
+        
     def generate_serial_number(self) -> str:
         """Generate a 7-digit number not starting with 0."""
         return str(random.randint(7000000, 19999999))
@@ -1519,6 +1596,10 @@ class IDCardService:
                 # Performance timing
                 end_time = time.time()
                 print(f"✅ ID generation completed in {end_time - start_time:.2f} seconds")
+                
+                # Clean up old images after successful generation
+                current_files = list(all_files.values())
+                self.cleanup_old_images(keep_current_files=current_files)
 
                 return all_files
         except Exception as e:
@@ -1719,6 +1800,11 @@ class IDCardService:
             mini_bw_filename = f"{name}_Mini_Front_Grayscale.png"
             img_color.save(os.path.join(self.config.STATIC_FOLDER, mini_color_filename))
             img_bw.save(os.path.join(self.config.STATIC_FOLDER, mini_bw_filename))
+            
+            # Clean up old images after successful generation
+            current_files = [mini_color_filename, mini_bw_filename]
+            self.cleanup_old_images(keep_current_files=current_files)
+            
             return {
                 'mini_front_color': mini_color_filename,
                 'mini_front_bw': mini_bw_filename
@@ -1924,6 +2010,15 @@ class IDCardService:
             front_bw.save(os.path.join(self.config.STATIC_FOLDER, old_front_bw_filename))
             reverse_color.save(os.path.join(self.config.STATIC_FOLDER, old_reverse_color_filename))
             reverse_bw.save(os.path.join(self.config.STATIC_FOLDER, old_reverse_bw_filename))
+            
+            # Clean up old images after successful generation
+            current_files = [
+                old_front_color_filename,
+                old_front_bw_filename,
+                old_reverse_color_filename,
+                old_reverse_bw_filename
+            ]
+            self.cleanup_old_images(keep_current_files=current_files)
             
             return {
                 'old_front_color': old_front_color_filename,
