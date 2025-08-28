@@ -231,30 +231,30 @@ class Config:
     MINI_ADDRESS_POSITIONS = {
         'default': {
             'front': {
-                'region_am': [2120, 450],
-                'region_en': [2120, 510],
-                'subcity_am': [2120, 610],
-                'subcity_en': [2120, 660],
-                'woreda_am': [2120, 760],
-                'woreda_en': [2120, 810]
+                'region_am': [1410, 270],
+                'region_en': [1410, 310],
+                'subcity_am': [1410, 350],
+                'subcity_en': [1410, 390],
+                'woreda_am': [1410, 430],
+                'woreda_en': [1410, 470]
             },
             'reverse': {
-                'region_am': [1340, 270],
-                'region_en': [1340, 300],
-                'subcity_am': [1340, 340],
-                'subcity_en': [1340, 370],
-                'woreda_am': [1340, 420],
+                 'region_am': [1340, 265],
+                'region_en': [1340, 305],
+                'subcity_am': [1340, 345],
+                'subcity_en': [1340, 385],
+                'woreda_am': [1340, 425],
                 'woreda_en': [1340, 470]
             }
         },
         'shger': {
             'front': {
-                'region_am': [2120, 450],
-                'region_en': [2120, 510],
-                'subcity_am': [2120, 580],
-                'subcity_en': [2120, 690],
-                'woreda_am': [2120, 810],
-                'woreda_en': [2120, 850]
+                'region_am': [1720, 150],
+                'region_en': [1720, 210],
+                'subcity_am': [1720, 280],
+                'subcity_en': [1720, 390],
+                'woreda_am': [1720, 510],
+                'woreda_en': [1720, 550]
             },
             'reverse': {
                 'region_am': [1340, 260],
@@ -267,12 +267,12 @@ class Config:
         },
         'koye': {
             'front': {
-                'region_am': [2120, 450],
-                'region_en': [2120, 510],
-                'subcity_am': [2120, 550],
-                'subcity_en': [2120, 600],
-                'woreda_am': [2120, 650],
-                'woreda_en': [2120, 700]
+                'region_am': [1720, 150],
+                'region_en': [1720, 210],
+                'subcity_am': [1720, 250],
+                'subcity_en': [1720, 300],
+                'woreda_am': [1720, 350],
+                'woreda_en': [1720, 400]
             },
             'reverse': {
                 'region_am': [1340, 270],
@@ -285,12 +285,12 @@ class Config:
         },
         'tafo': {
             'front': {
-                'region_am': [2120, 450],
-                'region_en': [2120, 510],
-                'subcity_am': [2120, 570],
-                'subcity_en': [2120, 670],
-                'woreda_am': [2120, 830],
-                'woreda_en': [2120, 870]
+                'region_am': [1720, 150],
+                'region_en': [1720, 210],
+                'subcity_am': [1720, 270],
+                'subcity_en': [1720, 370],
+                'woreda_am': [1720, 530],
+                'woreda_en': [1720, 570]
             },
             'reverse': {
                 'region_am': [1340, 260],

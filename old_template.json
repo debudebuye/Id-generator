@@ -88,7 +88,8 @@
     {
       "label": "ዜግነት:",
       "key": "nationality_am",
-      "position": [2120, 314],
+      "position": [ 2120,
+      314],
       "font": {
         "family": "am",
         "weight": 800,
@@ -100,7 +101,8 @@
     {
       "label": "Nationality:",
       "key": "nationality_en",
-      "position": [2380, 314],
+      "position": [ 2380,
+      314],
       "font": {
         "family": "en",
         "weight": 800,
@@ -193,11 +195,96 @@
     {
       "label": "FIN:",
       "key": "fin",
-      "position": [2320, 975],
+      "position": [ 2320,
+      975],
       "font": {
         "family": "en",
         "weight": 800,
         "size": 38
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ክልል:",
+      "key": "region_am",
+      "position": [2120, 450],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 32
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Region:",
+      "key": "region_en",
+      "position": [2120, 510],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 28
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ክፍለ ከተማ:",
+      "key": "subcity_am",
+      "position": [2120, 610],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 32
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Subcity:",
+      "key": "subcity_en",
+      "position": [2120, 660],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 28
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ወረዳ:",
+      "key": "woreda_am",
+      "position": [2120, 760],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 32
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Woreda:",
+      "key": "woreda_en",
+      "position": [2120, 810],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 28
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Serial:",
+      "key": "serial_number",
+      "position": [3520, 1080],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 35
       },
       "color": [0, 0, 0],
       "align": "left"

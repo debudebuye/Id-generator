@@ -194,6 +194,42 @@
       gap: 8px;
     }
 
+    /* Template Info Styles */
+    #templateInfo {
+      transition: var(--transition);
+      border-left: 3px solid var(--primary);
+      animation: slideIn 0.3s ease-out;
+    }
+
+    #templateInfo strong {
+      color: var(--primary-dark);
+    }
+
+    #templateInfo br {
+      margin-bottom: 0.25rem;
+    }
+
+    @keyframes slideIn {
+      from {
+        opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Enhanced checkbox styling for ID type selection */
+    .checkbox-container:has(input[name="generate_mini_id"]:checked),
+    .checkbox-container:has(input[name="generate_old_id"]:checked) {
+      background-color: var(--primary-light);
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border: 1px solid var(--primary);
+    }
+
     .option-text i {
       color: var(--primary);
       width: 18px;
@@ -835,28 +871,45 @@
                   </span>
                 </label>
               </div>
+            </div>
+          </div>
+
+          <!-- Second column: ID Options -->
+          <div class="form-column">
+            <div class="form-card">
+              <h3 class="form-card-title">
+                <i class="fas fa-id-card"></i> ID Options
+              </h3>
               <div class="checkbox-container">
                 <label class="checkbox-label">
-                  <input type="checkbox" name="generate_mini_id" value="1" class="styled-checkbox">
+                  <input type="checkbox" name="generate_mini_id" value="1" class="styled-checkbox" id="miniIdCheckbox">
                   <span class="checkmark"></span>
                   <span class="option-text">
-                    <i class="fas fa-id-badge"></i> Generate Mini ID Cards
+                    <i class="fas fa-id-badge"></i>  Mini ID Cards
                   </span>
                 </label>
               </div>
               <div class="checkbox-container">
                 <label class="checkbox-label">
-                  <input type="checkbox" name="generate_old_id" value="1" class="styled-checkbox">
+                  <input type="checkbox" name="generate_old_id" value="1" class="styled-checkbox" id="oldIdCheckbox">
                   <span class="checkmark"></span>
                   <span class="option-text">
-                    <i class="fas fa-id-card"></i> Generate Old ID Cards
+                    <i class="fas fa-id-card"></i>  Old ID Cards
                   </span>
                 </label>
+              </div>
+              
+              <!-- Template Info -->
+              <div id="templateInfo" style="margin-top: 1rem; padding: 0.75rem; background-color: var(--bg-light); border-radius: 8px; border-left: 3px solid var(--primary); display: none;">
+                <div style="font-size: 0.85rem; color: var(--text); font-weight: 500;">
+                  <i class="fas fa-info-circle" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                  <span id="templateInfoText">Template information will appear here</span>
+                </div>
               </div>
             </div>
           </div>
 
-          <!-- Second column: City selection -->
+          <!-- Third column: City selection -->
           <div class="form-column">
             <div class="form-card">
               <h3 class="form-card-title">
@@ -884,7 +937,7 @@
             </div>
           </div>
 
-          <!-- Third column: Confirmation -->
+          <!-- Fourth column: Confirmation -->
           <div class="form-column">
             <div class="form-card confirm-section">
               <div>
@@ -902,6 +955,15 @@
           </div>
         </div>
       </form>
+
+      <!-- Generation Summary -->
+      <div id="generationSummary" class="alert alert-info fade-in" style="display: none; margin-top: 1.5rem;">
+        <i class="fas fa-info-circle"></i>
+        <div>
+          <strong>Generation Summary:</strong>
+          <div id="summaryText" style="margin-top: 0.5rem; font-size: 0.95rem;"></div>
+        </div>
+      </div>
 
       <div class="id-preview-container fade-in">
         <div class="id-images">
@@ -976,9 +1038,7 @@
               <div class="detail-value">{{ data.fcn_full or '—' }}</div>
             </div>
             
-            {% for key, value in data.items() %}
-            {% if key not in ['photo', 'qr', 'fcn_barcode', 'fcn_full', 'region_am', 'region_en', 'subcity_am', 'subcity_en', 'woreda_am', 'woreda_en', 'name_am', 'name_en', 'phone', 'fin', 'fan'] %}
-            {% if key == 'address_am' %}
+            <!-- Address Section -->
             <div class="detail-item" style="grid-column: 1 / -1;">
               <div id="addressNationalityForm">
                 <span class="detail-label">Address</span>
@@ -1101,16 +1161,107 @@
               </div>
             </div>
 
-            {% elif key == 'nationality_am' %}
-            <!-- Skip nationality section as it's now part of the address form -->
-            {% elif key != 'address_en' and key != 'nationality_en' %}
-            <div class="detail-item">
-              <span class="detail-label">{{ key.replace('_', ' ')|title }}</span>
-              <div class="detail-value">{{ value or '—' }}</div>
+            <!-- Date and ID Information Section -->
+            <div class="detail-item" style="grid-column: 1 / -1;">
+              <span class="detail-label">Date & ID Information</span>
+              <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; margin-top: 1rem;">
+                <!-- DOB Section -->
+                <div>
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    DOB (Amharic)
             </div>
-            {% endif %}
-            {% endif %}
-            {% endfor %}
+                  <input type="text" name="dob_am" class="detail-input" value="{{ data.dob_am or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                         onchange="updateField('dob_am', this.value)">
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    DOB (English)
+                  </div>
+                  <input type="text" name="dob_en" class="detail-input" value="{{ data.dob_en or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                         onchange="updateField('dob_en', this.value)">
+                </div>
+                
+                <!-- Gender Section -->
+                <div>
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    Gender (Amharic)
+                  </div>
+                  <input type="text" name="gender_am" class="detail-input" value="{{ data.gender_am or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                         onchange="updateField('gender_am', this.value)">
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    Gender (English)
+                  </div>
+                  <input type="text" name="gender_en" class="detail-input" value="{{ data.gender_en or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                         onchange="updateField('gender_en', this.value)">
+                </div>
+                
+                <!-- FCN Section -->
+                <div>
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    FCN Formatted
+                  </div>
+                  <input type="text" name="fcn_formatted" class="detail-input" value="{{ data.fcn_formatted or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                         onchange="updateField('fcn_formatted', this.value)">
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    Serial Number
+                  </div>
+                  <input type="text" name="serial_number" class="detail-input" value="{{ data.serial_number or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                         onchange="updateField('serial_number', this.value)">
+                </div>
+              </div>
+            </div>
+
+            <!-- Issue & Expiry Dates Section -->
+            <div class="detail-item" style="grid-column: 1 / -1;">
+              <span class="detail-label">Issue & Expiry Dates</span>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem; margin-top: 1rem;">
+                <!-- Issue Dates -->
+                <div>
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    Issue Date (Amharic)
+                  </div>
+                  <input type="text" name="issue_date_am" class="detail-input" value="{{ data.issue_date_am or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                         onchange="updateField('issue_date_am', this.value)">
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    Issue Date (English)
+                  </div>
+                  <input type="text" name="issue_date_en" class="detail-input" value="{{ data.issue_date_en or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                         onchange="updateField('issue_date_en', this.value)">
+                </div>
+                
+                <!-- Expiry Dates -->
+                <div>
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    Expiry Date (Amharic)
+                  </div>
+                  <input type="text" name="expiry_date_am" class="detail-input" value="{{ data.expiry_date_am or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                         onchange="updateField('expiry_date_am', this.value)">
+                  <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                    <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                    Expiry Date (English)
+                  </div>
+                  <input type="text" name="expiry_date_en" class="detail-input" value="{{ data.expiry_date_en or '' }}"
+                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                         onchange="updateField('expiry_date_en', this.value)">
+                </div>
+              </div>
+            </div>
           </div>
 
           {% if data.issue_date_en %}
@@ -1298,8 +1449,27 @@
       }, 4000);
     }
 
-    // Form submission loading state
-    document.getElementById('generateForm').addEventListener('submit', function() {
+    // Form submission loading state and validation
+    document.getElementById('generateForm').addEventListener('submit', function(e) {
+      // Validate that only one ID type is selected
+      const miniIdSelected = miniIdCheckbox.checked;
+      const oldIdSelected = oldIdCheckbox.checked;
+      
+      if (miniIdSelected && oldIdSelected) {
+        e.preventDefault();
+        showToast('Please select only one ID type (Mini ID or Old ID)', 'error');
+        return;
+      }
+      
+      // Update template type before submission
+      if (miniIdSelected) {
+        templateInput.value = 'mini_front_default_reverse';
+      } else if (oldIdSelected) {
+        templateInput.value = 'old_front_default_reverse';
+      } else {
+        templateInput.value = 'default';
+      }
+      
       const generateBtn = document.getElementById('generateBtn');
       generateBtn.innerHTML = '<span class="spinner"></span> Processing...';
       generateBtn.disabled = true;
@@ -1330,6 +1500,75 @@
           });
         }
       });
+    });
+
+    // Handle mini ID template selection
+    const miniIdCheckbox = document.querySelector('input[name="generate_mini_id"]');
+    const oldIdCheckbox = document.querySelector('input[name="generate_old_id"]');
+    
+    // Add hidden input for template selection
+    const templateInput = document.createElement('input');
+    templateInput.type = 'hidden';
+    templateInput.name = 'template_type';
+    templateInput.value = 'default';
+    document.getElementById('generateForm').appendChild(templateInput);
+
+    // Update template selection when mini ID is checked
+    miniIdCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+        templateInput.value = 'mini_front_default_reverse';
+        // Uncheck old ID if mini ID is selected
+        if (oldIdCheckbox.checked) {
+          oldIdCheckbox.checked = false;
+        }
+      } else {
+        templateInput.value = 'default';
+      }
+      updateTemplateInfoDisplay();
+    });
+
+    // Update template selection when old ID is checked
+    oldIdCheckbox.addEventListener('change', function() {
+      if (this.checked) {
+        templateInput.value = 'old_front_default_reverse';
+        // Uncheck mini ID if old ID is selected
+        if (miniIdCheckbox.checked) {
+          miniIdCheckbox.checked = false;
+        }
+      } else {
+        templateInput.value = 'default';
+      }
+      updateTemplateInfoDisplay();
+    });
+
+    // Ensure only one ID type can be selected
+    function updateIdTypeSelection(selectedCheckbox) {
+      const templateInfo = document.getElementById('templateInfo');
+      const templateInfoText = document.getElementById('templateInfoText');
+      
+      if (selectedCheckbox === miniIdCheckbox) {
+        oldIdCheckbox.checked = false;
+        templateInput.value = 'mini_front_default_reverse';
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Mini ID Front:</strong> Uses mini template for front side<br><strong>Reverse:</strong> Uses default reverse template';
+      } else if (selectedCheckbox === oldIdCheckbox) {
+        miniIdCheckbox.checked = false;
+        templateInput.value = 'old_front_default_reverse';
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Old ID Front:</strong> Uses old template for front side<br><strong>Reverse:</strong> Uses default reverse template';
+      } else {
+        // No ID type selected
+        templateInput.value = 'default';
+        templateInfo.style.display = 'none';
+      }
+    }
+
+    miniIdCheckbox.addEventListener('change', function() {
+      updateIdTypeSelection(this);
+    });
+
+    oldIdCheckbox.addEventListener('change', function() {
+      updateIdTypeSelection(this);
     });
 
 
@@ -1403,7 +1642,59 @@
     window.addEventListener('DOMContentLoaded', function() {
       const spinner = document.getElementById('pageLoadSpinner');
       if (spinner) spinner.remove();
+      
+      // Initialize template info display
+      updateTemplateInfoDisplay();
     });
+
+    // Function to update template info display
+    function updateTemplateInfoDisplay() {
+      const templateInfo = document.getElementById('templateInfo');
+      const templateInfoText = document.getElementById('templateInfoText');
+      
+      if (miniIdCheckbox.checked) {
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Mini ID Front:</strong> Uses mini template for front side<br><strong>Reverse:</strong> Uses default reverse template';
+      } else if (oldIdCheckbox.checked) {
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Old ID Front:</strong> Uses old template for front side<br><strong>Reverse:</strong> Uses default reverse template';
+      } else {
+        templateInfo.style.display = 'none';
+      }
+      
+      // Update generation summary
+      updateGenerationSummary();
+    }
+
+    // Function to update generation summary
+    function updateGenerationSummary() {
+      const generationSummary = document.getElementById('generationSummary');
+      const summaryText = document.getElementById('summaryText');
+      
+      if (miniIdCheckbox.checked || oldIdCheckbox.checked) {
+        generationSummary.style.display = 'block';
+        
+        if (miniIdCheckbox.checked) {
+          summaryText.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div><strong>Front Side:</strong> Mini ID Template</div>
+              <div><strong>Reverse Side:</strong> Default Template</div>
+              <div><strong>Format:</strong> Mini ID Cards</div>
+            </div>
+          `;
+        } else if (oldIdCheckbox.checked) {
+          summaryText.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div><strong>Front Side:</strong> Old ID Template</div>
+              <div><strong>Reverse Side:</strong> Default Template</div>
+              <div><strong>Format:</strong> Old ID Cards</div>
+            </div>
+          `;
+        }
+      } else {
+        generationSummary.style.display = 'none';
+      }
+    }
   </script>
 </body>
 </html>

@@ -337,6 +337,42 @@
 
     <div class="container">
         <div class="card-grid">
+            {% if mini_front_color %}
+            <!-- Mini Front Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Mini Front Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=mini_front_color) }}" alt="Mini ID Front Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=mini_front_color) }}" data-title="Mini Front Side - Color">
+                    <a href="{{ url_for('static', filename=mini_front_color) }}" 
+                       download="{{ mini_front_color }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Mini Front Color
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if mini_front_bw %}
+            <!-- Mini Front Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Mini Front Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=mini_front_bw) }}" alt="Mini ID Front Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=mini_front_bw) }}" data-title="Mini Front Side - Grayscale">
+                    <a href="{{ url_for('static', filename=mini_front_bw) }}" 
+                       download="{{ mini_front_bw }}" 
+                       class="btn btn-secondary download-link">
+                        <i class="fas fa-download"></i> Download Mini Front Grayscale
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
             {% if front_color %}
             <!-- Front Color Card -->
             <div class="card">
@@ -404,42 +440,6 @@
                        download="{{ reverse_bw }}" 
                        class="btn btn-secondary download-link">
                         <i class="fas fa-download"></i> Download Reverse Grayscale
-                    </a>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if mini_front_color %}
-            <!-- Mini Front Color Card -->
-            <div class="card">
-                <div class="card-header">
-                    Mini Front Side (Color)
-                </div>
-                <div class="card-body">
-                    <img src="{{ url_for('static', filename=mini_front_color) }}" alt="Mini ID Front Color" class="card-image preview-image"
-                        data-src="{{ url_for('static', filename=mini_front_color) }}" data-title="Mini Front Side - Color">
-                    <a href="{{ url_for('static', filename=mini_front_color) }}" 
-                       download="{{ mini_front_color }}" 
-                       class="btn btn-primary download-link">
-                        <i class="fas fa-download"></i> Download Mini Front Color
-                    </a>
-                </div>
-            </div>
-            {% endif %}
-
-            {% if mini_front_bw %}
-            <!-- Mini Front Grayscale Card -->
-            <div class="card">
-                <div class="card-header">
-                    Mini Front Side (Grayscale)
-                </div>
-                <div class="card-body">
-                    <img src="{{ url_for('static', filename=mini_front_bw) }}" alt="Mini ID Front Grayscale" class="card-image preview-image"
-                        data-src="{{ url_for('static', filename=mini_front_bw) }}" data-title="Mini Front Side - Grayscale">
-                    <a href="{{ url_for('static', filename=mini_front_bw) }}" 
-                       download="{{ mini_front_bw }}" 
-                       class="btn btn-secondary download-link">
-                        <i class="fas fa-download"></i> Download Mini Front Grayscale
                     </a>
                 </div>
             </div>

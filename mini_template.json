@@ -17,13 +17,13 @@
       "label": "ሙሉ ስም:",
       "key": "name_am",
       "position": [
-        736,
-        348
+        496,
+        210
       ],
       "font": {
         "family": "am",
         "weight": 800,
-        "size": 44
+        "size": 34
       },
       "color": [
         0,
@@ -35,26 +35,33 @@
     {
       "label": "Serial:",
       "key": "serial_number",
-      "position": [3550, 1080],  
+      "position": [
+        2220,
+        640
+      ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 35
+        "size": 32
       },
-      "color": [0, 0, 0],
+      "color": [
+        0,
+        0,
+        0
+      ],
       "align": "left"
     },
     {
       "label": "Full Name:",
       "key": "name_en",
       "position": [
-        736,
-        400
+        496,
+        260
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 44
+        "size": 32
       },
       "color": [
         0,
@@ -67,13 +74,13 @@
       "label": "FIN:",
       "key": "fin",
       "position": [
-        2320,
-        975
+        1516,
+        582
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 38
+        "size": 22
       },
       "color": [
         0,
@@ -84,15 +91,16 @@
     },
     {
       "label": "የትውልድ ቀን:",
+      
       "key": "dob_am",
       "position": [
-        745,
-        560
+        496,
+        340
       ],
       "font": {
-        "family": "en",
+        "family": "am",
         "weight": 800,
-        "size": 44
+        "size": 29
       },
       "color": [
         0,
@@ -105,13 +113,13 @@
       "label": "Date of Birth:",
       "key": "dob_en",
       "position": [
-        1100,
-        560
+        680,
+        340
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 44
+        "size": 29
       },
       "color": [
         0,
@@ -124,13 +132,13 @@
       "label": "ጾታ:",
       "key": "gender_am",
       "position": [
-        730,
-        666
+        490,
+        400
       ],
       "font": {
         "family": "am",
         "weight": 800,
-        "size": 44
+        "size": 32
       },
       "color": [
         0,
@@ -143,13 +151,13 @@
       "label": "Gender:",
       "key": "gender_en",
       "position": [
-        930,
-        666
+        600,
+        400
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 44
+        "size": 32
       },
       "color": [
         0,
@@ -162,13 +170,13 @@
       "label": "ዜግነት:",
       "key": "nationality_am",
       "position": [
-        2120,
-        314
+        1410,
+        210
       ],
       "font": {
         "family": "am",
         "weight": 800,
-        "size": 48
+        "size": 29
       },
       "color": [
         0,
@@ -181,13 +189,13 @@
       "label": "Nationality:",
       "key": "nationality_en",
       "position": [
-        2380,
-        314
+        1550,
+        210
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 48
+        "size": 30
       },
       "color": [
         0,
@@ -200,13 +208,13 @@
       "label": "Phone:",
       "key": "phone",
       "position": [
-        2122,
-        153
+        1415,
+        110
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 48
+        "size": 30
       },
       "color": [
         0,
@@ -218,7 +226,7 @@
     {
       "key": "issue_date",
       "position": [
-       836,
+        836,
         600
       ],
       "font": {
@@ -236,37 +244,51 @@
     },
     {
       "key": "issue_date_am",
-      "position": [32, 580],
-      "font": { 
+      "position": [
+        85,
+        335
+      ],
+      "font": {
         "family": "am",
         "weight": 800,
-        "size": 30 
+        "size": 18
       },
-      "color": [0, 0, 0],
+      "color": [
+        0,
+        0,
+        0
+      ],
       "align": "left"
     },
     {
       "key": "issue_date_en",
-      "position": [32, 150],
-      "font": { 
+      "position": [
+        85,
+        105
+      ],
+      "font": {
         "family": "en",
         "weight": 800,
-        "size": 30 
+        "size": 18
       },
-      "color": [0, 0, 0],
+      "color": [
+        0,
+        0,
+        0
+      ],
       "align": "left"
     },
     {
       "label": "Expires:",
       "key": "expiry_date_am",
       "position": [
-        740,
-        790
+        496,
+        470
       ],
       "font": {
         "family": "am",
         "weight": 800,
-        "size": 40
+        "size": 26
       },
       "color": [
         0,
@@ -279,13 +301,13 @@
       "label": "Expires:",
       "key": "expiry_date_en",
       "position": [
-        1050,
-        790
+        670,
+        470
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 40
+        "size": 26
       },
       "color": [
         0,
@@ -298,7 +320,7 @@
       "key": "fcn",
       "position": [
         863,
-        1030
+        990
       ],
       "font": {
         "family": "en",
@@ -315,13 +337,13 @@
     {
       "key": "region_en",
       "position": [
-        2120,
-        510
+        1410,
+        310
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 50
+        "size": 34
       },
       "color": [
         0,
@@ -333,13 +355,13 @@
     {
       "key": "subcity_en",
       "position": [
-        2120,
-        660
+        1410,
+        390
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 50
+        "size": 30
       },
       "color": [
         0,
@@ -351,13 +373,67 @@
     {
       "key": "woreda_en",
       "position": [
-        2120,
-        810
+        1410,
+        470
       ],
       "font": {
         "family": "en",
         "weight": 800,
-        "size": 50
+        "size": 34
+      },
+      "color": [
+        0,
+        0,
+        0
+      ],
+      "align": "left"
+    },
+        {
+      "key": "region_am",
+      "position": [
+        1410,
+        270
+      ],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 34
+      },
+      "color": [
+        0,
+        0,
+        0
+      ],
+      "align": "left"
+    },
+        {
+      "key": "subcity_am",
+      "position": [
+        1410,
+        350
+      ],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 30
+      },
+      "color": [
+        0,
+        0,
+        0
+      ],
+      "align": "left"
+    },
+    {
+      "key": "woreda_am",
+      "position": [
+        1410,
+        430
+      ],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 34
       },
       "color": [
         0,
@@ -415,30 +491,30 @@
       "qr_code": {
         "type": "placeholder",
         "position": [
-          2875,
-          90
+          1840,
+          65
         ],
         "size": [
-          934,
-          937
+          540,
+          550
         ]
       },
       "photo": {
         "type": "placeholder",
         "position": [
-         128, 324
+          128, 180
         ],
         "size": [
-      550, 735
+          320, 420
         ]
       },
       "photo_small": {
         "type": "placeholder",
         "position": [
-1493, 860
+          920, 520
         ],
         "size": [
-      199, 205
+          120, 130
         ]
       }
     }
@@ -469,3 +545,4 @@
     }
   }
 }
+

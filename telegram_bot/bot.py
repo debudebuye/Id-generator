@@ -79,7 +79,7 @@ class FydaTelegramBot:
             f"Hello {user_name}! I can help you generate your Ethiopian Digital ID (Fyda) from your official documents.\n\n"
             "*How it works:*\n"
             "1️⃣ Upload your official PDF document\n"
-            "2️⃣ Send your 12-digit FIN number\n"
+            "2️⃣ Send your 12-digit FIN number (with or without separators/letters)\n"
             "3️⃣ Review and customize the extracted information\n"
             "4️⃣ Generate your digital ID card\n\n"
             "*Features:*\n"
@@ -132,7 +132,7 @@ class FydaTelegramBot:
             "This bot helps you generate your Ethiopian Digital ID (Fyda) from your official documents.\n\n"
             "*How to use:*\n"
             "1️⃣ Upload your official PDF document\n"
-            "2️⃣ Send your 12-digit FIN number\n"
+            "2️⃣ Send your 12-digit FIN number (with or without separators/letters)\n"
             "3️⃣ Review and edit your information\n"
             "4️⃣ Generate your digital ID cards\n\n"
             "*Commands (optional):*\n"
@@ -173,7 +173,7 @@ class FydaTelegramBot:
             "❌ **Session Cancelled**\n\n"
             "Your current session has been cancelled.\n\n"
             "🔄 **To start over:** Send any message or /start\n\n"
-            "💡 *You can also just send your FIN number to begin immediately.*",
+            "💡 *You can also just send your FIN number (with or without separators/letters) to begin immediately.*",
             parse_mode=ParseMode.MARKDOWN
         )
         return ConversationHandler.END
@@ -192,7 +192,22 @@ class FydaTelegramBot:
             await update.message.reply_text(unauthorized_message, parse_mode=ParseMode.MARKDOWN)
             return ConversationHandler.END
         
+        # Clean FIN number by removing spaces, underscores, hyphens, and other common separators
         fin = update.message.text.strip()
+        original_fin = fin  # Keep original for display purposes
+        
+        # Remove common separators: spaces, underscores, hyphens, dots, commas, and letters
+        fin = re.sub(r'[\s_\-.,a-zA-Z]', '', fin)
+        
+        # Show user what was cleaned (only if cleaning actually happened)
+        if original_fin != fin:
+            await update.message.reply_text(
+                f"🧹 **FIN Number Cleaned**\n\n"
+                f"📝 **Original input:** `{original_fin}`\n"
+                f"✨ **Cleaned FIN:** `{fin}`\n\n"
+                "💡 *I automatically removed spaces, underscores, hyphens, letters, and other separators*",
+                parse_mode=ParseMode.MARKDOWN
+            )
         
         # Check if user sent a file instead of text
         if update.message.document or update.message.photo or update.message.video or update.message.audio:
@@ -204,7 +219,7 @@ class FydaTelegramBot:
                 "💡 *What is a FIN number?*\n"
                 "• It's a 12-digit number from your Ethiopian ID\n"
                 "• It contains only numbers (0-9)\n"
-                "• No spaces, dashes, or other characters",
+                "• You can use separators like spaces, dashes, underscores, and even letters - I'll clean them automatically",
                 parse_mode=ParseMode.MARKDOWN
             )
             return WAITING_FOR_FIN
@@ -214,7 +229,7 @@ class FydaTelegramBot:
             await update.message.reply_text(
                 "❌ *Empty Input*\n\n"
                 "Please send your 12-digit FIN number.\n\n"
-                "📝 **Example:** `123456789012`",
+                "📝 **Examples:** `123456789012` or `123 456 789 012` or `123-456-789-012` or `fin329036715680`",
                 parse_mode=ParseMode.MARKDOWN
             )
             return WAITING_FOR_FIN
@@ -246,6 +261,15 @@ class FydaTelegramBot:
         
         # FIN is valid
         self.user_sessions[user_id]['data']['fin'] = fin
+        
+        # Show confirmation of cleaned FIN if it was different from original
+        if 'original_fin' in locals() and original_fin != fin:
+            await update.message.reply_text(
+                f"✅ **FIN Number Accepted!**\n\n"
+                f"📋 **Your FIN:** `{fin}`\n"
+                f"💡 *Successfully cleaned from:* `{original_fin}`",
+                parse_mode=ParseMode.MARKDOWN
+            )
         
         # Check if we have a PDF to process
         if not self.user_sessions[user_id].get('files', {}).get('pdf'):

@@ -274,11 +274,12 @@ def result():
         print("Found name_en:", data['name_en'])
     
     # Debug print for files being passed to template
-    # Check if we have normal ID cards or old ID cards
+    # Check if we have normal ID cards, mini ID cards, or old ID cards
     has_normal_ids = any(files.get(key) for key in ['front_color', 'front_bw', 'reverse', 'reverse_bw'])
+    has_mini_ids = any(files.get(key) for key in ['mini_front_color', 'mini_front_bw'])
     has_old_ids = any(files.get(key) for key in ['old_front_color', 'old_front_bw', 'old_reverse_color', 'old_reverse_bw'])
     
-    if has_old_ids and not has_normal_ids:
+    if has_old_ids and not has_normal_ids and not has_mini_ids:
         # Only old ID cards were generated
         front_color = None
         front_bw = None
@@ -290,6 +291,18 @@ def result():
         old_front_bw = verify_file(files.get('old_front_bw'))
         old_reverse_color = verify_file(files.get('old_reverse_color'))
         old_reverse_bw = verify_file(files.get('old_reverse_bw'))
+    elif has_mini_ids and not has_normal_ids and not has_old_ids:
+        # Only mini ID cards were generated (with default reverse)
+        front_color = None
+        front_bw = None
+        reverse = verify_file(files.get('reverse'))
+        reverse_bw = verify_file(files.get('reverse_bw'))
+        mini_front_color = verify_file(files.get('mini_front_color'))
+        mini_front_bw = verify_file(files.get('mini_front_bw'))
+        old_front_color = None
+        old_front_bw = None
+        old_reverse_color = None
+        old_reverse_bw = None
     else:
         # Normal ID cards were generated (with optional mini/old)
         front_color = verify_file(files.get('front_color'))
@@ -541,3 +554,15 @@ def reset_session():
                     print(f"Failed to delete {fpath}: {e}")
     session.clear()
     return ('', 204) 
+
+@bp.route('/check_session')
+def check_session():
+    """
+    ---
+    get:
+      summary: Check if user session is valid
+      responses:
+        200:
+          description: Session status
+    """
+    return jsonify({"session_valid": True}) 

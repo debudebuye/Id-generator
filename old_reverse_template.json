@@ -10,11 +10,11 @@
       {
         "label": ":ምስ ሉሙ",
         "key": "name_am",
-        "position": [564, 210],
+        "position": [430, 150],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 34
+          "size": 24
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -22,11 +22,11 @@
       {
         "label": ":emaN lluF",
         "key": "name_en",
-        "position": [564, 250],
+        "position": [430, 190],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 34
+          "size": 24
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -34,7 +34,55 @@
       {
         "label": ":NIF",
         "key": "fin",
-        "position": [1450, 570],
+        "position": [1034, 414],
+        "font": {
+          "family": "en",
+          "weight": 800,
+          "size": 18
+        },
+        "color": [0, 0, 0],
+        "align": "left"
+      },
+      {
+        "label": ":ንቀ ድልውትየ",
+        "key": "dob_am",
+        "position": [430, 250],
+        "font": {
+          "family": "en",
+          "weight": 800,
+          "size": 20
+        },
+        "color": [0, 0, 0],
+        "align": "left"
+      },
+      {
+        "label": ":htriB fo etaD",
+        "key": "dob_en",
+        "position": [550, 250],
+        "font": {
+          "family": "en",
+          "weight": 800,
+          "size": 20
+        },
+        "color": [0, 0, 0],
+        "align": "left"
+      },
+      {
+        "label": ":ታጾ",
+        "key": "gender_am",
+        "position": [430, 305],
+        "font": {
+          "family": "am",
+          "weight": 800,
+          "size": 22
+        },
+        "color": [0, 0, 0],
+        "align": "left"
+      },
+      {
+        "label": ":redneG",
+        "key": "gender_en",
+        "position": [470, 305],
         "font": {
           "family": "en",
           "weight": 800,
@@ -44,72 +92,24 @@
         "align": "left"
       },
       {
-        "label": ":ንቀ ድልውትየ",
-        "key": "dob_am",
-        "position": [564, 330],
-        "font": {
-          "family": "am",
-          "weight": 800,
-          "size": 32
-        },
-        "color": [0, 0, 0],
-        "align": "left"
-      },
-      {
-        "label": ":htriB fo etaD",
-        "key": "dob_en",
-        "position": [740, 330],
-        "font": {
-          "family": "en",
-          "weight": 800,
-          "size": 32
-        },
-        "color": [0, 0, 0],
-        "align": "left"
-      },
-      {
-        "label": ":ታጾ",
-        "key": "gender_am",
-        "position": [564, 395],
-        "font": {
-          "family": "am",
-          "weight": 800,
-          "size": 30
-        },
-        "color": [0, 0, 0],
-        "align": "left"
-      },
-      {
-        "label": ":redneG",
-        "key": "gender_en",
-        "position": [650, 395],
-        "font": {
-          "family": "en",
-          "weight": 800,
-          "size": 30
-        },
-        "color": [0, 0, 0],
-        "align": "left"
-      },
-      {
         "label": ":rebmuN laireS",
         "key": "serial_number",
-        "position": [2135, 625],  
+        "position": [1570, 450],  
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 34
+          "size": 22
         },
         "color": [0, 0, 0],
         "align": "left"
       },
       {
         "key": "nationality_am",
-        "position": [1340, 200],
+        "position": [980, 135],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 30
+          "size": 25
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -117,11 +117,11 @@
       {
         "label": ":ytilanoitaN",
         "key": "nationality_en",
-        "position": [1490, 200],
+        "position": [1100, 135],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 30
+          "size": 25
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -129,22 +129,22 @@
       {
         "label": ":enohP",
         "key": "phone",
-        "position": [1340, 105],
+        "position": [980, 75],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 32
+          "size": 25
         },
         "color": [0, 0, 0],
         "align": "left"
       },
       {
         "key": "issue_date",
-        "position": [1400, 20],
+        "position": [100, 40],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 30
+          "size": 12
         },
         "color": [0, 0, 0],
         "align": "left",
@@ -152,22 +152,22 @@
       },
       {
         "key": "issue_date_am",
-        "position": [155, 220],
+        "position": [115, 100],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 20
+          "size": 15
         },
         "color": [0, 0, 0],
         "align": "left"
       },
       {
         "key": "issue_date_en",
-        "position": [155, -20],
+        "position": [115, -80],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 20
+          "size": 15
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -175,11 +175,11 @@
       {
         "label": ":s:seripxE",
         "key": "expiry_date_am",
-        "position": [564, 462],
+        "position": [430, 350],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 26
+          "size": 20
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -187,11 +187,11 @@
       {
         "label": ":s:seripxE",
         "key": "expiry_date_en",
-        "position": [740, 462],
+        "position": [550, 350],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 27
+          "size": 20
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -199,7 +199,7 @@
       {
        
         "key": "fcn",
-        "position": [600, 500],
+        "position": [750, 380],
         "font": {
           "family": "en",
           "weight": 800,
@@ -211,11 +211,11 @@
       {
         "label": ":አ:ሻራድአ",
         "key": "region_am",
-        "position": [1340, 270],
+        "position": [980, 190],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 34
+          "size": 30
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -223,11 +223,11 @@
       {
         "label": ":sserddA",
         "key": "region_en",
-        "position": [1340, 300],
+        "position": [980, 220],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 34
+          "size": 30
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -235,11 +235,11 @@
       {
         "label": ":አ:ሻራድአ",
         "key": "subcity_am",
-        "position": [1340, 340],
+        "position": [980, 250],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 34
+          "size": 30
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -247,11 +247,11 @@
       {
         "label": ":sserddA",
         "key": "subcity_en",
-        "position": [1340, 370],
+        "position": [980, 280],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 34
+          "size": 30
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -259,11 +259,11 @@
       {
         "label": ":አ:ሻራድአ",
         "key": "woreda_am",
-        "position": [1340, 420],
+        "position": [980, 310],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 34
+          "size": 30
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -271,11 +271,11 @@
       {
         "label": ":sserddA",
         "key": "woreda_en",
-        "position": [1340, 470],
+        "position": [980, 340],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 34
+          "size": 30
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -310,7 +310,7 @@
         "photo": {
           "type": "placeholder",
           "position": [128, 324],
-          "size": [550, 735]
+          "size": [450, 635]
         },
         "photo_small": {
           "type": "placeholder",
