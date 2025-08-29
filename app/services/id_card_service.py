@@ -2508,13 +2508,16 @@ class IDCardService:
                     else:
                         font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_size)
                     
+                    # Bold Amharic date fields
+                    is_amharic_date = key in ["issue_date_am", "expiry_date_am", "dob_am"]
+
                     # Handle rotated text for issue date
                     if key in ["issue_date_am", "issue_date_en"]:
-                        rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val)
+                        rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val, 90, bold=is_amharic_date)
                         canvas.paste(rotated_img, pos2, rotated_img)
                     else:
                         max_width = field.get('wrap_width')
-                        draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width)
+                        draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width, bold=is_amharic_date)
                 
                 # Draw address fields from template configuration
                 font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 32)
@@ -2597,13 +2600,16 @@ class IDCardService:
                     else:
                         font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_size)
                     
+                    # Bold Amharic date fields on reverse too
+                    is_amharic_date = key in ["issue_date_am", "expiry_date_am", "dob_am"]
+
                     # Rotate issue date text vertically if applicable
                     if key in ["issue_date_am", "issue_date_en"]:
-                        rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val)
+                        rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val, 90, bold=is_amharic_date)
                         data_layer.paste(rotated_img, pos2, rotated_img)
                     else:
                         max_width = field.get('wrap_width')
-                        draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width)
+                        draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width, bold=is_amharic_date)
                 
                 # Large Photo
                 if os.path.exists(photo_path):
