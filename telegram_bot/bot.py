@@ -1069,7 +1069,7 @@ class FydaTelegramBot:
             )
             return WAITING_FOR_PHOTO
         
-        # If user sent a document (e.g., PNG/WebP as File), accept and preserve transparency
+        # If user sent a document (e.g., PNG with transparency), accept it and preserve alpha
         if update.message.document:
             try:
                 doc = update.message.document
@@ -1077,7 +1077,9 @@ class FydaTelegramBot:
                 file_bytes = await file.download_as_bytearray()
                 from PIL import Image
                 from io import BytesIO
-                img = Image.open(BytesIO(file_bytes)).convert('RGBA')
+                img = Image.open(BytesIO(file_bytes))
+                # Convert to RGBA to preserve transparency if present
+                img = img.convert('RGBA')
                 filename = 'photo_temp.png'
                 filepath = os.path.join(self.id_service.config.STATIC_FOLDER, filename)
                 img.save(filepath, format='PNG')
@@ -1088,7 +1090,7 @@ class FydaTelegramBot:
                     "⚙️ **Next Step:** Configure your ID generation options",
                     parse_mode=ParseMode.MARKDOWN
                 )
-                return await self.show_background_options(update, context, user_id)
+                return await self.show_generation_options(update, context, user_id)
             except Exception as e:
                 await update.message.reply_text(
                     "❌ *Photo Document Processing Error*\n\n"
@@ -1152,11 +1154,14 @@ class FydaTelegramBot:
                 )
                 return WAITING_FOR_PHOTO
             
-            # Save custom photo
+            # Save custom photo. Telegram photos are typically JPEG (no alpha).
+            # We still normalize to PNG; for transparency, ask user to send as Document (keeps alpha).
+            from PIL import Image
+            from io import BytesIO
+            img = Image.open(BytesIO(photo_bytes)).convert('RGBA')
             filename = 'photo_temp.png'
             filepath = os.path.join(self.id_service.config.STATIC_FOLDER, filename)
-            with open(filepath, 'wb') as f:
-                f.write(photo_bytes)
+            img.save(filepath, format='PNG')
             
             self.user_sessions[user_id]['files']['custom_photo'] = photo_bytes
             
@@ -1166,11 +1171,11 @@ class FydaTelegramBot:
                 f"📏 **Size:** {file_size / 1024:.1f} KB\n"
                 "📸 **Type:** Custom photo\n\n"
                 "⚙️ **Next Step:** Configure your ID generation options\n\n"
-                "💡 *Your photo will be used for the ID card*",
+                "💡 *Note:* To preserve transparency, send the image as a PNG document (File), not as a compressed photo.",
                 parse_mode=ParseMode.MARKDOWN
             )
             
-            return await self.show_background_options(update, context, user_id)
+            return await self.show_generation_options(update, context, user_id)
             
         except Exception as e:
             await update.message.reply_text(
@@ -1191,32 +1196,48 @@ class FydaTelegramBot:
             return WAITING_FOR_PHOTO
 
     async def show_generation_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
-        # Show background removal and ID type options
+        # Backward-compatible entry that now starts with BG options
+        return await self.show_background_options(update, context, user_id)
+
+    async def show_background_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
+        # Show background removal options only
         keyboard = [
             [InlineKeyboardButton("No Background Removal", callback_data="bg_none")],
             [InlineKeyboardButton("Remove White Background", callback_data="bg_white")],
-            [InlineKeyboardButton("Remove Black Background", callback_data="bg_black")],
-            [InlineKeyboardButton("Generate Mini ID Cards", callback_data="mini_id")],
-            [InlineKeyboardButton("Generate Old ID Cards", callback_data="old_id")]
+            [InlineKeyboardButton("Remove Black Background", callback_data="bg_black")]
         ]
-        
-        # Determine if this is a callback query or message
         if hasattr(update, 'callback_query') and update.callback_query:
             await update.callback_query.edit_message_text(
-                "Choose your background removal option and ID type:",
+                "Choose your background removal option:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         else:
             await context.bot.send_message(
                 chat_id=user_id,
-                text="Choose your background removal option and ID type:",
+                text="Choose your background removal option:",
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
         return CONFIRMING_DATA
 
-    # Backward-compatibility alias to avoid attribute errors from older references
-    async def showbackgroundoptions(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
-        return await self.show_background_options(update, context, user_id)
+    async def show_id_type_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
+        # Show ID type options separately
+        keyboard = [
+            [InlineKeyboardButton("Normal ID Cards", callback_data="id_normal")],
+            [InlineKeyboardButton("Generate Mini ID Cards", callback_data="mini_id")],
+            [InlineKeyboardButton("Generate Old ID Cards", callback_data="old_id")]
+        ]
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.edit_message_text(
+                "Choose the ID type to generate:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        else:
+            await context.bot.send_message(
+                chat_id=user_id,
+                text="Choose the ID type to generate:",
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+        return CONFIRMING_DATA
 
     async def handle_bg_option(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
@@ -1235,27 +1256,44 @@ class FydaTelegramBot:
             return ConversationHandler.END
         
         bg_option = query.data
-        
-        if bg_option == 'old_id':
-            # User wants old ID cards
-            self.user_sessions[user_id]['data']['generate_old_id'] = True
-            self.user_sessions[user_id]['data']['generate_mini_id'] = False
-            self.user_sessions[user_id]['data']['remove_white_bg'] = False
-            self.user_sessions[user_id]['data']['remove_black_bg'] = False
-        elif bg_option == 'mini_id':
-            # User wants mini ID cards
+        # Handle background removal options only
+        self.user_sessions[user_id]['data']['remove_white_bg'] = (bg_option == 'bg_white')
+        self.user_sessions[user_id]['data']['remove_black_bg'] = (bg_option == 'bg_black')
+        # Reset id type flags for clarity; will be set next
+        self.user_sessions[user_id]['data']['generate_old_id'] = False
+        self.user_sessions[user_id]['data']['generate_mini_id'] = False
+
+        # Next: ask for ID type
+        return await self.show_id_type_options(update, context, user_id)
+
+    async def handle_id_type(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        query = update.callback_query
+        await query.answer()
+        user_id = query.from_user.id
+
+        # Check if user is authorized
+        if not self.is_user_authorized(user_id):
+            unauthorized_message = (
+                "🚫 *Access Denied*\n\n"
+                "You are not authorized to use this bot.\n"
+                "Please contact the administrator to get access.\n\n"
+                f"Your User ID: `{user_id}`"
+            )
+            await query.edit_message_text(unauthorized_message, parse_mode=ParseMode.MARKDOWN)
+            return ConversationHandler.END
+
+        id_choice = query.data
+        if id_choice == 'mini_id':
             self.user_sessions[user_id]['data']['generate_mini_id'] = True
             self.user_sessions[user_id]['data']['generate_old_id'] = False
-            self.user_sessions[user_id]['data']['remove_white_bg'] = False
-            self.user_sessions[user_id]['data']['remove_black_bg'] = False
-        else:
-            # Handle background removal options
-            self.user_sessions[user_id]['data']['remove_white_bg'] = (bg_option == 'bg_white')
-            self.user_sessions[user_id]['data']['remove_black_bg'] = (bg_option == 'bg_black')
+        elif id_choice == 'old_id':
+            self.user_sessions[user_id]['data']['generate_old_id'] = True
+            self.user_sessions[user_id]['data']['generate_mini_id'] = False
+        else:  # id_normal
             self.user_sessions[user_id]['data']['generate_old_id'] = False
             self.user_sessions[user_id]['data']['generate_mini_id'] = False
-        
-        # Ask for city type
+
+        # Finally ask for city type
         keyboard = [[InlineKeyboardButton(city.replace('_', ' ').title(), callback_data=city)] for city in CITY_TYPES]
         await query.edit_message_text(
             "Select your address format (city type):",
@@ -2211,6 +2249,7 @@ class FydaTelegramBot:
                     CallbackQueryHandler(self.handle_field_edit, pattern="^edit_(?!personal$|address$|nationality$|options$).+"),
                     CallbackQueryHandler(self.handle_photo_choice, pattern="^photo_"),
                     CallbackQueryHandler(self.handle_bg_option, pattern="^bg_"),
+                    CallbackQueryHandler(self.handle_id_type, pattern="^(id_normal|mini_id|old_id)$"),
                     CallbackQueryHandler(self.handle_city_type, pattern="^(default|residential_sheger)$"),
                     CallbackQueryHandler(self.handle_compression_choice, pattern="^compress_"),
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_field_value)
