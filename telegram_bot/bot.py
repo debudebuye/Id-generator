@@ -1069,24 +1069,34 @@ class FydaTelegramBot:
             )
             return WAITING_FOR_PHOTO
         
-        # Check if user sent a document instead of photo
+        # If user sent a document (e.g., PNG/WebP as File), accept and preserve transparency
         if update.message.document:
-            await update.message.reply_text(
-                "❌ *Wrong File Type*\n\n"
-                "I need a **photo**, not a document.\n\n"
-                "📸 **Please upload your photo**\n\n"
-                "💡 *What I need:*\n"
-                "• A photo of your face\n"
-                "• Clear and well-lit\n"
-                "• JPEG or PNG format\n\n"
-                "📱 *How to upload:*\n"
-                "1. Tap 📎 (attachment)\n"
-                "2. Select 'Photo' or 'Camera'\n"
-                "3. Take/choose your photo\n"
-                "4. Send it",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            return WAITING_FOR_PHOTO
+            try:
+                doc = update.message.document
+                file = await context.bot.get_file(doc.file_id)
+                file_bytes = await file.download_as_bytearray()
+                from PIL import Image
+                from io import BytesIO
+                img = Image.open(BytesIO(file_bytes)).convert('RGBA')
+                filename = 'photo_temp.png'
+                filepath = os.path.join(self.id_service.config.STATIC_FOLDER, filename)
+                img.save(filepath, format='PNG')
+                self.user_sessions[user_id]['files']['custom_photo'] = file_bytes
+                await update.message.reply_text(
+                    "✅ **Photo Uploaded (Document) Successfully!**\n\n"
+                    "📸 Transparency preserved if present.\n\n"
+                    "⚙️ **Next Step:** Configure your ID generation options",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return await self.show_background_options(update, context, user_id)
+            except Exception as e:
+                await update.message.reply_text(
+                    "❌ *Photo Document Processing Error*\n\n"
+                    f"🔧 **Error:** {str(e)}\n\n"
+                    "💡 Try sending the image as a PNG document again.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return WAITING_FOR_PHOTO
         
         # Check if user sent other file types
         if update.message.video or update.message.audio or update.message.voice:
