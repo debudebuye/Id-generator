@@ -1214,6 +1214,10 @@ class FydaTelegramBot:
             )
         return CONFIRMING_DATA
 
+    # Backward-compatibility alias to avoid attribute errors from older references
+    async def showbackgroundoptions(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
+        return await self.show_background_options(update, context, user_id)
+
     async def handle_bg_option(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
         await query.answer()
