@@ -97,8 +97,10 @@ def draw_rotated_text(
     temp_img = Image.new("RGBA", (1, 1), (255, 255, 255, 0))
     temp_draw = ImageDraw.Draw(temp_img)
     bbox = temp_draw.textbbox((0, 0), text, font=font)
-    width = max(1, (bbox[2] - bbox[0]) + 4)
-    height = max(1, (bbox[3] - bbox[1]) + 4)
+    # Add generous padding to avoid any clipping after rotation
+    padding = 20
+    width = max(1, (bbox[2] - bbox[0]) + padding)
+    height = max(1, (bbox[3] - bbox[1]) + padding)
     rotated_img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     rotated_draw = ImageDraw.Draw(rotated_img)
     if bold:

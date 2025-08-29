@@ -2358,7 +2358,10 @@ class IDCardService:
                     # Handle rotated text for issue dates
                     if key in ["issue_date_am", "issue_date_en"]:
                         rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val, 90, bold=is_amharic_date)
-                        canvas.paste(rotated_img, pos2, rotated_img)
+                        # Ensure rotated text is fully within canvas bounds
+                        new_x = max(0, min(pos2[0], canvas.width - rotated_img.width))
+                        new_y = max(0, min(pos2[1], canvas.height - rotated_img.height))
+                        canvas.paste(rotated_img, (new_x, new_y), rotated_img)
                     else:
                         max_width = field.get('wrap_width')
                         draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width, bold=is_amharic_date)

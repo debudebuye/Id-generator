@@ -226,8 +226,8 @@
     {
       "key": "issue_date",
       "position": [
-        836,
-        600
+        600,
+        700
       ],
       "font": {
         "family": "en",
@@ -245,8 +245,8 @@
     {
       "key": "issue_date_am",
       "position": [
-        85,
-        335
+        110,
+        420
       ],
       "font": {
         "family": "am",
@@ -264,7 +264,7 @@
       "key": "issue_date_en",
       "position": [
         85,
-        105
+        170
       ],
       "font": {
         "family": "en",
