@@ -2353,13 +2353,15 @@ class IDCardService:
                         self.config.AMHARIC_FONT_PATH if key.endswith('_am') else self.config.ENGLISH_FONT_PATH,
                         font_size
                     )
+                    # Bold Amharic date fields on mini ID
+                    is_amharic_date = key in ["issue_date_am", "expiry_date_am", "dob_am"]
                     # Handle rotated text for issue dates
                     if key in ["issue_date_am", "issue_date_en"]:
-                        rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val)
+                        rotated_img, pos2 = draw_rotated_text(draw, content, pos, font, color_val, 90, bold=is_amharic_date)
                         canvas.paste(rotated_img, pos2, rotated_img)
                     else:
                         max_width = field.get('wrap_width')
-                        draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width)
+                        draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width, bold=is_amharic_date)
                 # Address
                 font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 48)
                 font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 50)

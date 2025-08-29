@@ -49,14 +49,23 @@ def draw_text_with_alignment(
     font: ImageFont.FreeTypeFont,
     color: Tuple[int, int, int] = (0, 0, 0),
     align: str = "left",
-    max_width: Optional[int] = None
+    max_width: Optional[int] = None,
+    bold: bool = False
 ) -> None:
     """Draw text with specified alignment and optional wrapping."""
     if max_width:
         lines = wrap_text(draw, text, font, max_width)
         y_offset = 0
         for line in lines:
-            draw.text((position[0], position[1] + y_offset), line, font=font, fill=color)
+            x, y = position[0], position[1] + y_offset
+            if bold:
+                # Simple faux-bold by overdrawing with 1px offsets
+                draw.text((x, y), line, font=font, fill=color)
+                draw.text((x + 1, y), line, font=font, fill=color)
+                draw.text((x, y + 1), line, font=font, fill=color)
+                draw.text((x + 1, y + 1), line, font=font, fill=color)
+            else:
+                draw.text((x, y), line, font=font, fill=color)
             y_offset += font.size + 5
     else:
         text_width = draw.textlength(text, font=font)
@@ -66,7 +75,13 @@ def draw_text_with_alignment(
             pos = (position[0] - text_width, position[1])
         else:
             pos = position
-        draw.text(pos, text, font=font, fill=color)
+        if bold:
+            draw.text(pos, text, font=font, fill=color)
+            draw.text((pos[0] + 1, pos[1]), text, font=font, fill=color)
+            draw.text((pos[0], pos[1] + 1), text, font=font, fill=color)
+            draw.text((pos[0] + 1, pos[1] + 1), text, font=font, fill=color)
+        else:
+            draw.text(pos, text, font=font, fill=color)
 
 def draw_rotated_text(
     draw: ImageDraw.ImageDraw,
@@ -74,11 +89,24 @@ def draw_rotated_text(
     position: Tuple[int, int],
     font: ImageFont.FreeTypeFont,
     color: Tuple[int, int, int] = (0, 0, 0),
-    angle: int = 90
+    angle: int = 90,
+    bold: bool = False
 ) -> None:
     """Draw text rotated by specified angle."""
-    rotated_img = Image.new("RGBA", (300, 45), (255, 255, 255, 0))
+    # Determine size needed for text to avoid clipping
+    temp_img = Image.new("RGBA", (1, 1), (255, 255, 255, 0))
+    temp_draw = ImageDraw.Draw(temp_img)
+    bbox = temp_draw.textbbox((0, 0), text, font=font)
+    width = max(1, (bbox[2] - bbox[0]) + 4)
+    height = max(1, (bbox[3] - bbox[1]) + 4)
+    rotated_img = Image.new("RGBA", (width, height), (255, 255, 255, 0))
     rotated_draw = ImageDraw.Draw(rotated_img)
-    rotated_draw.text((0, 0), text, font=font, fill=color)
+    if bold:
+        rotated_draw.text((0, 0), text, font=font, fill=color)
+        rotated_draw.text((1, 0), text, font=font, fill=color)
+        rotated_draw.text((0, 1), text, font=font, fill=color)
+        rotated_draw.text((1, 1), text, font=font, fill=color)
+    else:
+        rotated_draw.text((0, 0), text, font=font, fill=color)
     rotated_img = rotated_img.rotate(angle, expand=True)
     return rotated_img, position 
