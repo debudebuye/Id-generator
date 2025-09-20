@@ -12,6 +12,7 @@ from dateutil.relativedelta import relativedelta # Added for date calculations
 from io import BytesIO
 from concurrent.futures import ThreadPoolExecutor
 from io import BytesIO
+import qrcode
 
 from ..config.settings import Config
 from ..utils.image_utils import process_photo, draw_text_with_alignment, draw_rotated_text
@@ -203,6 +204,71 @@ class IDCardService:
         except Exception as e:
             print(f"    Unexpected error in _parse_line: {str(e)}")
             return "", ""
+
+    def _extract_nationality_below_label(self, lines: List[str]) -> Tuple[str, str]:
+        """Extract nationality near the label 'ዜግነት | nationality' using a fuzzy line-based approach.
+
+        - Matches the label if it contains both tokens ("nationality" or "ዜግነት"), ignoring order/spaces/case
+        - If value appears on SAME line after a separator, parse it
+        - Otherwise, look at the next 1-3 non-empty lines for the value
+        - Returns canonical pair (amharic, english) or ("", "") if not found
+        """
+
+        def looks_like_label(text: str) -> bool:
+            t = text.lower()
+            return ("nationality" in t) or ("ዜግነት" in t)
+
+        def parse_value(value_line: str) -> Tuple[str, str]:
+            val = value_line.strip()
+            if not val:
+                return "", ""
+            if "|" in val:
+                left, right = [p.strip() for p in val.split("|", 1)]
+                # If left uses non-ASCII (likely Amharic) and right is ASCII (likely English)
+                if any(ord(c) > 127 for c in left) and all(ord(c) < 128 for c in right):
+                    return left, right
+                # Or reversed order
+                if any(ord(c) > 127 for c in right) and all(ord(c) < 128 for c in left):
+                    return right, left
+                # If both sides are same script, just return as-is with left as Amharic fallback
+                return left, right
+            # Single-language line: mirror to both sides
+            return val, val
+            return "", ""
+
+        for i, ln in enumerate(lines):
+            s = ln.strip()
+            if not s:
+                continue
+            if looks_like_label(s):
+                # Same-line value after separators
+                for sep in [":", "-", "—", "|"]:
+                    if sep in s:
+                        tail = s.split(sep, 1)[1].strip()
+                        am, en = parse_value(tail)
+                        if am or en:
+                            return am or en, en or am
+                # Look at next 1-3 non-empty lines for value
+                checked = 0
+                j = i + 1
+                while j < len(lines) and checked < 3:
+                    candidate = lines[j].strip()
+                    j += 1
+                    if not candidate:
+                        continue
+                    lower_cand = candidate.lower()
+                    # Skip if this is clearly another label/section
+                    if any(x in lower_cand for x in [
+                        "sex", "ፆታ", "date", "የትውልድ", "region", "city", "subcity", "zone", "woreda", "kebele", "phone", "ስልክ"
+                    ]):
+                        checked += 1
+                        continue
+                    am, en = parse_value(candidate)
+                    if am or en:
+                        return am or en, en or am
+                    checked += 1
+                break
+        return "", ""
 
     def _extract_address_components(self, lines: List[str], region_index: int) -> Tuple[str, str, str, str]:
         """Extract subcity and woreda information with improved logic."""
@@ -638,6 +704,14 @@ class IDCardService:
                     if (l in ["ኢትዮጵያ", "ኢትዮጵያዊ"]) and r.lower().startswith("ethiop"):
                         pattern_nat_am, pattern_nat_en = l, "Ethiopian"
                         continue
+                # Nationality English-only line
+                if not pattern_nat_en and any(x in ln.lower().strip() for x in ["ethiopian", "ethiopia"]):
+                    pattern_nat_en, pattern_nat_am = "Ethiopian", "ኢትዮጵያዊ"
+                    continue
+                # Nationality Amharic-only line
+                if not pattern_nat_am and any(x in ln for x in ["ኢትዮጵያ", "ኢትዮጵያዊ"]):
+                    pattern_nat_am, pattern_nat_en = "ኢትዮጵያዊ", "Ethiopian"
+                    continue
                 # Phone (10 digits typical)
                 digits = ln.replace(" ", "")
                 if not pattern_phone and digits.isdigit() and 9 <= len(digits) <= 13:
@@ -662,6 +736,30 @@ class IDCardService:
                 woreda_en, woreda_am = pattern_woreda_en, pattern_woreda_am
         except Exception as _:
             pass
+
+        # Fallback: detect unlabeled bilingual nationality line (e.g., "Eritrea | Eritrea")
+        if not nationality_en and not nationality_am:
+            try:
+                excluded_words = [
+                    "region", "zone", "subcity", "sub city", "city", "admin", "administration", "woreda", "kebele",
+                    "sex", "nationality", "phone", "date", "demographic", "disclaimer", "address"
+                ]
+                for ln in lines:
+                    if '|' in ln and not any(ch.isdigit() for ch in ln):
+                        left, right = [p.strip() for p in ln.split('|', 1)]
+                        left_ascii = all(ord(c) < 128 for c in left.replace(' ', ''))
+                        right_ascii = all(ord(c) < 128 for c in right.replace(' ', ''))
+                        # Skip obvious labels/addresses
+                        if any(w in ln.lower() for w in excluded_words):
+                            continue
+                        # Heuristic: both sides ASCII words and similar → nationality
+                        if left and right and left_ascii and right_ascii:
+                            if left.lower() == right.lower():
+                                nationality_en = right
+                                nationality_am = left
+                                break
+            except Exception:
+                pass
         # Debug: Log the PDF structure around address fields
         print(f"PDF structure debug - Lines around address fields:")
         for i in range(max(0, line_indices['region'] - 2), min(len(lines), line_indices['region'] + 5)):
@@ -786,6 +884,24 @@ class IDCardService:
             except Exception:
                 pass
 
+        # Override nationality by reading the line directly below the label if present
+        try:
+            nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
+            if nat_am_label or nat_en_label:
+                # Mirror if only one side detected
+                nat_am_final = nat_am_label or nat_en_label
+                nat_en_final = nat_en_label or nat_am_label
+                nationality_am = nat_am_final or nationality_am
+                nationality_en = nat_en_final or nationality_en
+        except Exception:
+            pass
+
+        # Normalize nationality: if one side found, fill the other
+        if nationality_en and not nationality_am:
+            nationality_am = nationality_en
+        if nationality_am and not nationality_en:
+            nationality_en = nationality_am
+
         dates = get_id_dates()
         
         # Prepare base extracted data
@@ -906,15 +1022,15 @@ class IDCardService:
                 if i+1 < len(lines) and lines[i+1].strip() in ["Female", "Male"]:
                     extracted["gender_en"] = lines[i+1].strip()
                     print(f"Found gender EN: '{lines[i+1].strip()}'")
-            elif line.strip() in ["ኢትዮጵያዊ", "ኢትዮጵያ"]:  # Fix: Added "ኢትዮጵያ" as possible Amharic value
-                extracted["nationality_am"] = line.strip()
-                print(f"Found nationality AM: '{line.strip()}'")
-                # Look for English nationality in next few lines
-                for j in range(i+1, min(i+4, len(lines))):
-                    if lines[j].strip() in ["Ethiopian", "Ethiopia"]:  # Fix: Added "Ethiopia" as possible English value
-                        extracted["nationality_en"] = "Ethiopian"  # Fix: Always set to "Ethiopian"
-                        print(f"Found nationality EN: '{lines[j].strip()}'")
+            elif line.strip() in ["ኢትዮጵያዊ", "ኢትዮጵያ"]:
+                extracted["nationality_am"] = "ኢትዮጵያዊ"
+                extracted["nationality_en"] = extracted.get("nationality_en") or "Ethiopian"
+                print(f"Found nationality AM: '{line.strip()}' -> set EN to 'Ethiopian'")
                 continue
+            elif line.strip().lower() in ["ethiopian", "ethiopia"]:
+                extracted["nationality_en"] = "Ethiopian"
+                extracted["nationality_am"] = extracted.get("nationality_am") or "ኢትዮጵያዊ"
+                print(f"Found nationality EN: '{line.strip()}' -> set AM to 'ኢትዮጵያዊ'")
             elif line.replace(" ", "").isdigit() and len(line.replace(" ", "")) == 10:
                 extracted["phone"] = line.strip()
                 print(f"Found phone: '{line.strip()}'")
@@ -927,10 +1043,19 @@ class IDCardService:
                     left, right = [part.strip() for part in line.split("|", 1)]
                     # Exclude obvious labels/addresses
                     excluded_en = ["region", "zone", "sub city", "city", "admin", "administration", "woreda", "kebele", "sex", "nationality", "phone", "date", "demographic", "disclaimer"]
+                    # Case 1: Amharic on left, English on right
                     if (any(ord(c) > 127 for c in left) and right.replace(" ", "").replace("-", "").replace(".", "").isalpha() and
+                        all(ord(c) < 128 for c in right.replace(" ", "").replace("-", "").replace(".", "")) and
                         not any(word in right.lower() for word in excluded_en)):
                         extracted["name_am"] = left
                         extracted["name_en"] = right
+                        break
+                    # Case 2: English on left, Amharic on right (reversed order)
+                    if (any(ord(c) > 127 for c in right) and left.replace(" ", "").replace("-", "").replace(".", "").isalpha() and
+                        all(ord(c) < 128 for c in left.replace(" ", "").replace("-", "").replace(".", "")) and
+                        not any(word in left.lower() for word in excluded_en)):
+                        extracted["name_en"] = left
+                        extracted["name_am"] = right
                         break
 
         # First, try to find names near the FCN number (most reliable location)
@@ -958,8 +1083,9 @@ class IDCardService:
                             print(f"    Skipping (contains excluded words): '{check_line}'")
                             continue
                             
-                        # Check if it's an English name (only letters, spaces, dots, hyphens)
+                        # Check if it's an English name (ASCII letters only, spaces, dots, hyphens)
                         if (check_line.replace(" ", "").replace(".", "").replace("-", "").isalpha() and 
+                            all(ord(c) < 128 for c in check_line.replace(" ", "").replace(".", "").replace("-", "")) and
                             len(check_line.split()) >= 2 and len(check_line.split()) <= 5 and
                             len(check_line) < 60):
                             
@@ -997,7 +1123,7 @@ class IDCardService:
                     len(line_clean.split()) >= 2 and len(line_clean.split()) <= 5 and
                     len(line_clean) < 60):
                     
-                    # Must NOT contain any of these words
+                    # Must NOT contain any of these words and must be ASCII
                     excluded_words = [
                         "subcity", "woreda", "region", "address", "phone", "date",
                         "ethiopian", "ethiopia", "digital", "id", "card", "program",
@@ -1005,7 +1131,8 @@ class IDCardService:
                         "demographic", "disclaimer", "ethiopian digital id card", "nationality",
                         "የኢትዮጵያ", "ብሔራዊ", "መታወቂያ", "ፕሮግራም"
                     ]
-                    if not any(word.lower() in line_clean.lower() for word in excluded_words):
+                    if (all(ord(c) < 128 for c in line_clean.replace(" ", "").replace(".", "").replace("-", "")) and
+                        not any(word.lower() in line_clean.lower() for word in excluded_words)):
                         extracted["name_en"] = line_clean
                         print(f"Found English name with pattern search: '{line_clean}'")
                         break
@@ -1025,6 +1152,12 @@ class IDCardService:
                             print(f"Found Amharic name with pattern search: '{line_clean}'")
                             break
 
+        # Normalize names if English captured Amharic by mistake
+        if extracted["name_en"] and any(ord(c) > 127 for c in extracted["name_en"]):
+            if not extracted["name_am"]:
+                extracted["name_am"] = extracted["name_en"]
+            extracted["name_en"] = ""
+
         # If nationality is still not set but we found Amharic, set default English
         if extracted["nationality_am"] and not extracted["nationality_en"]:
             extracted["nationality_en"] = "Ethiopian"
@@ -1032,6 +1165,32 @@ class IDCardService:
         if not extracted["nationality_am"] and not extracted["nationality_en"]:
             extracted["nationality_am"] = "ኢትዮጵያዊ"
             extracted["nationality_en"] = "Ethiopian"
+
+        # Line-based override: read nationality near the 'ዜግነት | nationality' label
+        try:
+            nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
+            if nat_am_label or nat_en_label:
+                # Mirror if only one side detected
+                nat_am_final = nat_am_label or nat_en_label
+                nat_en_final = nat_en_label or nat_am_label
+                extracted["nationality_am"] = nat_am_final or extracted["nationality_am"]
+                extracted["nationality_en"] = nat_en_final or extracted["nationality_en"]
+        except Exception:
+            pass
+
+        # Fallback: unlabeled bilingual nationality like "Eritrea | Eritrea"
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            try:
+                for ln in lines:
+                    if '|' in ln and not any(ch.isdigit() for ch in ln):
+                        left, right = [p.strip() for p in ln.split('|', 1)]
+                        if left and right and all(ord(c) < 128 for c in left+right if not c.isspace()):
+                            if left.lower() == right.lower():
+                                extracted["nationality_am"] = left
+                                extracted["nationality_en"] = right
+                                break
+            except Exception:
+                pass
         
         # Debug: Print what we extracted
         print(f"Residential Sheger extraction results:")
@@ -1469,12 +1628,38 @@ class IDCardService:
                         extracted["gender_en"] = "Female"
                 break
         
-        # Extract nationality
+        # Extract nationality (handle Amharic-only, English-only, or bilingual with '|')
         for line in lines:
-            if line.strip() in ["ኢትዮጵያዊ", "ኢትዮጵያ"]:
-                extracted["nationality_am"] = line.strip()
+            s = line.strip()
+            if not s:
+                continue
+            # Bilingual case like "ኢትዮጵያ | Ethiopian" or reversed
+            if "|" in s:
+                left, right = [part.strip() for part in s.split("|", 1)]
+                if left in ["ኢትዮጵያ", "ኢትዮጵያዊ"] and right.lower().startswith("ethiop"):
+                    extracted["nationality_am"] = "ኢትዮጵያዊ"
+                    extracted["nationality_en"] = "Ethiopian"
+                    break
+                if right in ["ኢትዮጵያ", "ኢትዮጵያዊ"] and left.lower().startswith("ethiop"):
+                    extracted["nationality_am"] = "ኢትዮጵያዊ"
+                    extracted["nationality_en"] = "Ethiopian"
+                    break
+            # Amharic-only occurrence
+            if s in ["ኢትዮጵያ", "ኢትዮጵያዊ"]:
+                extracted["nationality_am"] = "ኢትዮጵያዊ"
                 extracted["nationality_en"] = "Ethiopian"
                 break
+            # English-only occurrence
+            if s.lower() in ["ethiopian", "ethiopia"]:
+                extracted["nationality_en"] = "Ethiopian"
+                extracted["nationality_am"] = "ኢትዮጵያዊ"
+                break
+
+        # Normalize defaults if only one side was found
+        if extracted["nationality_en"] and not extracted["nationality_am"]:
+            extracted["nationality_am"] = "ኢትዮጵያዊ"
+        if extracted["nationality_am"] and not extracted["nationality_en"]:
+            extracted["nationality_en"] = "Ethiopian"
         
         # Extract phone
         for line in lines:
@@ -1859,7 +2044,7 @@ class IDCardService:
                 self._template_cache['mini_size'] = Image.open(self.config.MINI_TEMPLATE_IMG).size
             # Use appropriate address positions based on ID type
             if generate_old_id:
-                address_positions = self.config.ADDRESS_POSITIONS.get(city_option, self.config.ADDRESS_POSITIONS['default'])
+                address_positions = self.config.OLD_ADDRESS_POSITIONS.get(city_option, self.config.OLD_ADDRESS_POSITIONS['default'])
             elif generate_mini_id:
                 address_positions = self.config.MINI_ADDRESS_POSITIONS.get(city_option, self.config.MINI_ADDRESS_POSITIONS['default'])
             else:
@@ -1940,7 +2125,9 @@ class IDCardService:
                     align = field.get("align", "left")
                     font_spec = field["font"]
                     if key.endswith('_am'):
-                        if any(c.isdigit() for c in content):
+                        has_digit = any(c.isdigit() for c in content)
+                        is_latin_only = all(ord(c) < 128 for c in content if not c.isspace())
+                        if has_digit or is_latin_only:
                             font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
                         else:
                             font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
@@ -1952,12 +2139,13 @@ class IDCardService:
                     else:
                         max_width = field.get("wrap_width")
                         draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width)
-                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 48)
-                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 50)
+                fs = getattr(self.config, 'ADDRESS_FONT_SIZES', {'front': {'am': 48, 'en': 50}}).get('front', {'am': 48, 'en': 50})
+                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, fs.get('am', 48))
+                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, fs.get('en', 50))
                 for key, pos in used_address_positions_front.items():
                     content = data.get(key, '')
                     font = font_am if key.endswith('_am') else font_en
-                    max_width = self.config.TEXT_MAX_WIDTH['front'].get(key, None)
+                    max_width = getattr(self.config, 'TEXT_MAX_WIDTH', {}).get('front', {}).get(key, None)
                     draw_text_with_alignment(draw, content, tuple(pos), font, (0, 0, 0), "left", max_width)
                 # Paste photo
                 if photo_large:
@@ -2020,7 +2208,9 @@ class IDCardService:
                     align = field.get("align", "left")
                     font_spec = field["font"]
                     if key.endswith('_am'):
-                        if any(c.isdigit() for c in content):
+                        has_digit = any(c.isdigit() for c in content)
+                        is_latin_only = all(ord(c) < 128 for c in content if not c.isspace())
+                        if has_digit or is_latin_only:
                             font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, font_spec["size"])
                         else:
                             font = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, font_spec["size"])
@@ -2032,12 +2222,13 @@ class IDCardService:
                     else:
                         max_width = field.get("wrap_width")
                         draw_text_with_alignment(draw_data, content, pos, font, color_val, align, max_width)
-                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 34)
-                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 34)
+                fs_rev = getattr(self.config, 'ADDRESS_FONT_SIZES', {'reverse': {'am': 34, 'en': 34}}).get('reverse', {'am': 34, 'en': 34})
+                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, fs_rev.get('am', 34))
+                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, fs_rev.get('en', 34))
                 for key, pos in address_positions['reverse'].items():
                     content = data.get(key, '')
                     font = font_am if key.endswith('_am') else font_en
-                    max_width = self.config.TEXT_MAX_WIDTH['reverse'].get(key, None)
+                    max_width = getattr(self.config, 'TEXT_MAX_WIDTH', {}).get('reverse', {}).get(key, None)
                     draw_text_with_alignment(draw_data, content, tuple(pos), font, (0, 0, 0), "left", max_width)
                 if photo_reverse_large:
                     img = photo_reverse_large if color else photo_reverse_large.convert('LA').convert('RGBA')
@@ -2068,7 +2259,7 @@ class IDCardService:
             if generate_old_id:
                 # Only generate old ID cards (4 cards)
                 print("Generating ONLY old ID cards...")
-                old_files = self._generate_old_id_cards(data, remove_white, remove_black)
+                old_files = self._generate_old_id_cards(data, remove_white, remove_black, city_option)
                 old_files['city_option'] = city_option
                 return old_files
             elif generate_mini_id:
@@ -2076,7 +2267,7 @@ class IDCardService:
                 print("Generating ONLY mini ID cards with default reverse...")
                 
                 # Generate mini front cards
-                mini_files = self._generate_mini_id_cards(data, remove_white, remove_black)
+                mini_files = self._generate_mini_id_cards(data, remove_white, remove_black, city_option)
                 
                 # Generate default reverse cards
                 with ThreadPoolExecutor() as executor:
@@ -2173,12 +2364,17 @@ class IDCardService:
                     'size': photo_config.get('size', [550, 735])
                 }
                 
-                # Extract address positions from JSON fields
+                # Extract address positions from JSON fields, but prefer settings (address_positions) when provided
                 address_front = {}
                 for field in mini_json.get('fields', []):
                     key = field.get('key')
                     if key in ['region_am', 'region_en', 'subcity_am', 'subcity_en', 'woreda_am', 'woreda_en']:
                         address_front[key] = field.get('position', [0, 0])
+
+                # Override with positions supplied from settings for the selected city (ensures changes reflect)
+                if address_positions and 'front' in address_positions:
+                    for k, v in address_positions['front'].items():
+                        address_front[k] = v
                 
                 # Create the layout structure expected by the generation code
                 layout = {
@@ -2274,13 +2470,18 @@ class IDCardService:
                 'qr': {'position': [1840, 65], 'size': [540, 550]}
             }
 
-    def _generate_mini_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False) -> Dict[str, str]:
+    def _generate_mini_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False, city_option: str = 'default') -> Dict[str, str]:
         """Render mini front cards using mini template but export at normal size."""
         try:
             name = (data.get('name_en') or 'ID').replace(' ', '_')
             normal_w, normal_h = Image.open(self.config.TEMPLATE_IMG).size
             # Prepare mini layout scaled up to normal canvas
-            base_positions = self.config.ADDRESS_POSITIONS.get('default', {})
+            base_positions = (
+                self.config.MINI_ADDRESS_POSITIONS.get(city_option)
+                or self.config.ADDRESS_POSITIONS.get(city_option)
+                or self.config.MINI_ADDRESS_POSITIONS.get('default')
+                or self.config.ADDRESS_POSITIONS.get('default', {})
+            )
             mini_layout = self._ensure_mini_layout(base_positions)
             if os.path.exists(self.config.MINI_TEMPLATE_IMG):
                 mini_w, mini_h = Image.open(self.config.MINI_TEMPLATE_IMG).size
@@ -2366,12 +2567,13 @@ class IDCardService:
                         max_width = field.get('wrap_width')
                         draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width, bold=is_amharic_date)
                 # Address
-                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 48)
-                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 50)
+                mini_fonts = getattr(self.config, 'MINI_ADDRESS_FONT_SIZES', {'front': {'am': 36, 'en': 38}}).get('front', {'am': 36, 'en': 38})
+                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, mini_fonts.get('am', 36))
+                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, mini_fonts.get('en', 38))
                 for key, pos in used_address_positions_front.items():
                     content = data.get(key, '')
                     font = font_am if key.endswith('_am') else font_en
-                    max_width = self.config.TEXT_MAX_WIDTH['front'].get(key, None)
+                    max_width = getattr(self.config, 'MINI_TEXT_MAX_WIDTH', {}).get('front', {}).get(key, None) or getattr(self.config, 'TEXT_MAX_WIDTH', {}).get('front', {}).get(key, None)
                     draw_text_with_alignment(draw, content, tuple(pos), font, (0, 0, 0), "left", max_width)
                 # Photo
                 if src_photo:
@@ -2392,12 +2594,12 @@ class IDCardService:
                     bbox = gray.point(lambda x: 0 if x > 250 else 255, '1').getbbox()
                     if bbox:
                         barcode_img = barcode_img.crop(bbox)
-                    barcode_img = barcode_img.resize((487, 87))
-                    canvas.paste(barcode_img, (857, 930))
+                    barcode_img = barcode_img.resize((450, 87))
+                    canvas.paste(barcode_img, (860, 910))
                     font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 42)
                     text_width = draw.textlength(data['fcn_formatted'], font=font)
-                    center_x = 850 + (500 - text_width) // 2
-                    draw.text((center_x, 878), data['fcn_formatted'], font=font, fill=(0, 0, 0))
+                    center_x = 835 + (500 - text_width) // 2
+                    draw.text((center_x, 853), data['fcn_formatted'], font=font, fill=(0, 0, 0))
                 return canvas
 
             img_color = render_front(True)
@@ -2419,7 +2621,7 @@ class IDCardService:
             print(f"Error generating mini ID cards: {str(e)}")
             return {}
 
-    def _generate_old_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False) -> Dict[str, str]:
+    def _generate_old_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False, city_option: str = 'default') -> Dict[str, str]:
         """Render old ID cards using old template (both front and reverse)."""
         try:
             name = (data.get('name_en') or 'ID').replace(' ', '_')
@@ -2483,6 +2685,9 @@ class IDCardService:
             barcode_size = tuple(barcode_conf.get('size', [487, 87]))
             barcode_pos = tuple(barcode_conf.get('position', [857, 930]))
 
+            # Address positions for old template based on selected city (separate map for old)
+            old_address_positions = self.config.OLD_ADDRESS_POSITIONS.get(city_option, self.config.OLD_ADDRESS_POSITIONS['default'])
+
             def render_old_front(color: bool) -> Image.Image:
                 canvas = Image.open(front_template).convert('RGBA')
                 draw = ImageDraw.Draw(canvas)
@@ -2491,6 +2696,9 @@ class IDCardService:
                 for field in old_front_layout.get('fields', []):
                     key = field.get('key')
                     if not key or key.startswith('label_'):
+                        continue
+                    # Avoid duplicate address: skip if handled by city address positions
+                    if key in old_address_positions['front']:
                         continue
                     
                     content = data.get(key, field.get('label', ''))
@@ -2519,20 +2727,15 @@ class IDCardService:
                         max_width = field.get('wrap_width')
                         draw_text_with_alignment(draw, content, pos, font, color_val, align, max_width, bold=is_amharic_date)
                 
-                # Draw address fields from template configuration
-                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, 32)
-                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 28)
-                
-                # Add address information if available and defined in template
-                address_fields = ['region_am', 'region_en', 'subcity_am', 'subcity_en', 'woreda_am', 'woreda_en']
-                for field in old_front_layout.get('fields', []):
-                    key = field.get('key')
-                    if key in address_fields and key in data:
-                        content = data.get(key, '')
-                        if content:
-                            pos = tuple(field.get('position', [0, 0]))
-                            font = font_am if key.endswith('_am') else font_en
-                            draw.text(pos, content, font=font, fill=(0, 0, 0))
+                # Draw address fields using selected city positions
+                fs_old_front = getattr(self.config, 'OLD_ADDRESS_FONT_SIZES', {}).get('front', {'am': 48, 'en': 50})
+                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, fs_old_front.get('am', 48))
+                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, fs_old_front.get('en', 50))
+                for key, pos in old_address_positions['front'].items():
+                    content = data.get(key, '')
+                    font = font_am if key.endswith('_am') else font_en
+                    max_width = getattr(self.config, 'OLD_TEXT_MAX_WIDTH', {}).get('front', {}).get(key, None) or self.config.TEXT_MAX_WIDTH['front'].get(key, None)
+                    draw_text_with_alignment(draw, content, tuple(pos), font, (0, 0, 0), 'left', max_width)
                 
                 # Large Photo
                 if os.path.exists(photo_path):
@@ -2567,10 +2770,27 @@ class IDCardService:
                         # Add FCN text above barcode
                         fcn_text = data.get('fcn_formatted', '')
                         if fcn_text:
-                            font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 24)
+                            # If JSON provides barcode_text configuration, use it; otherwise fallback to centered above barcode
+                            bt_conf = old_front_layout.get('barcode_text') or {}
+                            bt_font_conf = bt_conf.get('font', {})
+                            bt_font_size = bt_font_conf.get('size', 24)
+                            font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, bt_font_size)
                             text_width = draw.textlength(fcn_text, font=font)
-                            center_x = barcode_pos[0] + (barcode_size[0] - text_width) // 2
-                            draw.text((center_x, barcode_pos[1] - 30), fcn_text, font=font, fill=(0, 0, 0))
+                            if bt_conf.get('position'):
+                                base_x, base_y = tuple(bt_conf.get('position', [barcode_pos[0], barcode_pos[1] - 30]))
+                                align = bt_conf.get('align', 'center')
+                                if align == 'center':
+                                    x = base_x - text_width // 2
+                                elif align == 'right':
+                                    x = base_x - text_width
+                                else:
+                                    x = base_x
+                                y = base_y
+                            else:
+                                # fallback: centered above barcode image
+                                x = barcode_pos[0] + (barcode_size[0] - text_width) // 2
+                                y = barcode_pos[1] - 30
+                            draw.text((x, y), fcn_text, font=font, fill=(0, 0, 0))
                 
                 return canvas
 
@@ -2583,6 +2803,9 @@ class IDCardService:
                 for field in old_reverse_layout.get('fields', []):
                     key = field.get('key')
                     if not key or key.startswith('label_'):
+                        continue
+                    # Avoid duplicate address: skip if handled by city address positions
+                    if key in old_address_positions['reverse']:
                         continue
                     
                     content = data.get(key, field.get('label', ''))
@@ -2645,7 +2868,7 @@ class IDCardService:
                             barcode_img = barcode_img.crop(bbox)
                         barcode_img = barcode_img.resize((206, 40))
                         # Position for barcode to appear on RIGHT after flip (mirror of default reverse)
-                        data_layer.paste(barcode_img, (465, 425))  # Mirrored position for right side after flip
+                        data_layer.paste(barcode_img, (460, 425))  # Mirrored position for right side after flip
                         
                         # Add FCN text above barcode (same as default reverse)
                         fcn_text = data.get('fcn_formatted', '')
@@ -2653,9 +2876,19 @@ class IDCardService:
                             font = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, 18)
                             text_width = draw.textlength(fcn_text, font=font)
                             # Position for FCN text to appear on RIGHT after flip
-                            center_x = 428 + (287 - text_width) // 2
+                            center_x = 423 + (287 - text_width) // 2
                             draw.text((center_x, 399), fcn_text, font=font, fill=(0, 0, 0))
                 
+                # Draw address fields on reverse using selected city positions
+                fs_old_rev = getattr(self.config, 'OLD_ADDRESS_FONT_SIZES', {}).get('reverse', {'am': 34, 'en': 34})
+                font_am = ImageFont.truetype(self.config.AMHARIC_FONT_PATH, fs_old_rev.get('am', 34))
+                font_en = ImageFont.truetype(self.config.ENGLISH_FONT_PATH, fs_old_rev.get('en', 34))
+                for key, pos in old_address_positions['reverse'].items():
+                    content = data.get(key, '')
+                    font = font_am if key.endswith('_am') else font_en
+                    max_width = getattr(self.config, 'OLD_TEXT_MAX_WIDTH', {}).get('reverse', {}).get(key, None) or self.config.TEXT_MAX_WIDTH['reverse'].get(key, None)
+                    draw_text_with_alignment(draw, content, tuple(pos), font, (0, 0, 0), 'left', max_width)
+
                 # Flip the data layer horizontally like the default reverse ID
                 flipped_data = data_layer.transpose(Image.FLIP_LEFT_RIGHT)
                 canvas.alpha_composite(flipped_data)

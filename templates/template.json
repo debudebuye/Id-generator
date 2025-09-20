@@ -236,7 +236,7 @@
     },
     {
       "key": "issue_date_am",
-      "position": [32, 580],
+      "position": [32, 710],
       "font": { 
         "family": "am",
         "weight": 800,
@@ -247,7 +247,7 @@
     },
     {
       "key": "issue_date_en",
-      "position": [32, 150],
+      "position": [32, 260],
       "font": { 
         "family": "en",
         "weight": 800,

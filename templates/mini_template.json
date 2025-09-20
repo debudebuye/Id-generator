@@ -189,7 +189,7 @@
       "label": "Nationality:",
       "key": "nationality_en",
       "position": [
-        1550,
+        1540,
         210
       ],
       "font": {
@@ -245,7 +245,7 @@
     {
       "key": "issue_date_am",
       "position": [
-        110,
+        85,
         420
       ],
       "font": {

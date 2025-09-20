@@ -46,7 +46,7 @@
       {
         "label": ":ንቀ ድልውትየ",
         "key": "dob_am",
-        "position": [430, 250],
+        "position": [420, 258],
         "font": {
           "family": "en",
           "weight": 800,
@@ -58,7 +58,7 @@
       {
         "label": ":htriB fo etaD",
         "key": "dob_en",
-        "position": [550, 250],
+        "position": [540, 258],
         "font": {
           "family": "en",
           "weight": 800,
@@ -70,11 +70,11 @@
       {
         "label": ":ታጾ",
         "key": "gender_am",
-        "position": [430, 305],
+        "position": [410, 310],
         "font": {
           "family": "am",
           "weight": 800,
-          "size": 22
+          "size": 21
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -82,11 +82,11 @@
       {
         "label": ":redneG",
         "key": "gender_en",
-        "position": [470, 305],
+        "position": [463, 310],
         "font": {
           "family": "en",
           "weight": 800,
-          "size": 22
+          "size": 21
         },
         "color": [0, 0, 0],
         "align": "left"
@@ -94,7 +94,7 @@
       {
         "label": ":rebmuN laireS",
         "key": "serial_number",
-        "position": [1570, 450],  
+        "position": [1567, 453],  
         "font": {
           "family": "en",
           "weight": 800,
@@ -105,7 +105,7 @@
       },
       {
         "key": "nationality_am",
-        "position": [980, 135],
+        "position": [970, 135],
         "font": {
           "family": "am",
           "weight": 800,
@@ -129,7 +129,7 @@
       {
         "label": ":enohP",
         "key": "phone",
-        "position": [980, 75],
+        "position": [970, 75],
         "font": {
           "family": "en",
           "weight": 800,
@@ -152,7 +152,7 @@
       },
       {
         "key": "issue_date_am",
-        "position": [115, 100],
+        "position": [115, 317],
         "font": {
           "family": "am",
           "weight": 800,
@@ -163,7 +163,7 @@
       },
       {
         "key": "issue_date_en",
-        "position": [115, -80],
+        "position": [115, 100],
         "font": {
           "family": "en",
           "weight": 800,
@@ -175,7 +175,7 @@
       {
         "label": ":s:seripxE",
         "key": "expiry_date_am",
-        "position": [430, 350],
+        "position": [420, 360],
         "font": {
           "family": "am",
           "weight": 800,
@@ -187,7 +187,7 @@
       {
         "label": ":s:seripxE",
         "key": "expiry_date_en",
-        "position": [550, 350],
+        "position": [540, 362],
         "font": {
           "family": "en",
           "weight": 800,

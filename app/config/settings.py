@@ -8,24 +8,27 @@ class Config:
     # Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here')
     
-    # File paths
+    # File paths - Updated for new folder structure
     STATIC_FOLDER = os.path.join(BASE_DIR, 'static')
     UPLOAD_FOLDER = os.path.join(BASE_DIR.parent, 'uploads')
     AMHARIC_FONT_PATH = os.path.join(BASE_DIR.parent, 'fonts', 'AbyssinicaSIL-2.300', 'AbyssinicaSIL-Regular.ttf')
     ENGLISH_FONT_PATH = os.path.join(BASE_DIR.parent, 'fonts', 'Inter', 'static', 'Inter_24pt-Bold.ttf')
-    TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'normal_template.png')
-    REVERSE_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'reverse-template.png')
-    TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'template.json')
-    REVERSE_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'reverse_template.json')
-    # Mini template paths
-    MINI_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'mini_normal_template.png')
-    MINI_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'mini_template.json')
     
-    # Old template paths
-    OLD_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'old_template.png')
-    OLD_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'old_template.json')
-    OLD_REVERSE_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'old_reverse_template.png')
-    OLD_REVERSE_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'old_reverse_template.json')
+    # Template paths - Updated to use templates folder
+    TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'templates', 'normal_template.png')
+    REVERSE_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'templates', 'reverse-template.png')
+    TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'templates', 'template.json')
+    REVERSE_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'templates', 'reverse_template.json')
+    
+    # Mini template paths - Updated to use templates folder
+    MINI_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'templates', 'mini_normal_template.png')
+    MINI_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'templates', 'mini_template.json')
+    
+    # Old template paths - Updated to use templates folder
+    OLD_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'templates', 'old_template.png')
+    OLD_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'templates', 'old_template.json')
+    OLD_REVERSE_TEMPLATE_IMG = os.path.join(BASE_DIR.parent, 'templates', 'old_reverse_template.png')
+    OLD_REVERSE_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'templates', 'old_reverse_template.json')
     
     # Allowed file extensions
     ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
@@ -51,15 +54,51 @@ class Config:
             'address_en': 700
         },
         'reverse': {
-            'region_am': 460,
-            'region_en': 460,
-            'subcity_am': 460,
-            'subcity_en': 460,
-            'woreda_am': 460,
-            'woreda_en': 460,
-            'address_am': 460,
-            'address_en': 460
+            'region_am': 440,
+            'region_en': 440,
+            'subcity_am': 440,
+            'subcity_en': 440,
+            'woreda_am': 440,
+            'woreda_en': 440,
+            'address_am': 440,
+            'address_en': 440
         }
+    }
+
+    # Default (normal) ID address font sizes
+    ADDRESS_FONT_SIZES = {
+        'front': {'am': 48, 'en': 50},
+        'reverse': {'am': 30, 'en': 30}
+    }
+
+    # Old ID specific text max widths (can be tuned independently)
+    OLD_TEXT_MAX_WIDTH = {
+        'front': {
+            'region_am': 700,
+            'region_en': 700,
+            'subcity_am': 700,
+            'subcity_en': 700,
+            'woreda_am': 700,
+            'woreda_en': 700,
+            'address_am': 700,
+            'address_en': 700
+        },
+        'reverse': {
+            'region_am': 330,
+            'region_en': 330,
+            'subcity_am': 330,
+            'subcity_en': 330,
+            'woreda_am': 330,
+            'woreda_en': 330,
+            'address_am': 330,
+            'address_en': 330
+        }
+    }
+
+    # Old ID specific address font sizes
+    OLD_ADDRESS_FONT_SIZES = {
+        'front': {'am': 48, 'en': 50},
+        'reverse': {'am': 21, 'en': 21}
     }
     
     # Barcode settings
@@ -88,11 +127,11 @@ class Config:
             },
             'reverse': {
                 'region_am': [1340, 270],
-                'region_en': [1340, 300],
-                'subcity_am': [1340, 340],
-                'subcity_en': [1340, 370],
-                'woreda_am': [1340, 420],
-                'woreda_en': [1340, 470]
+                'region_en': [1340, 305],
+                'subcity_am': [1340, 345],
+                'subcity_en': [1340, 380],
+                'woreda_am': [1340, 425],
+                'woreda_en': [1340, 465]
             }
         },
         'shger': {
@@ -105,12 +144,12 @@ class Config:
                 'woreda_en': [2120, 850]
             },
             'reverse': {
-                'region_am': [1340, 260],
-                'region_en': [1340, 290],
-                'subcity_am': [1340, 320],
-                'subcity_en': [1340, 390],
-                'woreda_am': [1340, 495],
-                'woreda_en': [1340, 525]
+                'region_am': [1341, 270],
+                'region_en': [1341, 300],
+                'subcity_am': [1341, 340],
+                'subcity_en': [1341, 415],
+                'woreda_am': [1341, 490],
+                'woreda_en': [1341, 520]
             }
         },
         'koye': {
@@ -155,38 +194,38 @@ class Config:
     OLD_ADDRESS_POSITIONS = {
         'default': {
             'front': {
-                'region_am': [2120, 450],
-                'region_en': [2120, 510],
-                'subcity_am': [2120, 610],
-                'subcity_en': [2120, 660],
-                'woreda_am': [2120, 760],
-                'woreda_en': [2120, 810]
+                'region_am': [2035, 450],
+                'region_en': [2035, 510],
+                'subcity_am': [2035, 610],
+                'subcity_en': [2035, 660],
+                'woreda_am': [2035, 760],
+                'woreda_en': [2035, 810]
             },
             'reverse': {
-                'region_am': [1340, 270],
-                'region_en': [1340, 300],
-                'subcity_am': [1340, 340],
-                'subcity_en': [1340, 370],
-                'woreda_am': [1340, 420],
-                'woreda_en': [1340, 470]
+                'region_am': [970, 200],
+                'region_en': [970, 230],
+                'subcity_am': [970, 270],
+                'subcity_en': [970, 300],
+                'woreda_am': [970, 340],
+                'woreda_en': [970, 365]
             }
         },
         'shger': {
             'front': {
-                'region_am': [2120, 450],
-                'region_en': [2120, 510],
-                'subcity_am': [2120, 580],
-                'subcity_en': [2120, 690],
-                'woreda_am': [2120, 810],
-                'woreda_en': [2120, 850]
+                'region_am': [2035, 450],
+                'region_en': [2035, 510],
+                'subcity_am': [2035, 580],
+                'subcity_en': [2035, 690],
+                'woreda_am': [2035, 810],
+                'woreda_en': [2035, 850]
             },
             'reverse': {
-                'region_am': [1340, 260],
-                'region_en': [1340, 290],
-                'subcity_am': [1340, 320],
-                'subcity_en': [1340, 390],
-                'woreda_am': [1340, 495],
-                'woreda_en': [1340, 525]
+                'region_am': [970, 190],
+                'region_en': [970, 220],
+                'subcity_am': [970, 250],
+                'subcity_en': [970, 300],
+                'woreda_am': [970, 350],
+                'woreda_en': [970, 380]
             }
         },
         'koye': {
@@ -249,18 +288,18 @@ class Config:
         },
         'shger': {
             'front': {
-                'region_am': [1720, 150],
-                'region_en': [1720, 210],
-                'subcity_am': [1720, 280],
-                'subcity_en': [1720, 390],
-                'woreda_am': [1720, 510],
-                'woreda_en': [1720, 550]
+                'region_am': [1410, 280],
+                'region_en': [1410, 310],
+                'subcity_am': [1410, 350],
+                'subcity_en': [1410, 405],
+                'woreda_am': [1410, 470],
+                'woreda_en': [1410, 500]
             },
             'reverse': {
-                'region_am': [1340, 260],
-                'region_en': [1340, 290],
-                'subcity_am': [1340, 320],
-                'subcity_en': [1340, 390],
+                'region_am': [1340, 270],
+                'region_en': [1340, 300],
+                'subcity_am': [1340, 340],
+                'subcity_en': [1340, 415],
                 'woreda_am': [1340, 495],
                 'woreda_en': [1340, 525]
             }
@@ -302,3 +341,33 @@ class Config:
             }
         }
     } 
+
+    # Mini ID text max widths
+    MINI_TEXT_MAX_WIDTH = {
+        'front': {
+            'region_am': 650,
+            'region_en': 650,
+            'subcity_am': 650,
+            'subcity_en': 650,
+            'woreda_am': 650,
+            'woreda_en': 650,
+            'address_am': 650,
+            'address_en': 650
+        },
+        'reverse': {
+            'region_am': 450,
+            'region_en': 450,
+            'subcity_am': 450,
+            'subcity_en': 450,
+            'woreda_am': 450,
+            'woreda_en': 450,
+            'address_am': 450,
+            'address_en': 450
+        }
+    }
+
+    # Mini ID address font sizes
+    MINI_ADDRESS_FONT_SIZES = {
+        'front': {'am': 45, 'en': 45},
+        'reverse': {'am': 34, 'en': 34}
+    }
