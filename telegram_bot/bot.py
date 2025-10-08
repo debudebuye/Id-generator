@@ -17,6 +17,55 @@ from telegram.error import TimedOut, NetworkError
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app.services.id_card_service import IDCardService
 
+# Translation support
+TRANSLATIONS = {
+    'en': {
+        'welcome': "🇪🇹 *Welcome to Ethiopian Digital ID Bot*\n\nHello {name}!\n\n**How it works:**\n📄 Upload your PDF → 🔢 Send your FIN → 🎯 Get your ID\n\n**Two modes available:**\n• **Detail Mode**: Full control over all settings\n• **Default Mode**: Auto-generate with smart defaults\n\n**Click Settings to configure your preferences:**",
+        'help': "🇪🇹 *Help*\n\nUse the bot in three steps:\n1) Upload your PDF\n2) Send your 12-digit FIN\n3) Review and generate your ID\n\nCommands:\n/help — help\n/cancel — cancel session\n/compress — compress large PDF\n\nTip: You can start by sending any message.",
+        'pdf_uploaded': "✅ PDF uploaded successfully! Please send your 12-digit FIN number.",
+        'settings': "⚙️ **Settings**\n\n• Background Remover: `{bg}`\n• ID Type: `{id_type}`\n• Output Variant: `{variant}`\n• Address Format: `{city}`\n• Mode: `{mode}`\n• Language: `{language}`\n\nTap to change:",
+        'settings_prompt': "🔧 **Customize Your ID Generation**\n\nYou can adjust settings like background removal, ID type, output format, and more. Choose your preferences before generating your ID.",
+        'bg_options': "**Background Remover Options:**\n\nChoose what background to remove from your ID photo:",
+        'id_type_options': "**ID Type Options:**\n\nChoose the type of ID you want to generate:",
+        'variant_options': "**Output Variant Options:**\n\nChoose the color style for your ID:",
+        'city_options': "**Address Format Options:**\n\nChoose your address format (city type):",
+        'mode_options': "**Mode Options:**\n\nChoose what mode you prefer:",
+        'lang_options': "**Language Options:**\n\nChoose what language you prefer:",
+        'ready_start': "📄 **Ready to start!**\n\nPlease upload your official PDF document.",
+        'mode_detail': "Detail Mode",
+        'mode_default': "Default Mode", 
+        'lang_english': "English",
+        'lang_amharic': "አማርኛ",
+        'back': "🔙 Back",
+        'close': "❌ Close"
+    },
+    'am': {
+        'welcome': "🇪🇹 *የኢትዮጵያ ዲጂታል መለያ ቦት እንኳን ደህና መጡ*\n\nሰላም {name}!\n\n**እንዴት እንደሚሰራ:**\n📄 PDF ይላኩ → 🔢 FIN ይላኩ → 🎯 መለያዎን ያገኙ\n\n**ሁለት ሁነታዎች አሉ:**\n• **ዝርዝር ሁነታ**: ሁሉንም ቅንብሮች ቁጥጥር\n• **ነባሪ ሁነታ**: በራስ-ሰር በብቃት ይፍጠር\n\n**ቅንብሮችን ለማዋቀር ቅንብሮችን ይንኩ:**",
+        'help': "🇪🇹 *እርዳታ*\n\nቦቱን በሶስት ደረጃዎች ይጠቀሙ:\n1) PDF ይላኩ\n2) 12-አሃዝ FIN ይላኩ\n3) ይገምግሙ እና መለያዎን ይፍጠሩ\n\nትዕዛዞች:\n/help — እርዳታ\n/cancel — ክፍለ-ጊዜ ይሰርዙ\n/compress — ትልቅ PDF ይጨምሩ\n\nምክር: ማንኛውንም መልዕክት በመላክ መጀመር ይችላሉ።",
+        'pdf_uploaded': "✅ PDF በተሳካ ሁኔታ ተላከ። እባክዎ 12-አሃዝ FIN ቁጥርዎን ይላኩ።",
+        'settings': "⚙️ **ቅንብሮች**\n\n• የጠርዝ ማስወገጃ: `{bg}`\n• የመለያ አይነት: `{id_type}`\n• የውጤት ልዩነት: `{variant}`\n• የአድራሻ ቅርጸት: `{city}`\n• ሁነታ: `{mode}`\n• ቋንቋ: `{language}`\n\nለመቀየር ይንኩ:",
+        'settings_prompt': "🔧 **የመለያ ማመንጫ ቅንብሮች**\n\nየጠርዝ ማስወገጃ፣ የመለያ አይነት፣ የውጤት ቅርጸት እና ሌሎች ቅንብሮችን መስራት ይችላሉ። መለያዎን ከመፍጠር በፊት ምርጫዎን ይምረጡ።",
+        'bg_options': "**የጠርዝ ማስወገጃ አማራጮች:**\n\nከመለያ ፎቶዎ ምን አይነት ጠርዝ እንደሚወገድ ይምረጡ:",
+        'id_type_options': "**የመለያ አይነት አማራጮች:**\n\nምን አይነት መለያ እንደሚፈጥር ይምረጡ:",
+        'variant_options': "**የውጤት ልዩነት አማራጮች:**\n\nለመለያዎ የቀለም ዘይቤ ይምረጡ:",
+        'city_options': "**የአድራሻ ቅርጸት አማራጮች:**\n\nየአድራሻ ቅርጸትዎን (የከተማ አይነት) ይምረጡ:",
+        'mode_options': "**ሁነታ አማራጮች:**\n\nምን አይነት ሁነታ እንደሚፈልጉ ይምረጡ:",
+        'lang_options': "**ቋንቋ አማራጮች:**\n\nምን አይነት ቋንቋ እንደሚፈልጉ ይምረጡ:",
+        'ready_start': "📄 **ለመጀመር ዝግጁ!**\n\nእባክዎ ይፋዊ PDF ሰነድዎን ይላኩ።",
+        'mode_detail': "ዝርዝር ሁነታ",
+        'mode_default': "ነባሪ ሁነታ",
+        'lang_english': "English", 
+        'lang_amharic': "አማርኛ",
+        'back': "🔙 ተመለስ",
+        'close': "❌ ዝጋ"
+    }
+}
+
+def get_text(user_prefs: Dict, key: str, **kwargs) -> str:
+    """Get translated text based on user language preference"""
+    lang = user_prefs.get('language', 'en')
+    return TRANSLATIONS.get(lang, TRANSLATIONS['en'])[key].format(**kwargs)
+
 # Conversation states
 WAITING_FOR_PDF = 1
 WAITING_FOR_FIN = 2
@@ -42,12 +91,90 @@ class FydaTelegramBot:
         # List of allowed Telegram user IDs (None means all users are allowed)
         self.allowed_user_ids = allowed_user_ids or []
         self.restrict_access = len(self.allowed_user_ids) > 0
+        # Admin IDs (for notifications)
+        self.admin_user_ids: List[int] = []
+        try:
+            admin_ids_env = os.getenv('ADMIN_USER_IDS', '')
+            if admin_ids_env:
+                self.admin_user_ids = [int(x.strip()) for x in admin_ids_env.split(',') if x.strip()]
+        except Exception:
+            self.admin_user_ids = []
+
+    def _city_label(self, city_key: str) -> str:
+        """Return human-friendly label for city/address format."""
+        if city_key == 'residential_sheger':
+            return 'Sheger City Address'
+        if city_key == 'default':
+            return 'Default Address'
+        return city_key.replace('_', ' ').title()
+
+    def _refresh_allowlist_from_file(self) -> None:
+        """Merge file-based allowlist if available so updates apply at runtime."""
+        if not self.restrict_access:
+            # If open access, no need to load allowlist
+            return
+        try:
+            # Lazy import to avoid hard dependency if file/module not present
+            from allowlist_store import read_allowlist
+            dynamic_ids = read_allowlist()
+            if dynamic_ids:
+                merged = sorted(set([*self.allowed_user_ids, *dynamic_ids]))
+                self.allowed_user_ids = merged
+                self.restrict_access = len(self.allowed_user_ids) > 0
+        except Exception:
+            # Fail closed to current in-memory list
+            pass
 
     def is_user_authorized(self, user_id: int) -> bool:
         """Check if a user is authorized to use the bot"""
         if not self.restrict_access:
             return True
+        # Refresh from file so admin changes take effect immediately
+        self._refresh_allowlist_from_file()
         return user_id in self.allowed_user_ids
+
+    async def _notify_admins_new_user(self, context: ContextTypes.DEFAULT_TYPE, user_id: int, user_name: str, username: str) -> None:
+        username_display = f"@{username}" if username else "(no username)"
+        msg = (
+            "👤 *New user tried to start the bot*\n\n"
+            f"🆔 ID: `{user_id}`\n"
+            f"👤 Name: {user_name}\n"
+            f"📛 Username: {username_display}"
+        )
+        # Prefer sending to a dedicated admin chat if configured
+        admin_chat_id = os.getenv('ADMIN_NOTIFICATION_CHAT_ID', '').strip()
+        if admin_chat_id:
+            try:
+                await context.bot.send_message(chat_id=int(admin_chat_id), text=msg, parse_mode=ParseMode.MARKDOWN)
+                return
+            except Exception:
+                pass
+        # Fallback: DM each admin user ID
+        if not self.admin_user_ids:
+            return
+        for admin_id in self.admin_user_ids:
+            try:
+                await context.bot.send_message(chat_id=admin_id, text=msg, parse_mode=ParseMode.MARKDOWN)
+            except Exception:
+                continue
+
+    def get_unauthorized_message(self) -> str:
+        return (
+            "🚫 *Access Denied*\n\n"
+            "You are not authorized to use this bot.\n"
+            "Please contact the administrator to get access.\n\n"
+            "@fayda_software"
+        )
+
+    def get_support_footer(self) -> str:
+        # Plain footer, safe for non-Markdown messages
+        return "\n\nNeed help? @fayda_software"
+
+    def _user_static_path(self, user_id: int, base_filename: str) -> str:
+        """Create a user-scoped filename to avoid collisions across users."""
+        name, ext = os.path.splitext(base_filename)
+        safe_name = f"{name}_{user_id}{ext}"
+        return os.path.join(self.id_service.config.STATIC_FOLDER, safe_name)
 
     async def auto_start(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         """Auto-start the bot when user sends any message (not just /start)"""
@@ -56,45 +183,44 @@ class FydaTelegramBot:
         
         # Check if user is authorized
         if not self.is_user_authorized(user_id):
-            unauthorized_message = (
-                "🚫 *Access Denied*\n\n"
-                "You are not authorized to use this bot.\n"
-                "Please contact the administrator to get access.\n\n"
-                f"Your User ID: `{user_id}`"
+            # Notify admins about the new/unauthorized user trying to start
+            await self._notify_admins_new_user(
+                context,
+                user_id,
+                update.effective_user.first_name or "Unknown",
+                update.effective_user.username or ""
             )
-            await update.message.reply_text(unauthorized_message, parse_mode=ParseMode.MARKDOWN)
+            await update.message.reply_text(self.get_unauthorized_message(), parse_mode=ParseMode.MARKDOWN)
             return ConversationHandler.END
         
-        # Initialize user session
+        # Initialize user session; preserve existing preferences across restarts
+        preserved_prefs = self.user_sessions.get(user_id, {}).get('prefs', {
+            'id_type': None,
+            'output_variant': None,
+            'city_type': None,
+            'mode': 'detail',
+            'language': 'en',
+        })
         self.user_sessions[user_id] = {
             'data': {}, 
             'files': {}, 
             'edit_field': None,
             'edit_mode': None,
-            'current_edit_index': 0
+            'current_edit_index': 0,
+            'prefs': preserved_prefs,
+            'preview_visible': False,
+            'preview_message_id': None
         }
         
-        welcome = (
-            f"🇪🇹 *Welcome to Ethiopian Digital ID Bot*\n\n"
-            f"Hello {user_name}! I can help you generate your Ethiopian Digital ID (Fyda) from your official documents.\n\n"
-            "*How it works:*\n"
-            "1️⃣ Upload your official PDF document\n"
-            "2️⃣ Send your 12-digit FIN number (with or without separators/letters)\n"
-            "3️⃣ Review and customize the extracted information\n"
-            "4️⃣ Generate your digital ID card\n\n"
-            "*Features:*\n"
-            "• 📸 Photo management (extracted from PDF or custom upload)\n"
-            "• ⚙️ Background removal options\n"
-            "• 🏠 Address format selection\n"
-            "• ✏️ Edit all personal information fields\n"
-            "• 🆔 Generate multiple ID types (normal, mini, old)\n"
-            "• 🗜️ Built-in PDF compression for large files\n\n"
-            "*Commands (optional):*\n"
-            "/help - Show help information\n/cancel - Cancel current session\n/compress - Compress PDF if needed\n\n"
-            "Let's begin! Please upload your official PDF document first."
-        )
+        welcome = get_text(self.user_sessions[user_id]['prefs'], 'welcome', name=user_name)
+        
+        # Add only one settings button
+        keyboard = [
+            [InlineKeyboardButton("⚙️ Settings", callback_data="quick_settings")]
+        ]
+        
         try:
-            await update.message.reply_text(welcome, parse_mode=ParseMode.MARKDOWN)
+            await update.message.reply_text(welcome, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
         except NetworkError as e:
             # Retry once after a short delay, then fall back to plain text
             try:
@@ -118,39 +244,10 @@ class FydaTelegramBot:
         
         # Check if user is authorized
         if not self.is_user_authorized(user_id):
-            unauthorized_message = (
-                "🚫 *Access Denied*\n\n"
-                "You are not authorized to use this bot.\n"
-                "Please contact the administrator to get access.\n\n"
-                f"Your User ID: `{user_id}`"
-            )
-            await update.message.reply_text(unauthorized_message, parse_mode=ParseMode.MARKDOWN)
+            await update.message.reply_text(self.get_unauthorized_message(), parse_mode=ParseMode.MARKDOWN)
             return ConversationHandler.END
         
-        help_text = (
-            "🇪🇹 *Ethiopian Digital ID Bot - Help*\n\n"
-            "This bot helps you generate your Ethiopian Digital ID (Fyda) from your official documents.\n\n"
-            "*How to use:*\n"
-            "1️⃣ Upload your official PDF document\n"
-            "2️⃣ Send your 12-digit FIN number (with or without separators/letters)\n"
-            "3️⃣ Review and edit your information\n"
-            "4️⃣ Generate your digital ID cards\n\n"
-            "*Commands (optional):*\n"
-            "/help - Show this help message\n"
-            "/cancel - Cancel current session\n"
-            "/compress - Compress PDF to reduce file size\n\n"
-            "*Quick Start:*\n"
-            "💡 *Just send any message to begin!*\n"
-            "No need to use /start - the bot starts automatically.\n\n"
-            "*Features:*\n"
-            "• 📸 Photo management\n"
-            "• ⚙️ Background removal options\n"
-            "• 🏠 Address format selection\n"
-            "• ✏️ Edit all personal information\n"
-            "• 🆔 Generate multiple ID types\n"
-            "• 🗜️ Built-in PDF compression for large files\n\n"
-            "*Need help?* Contact the administrator."
-        )
+        help_text = get_text(self.user_sessions[user_id]['prefs'], 'help')
         await update.message.reply_text(help_text, parse_mode=ParseMode.MARKDOWN)
         return ConversationHandler.END
 
@@ -159,13 +256,7 @@ class FydaTelegramBot:
         
         # Check if user is authorized
         if not self.is_user_authorized(user_id):
-            unauthorized_message = (
-                "🚫 *Access Denied*\n\n"
-                "You are not authorized to use this bot.\n"
-                "Please contact the administrator to get access.\n\n"
-                f"Your User ID: `{user_id}`"
-            )
-            await update.message.reply_text(unauthorized_message, parse_mode=ParseMode.MARKDOWN)
+            await update.message.reply_text(self.get_unauthorized_message(), parse_mode=ParseMode.MARKDOWN)
             return ConversationHandler.END
         
         self.user_sessions.pop(user_id, None)
@@ -297,14 +388,36 @@ class FydaTelegramBot:
             extracted = self.id_service.extract_pdf_data(pdf_bytes, fin, 'auto')
             self.user_sessions[user_id]['data'].update(extracted)
             
+            # Set sensible defaults so user can generate immediately; adjustable in Settings
+            self.user_sessions[user_id]['data'].update({
+                'remove_white_bg': False,
+                'remove_black_bg': False,
+                'id_type': 'normal',
+                'generate_mini_id': False,
+                'generate_old_id': False,
+                'output_variant': 'reverse',  # default to Normal Reverse Color
+                'city_type': 'residential_sheger'
+            })
+
+            # Check if user is in default mode - skip review and generate directly
+            if self.user_sessions[user_id]['prefs'].get('mode') == 'default':
+                await update.message.reply_text(
+                    "✅ **Data Extraction Complete!**\n\n"
+                    "🚀 **Generating your ID in default mode...**",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                # Generate ID directly without review
+                return await self.generate_id_direct(update, context, user_id)
+            else:
+                # Detail mode - show review interface
             await update.message.reply_text(
                 "✅ **Data Extraction Complete!**\n\n"
-                "📋 **Next Step:** Review your extracted information",
+                "You can tap 🚀 Generate ID now, or adjust ⚙️ Settings first.",
                 parse_mode=ParseMode.MARKDOWN
             )
             
-            # Show data preview
-            await self.show_data_preview(update, context, user_id)
+            # Show compact control panel (preview hidden by default)
+            await self.show_compact_controls(update, context, user_id)
             return CONFIRMING_DATA
             
         except Exception as e:
@@ -316,6 +429,46 @@ class FydaTelegramBot:
                 "🔄 **Try again:** Upload a different PDF or check if the file is corrupted",
                 parse_mode=ParseMode.MARKDOWN
             )
+            return WAITING_FOR_PDF
+
+    async def generate_id_direct(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
+        """Generate ID directly in default mode without review"""
+        try:
+            # Use the existing generation flow
+            await self.generate_id(update, context, user_id)
+            return ConversationHandler.END
+        except Exception as e:
+            await update.message.reply_text(
+                f"❌ **Generation Error**\n\n"
+                f"Error: {str(e)}\n\n"
+                "Please try again or contact support.",
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return ConversationHandler.END
+
+    async def handle_quick_settings(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        """Handle quick settings from welcome message"""
+        query = update.callback_query
+        await query.answer()
+        user_id = query.from_user.id
+        choice = query.data
+        
+        
+        if choice == 'quick_settings':
+            # Show full settings menu
+            try:
+                await self.show_settings_menu(update, context, user_id)
+                return CONFIRMING_DATA
+            except Exception as e:
+                print(f"Settings error: {e}")  # Debug output
+                await query.edit_message_text(
+                    f"❌ **Settings Error**\n\n"
+                    f"Error: {str(e)}\n\n"
+                    "Please try again.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                return WAITING_FOR_PDF
+        
             return WAITING_FOR_PDF
 
     async def handle_wrong_input_fin(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -431,13 +584,23 @@ class FydaTelegramBot:
             await update.message.reply_text(unauthorized_message, parse_mode=ParseMode.MARKDOWN)
             return ConversationHandler.END
         
-        # Always start a fresh session when a PDF (or PDF URL) is sent
+        # Reset previous session data but preserve user preferences across uploads
+        preserved_prefs = self.user_sessions.get(user_id, {}).get('prefs', {
+            'id_type': None,
+            'output_variant': None,
+            'city_type': None,
+            'mode': 'detail',
+            'language': 'en',
+        })
         self.user_sessions[user_id] = {
             'data': {},
             'files': {},
             'edit_field': None,
             'edit_mode': None,
-            'current_edit_index': 0
+            'current_edit_index': 0,
+            'prefs': preserved_prefs,
+            'preview_visible': False,
+            'preview_message_id': None
         }
 
         # If user sent text: allow direct PDF URL, otherwise guide to upload
@@ -540,41 +703,19 @@ class FydaTelegramBot:
                         )
                         return WAITING_FOR_PDF
                     self.user_sessions[user_id]['files']['pdf'] = pdf_bytes
-                    # Preview: attempt to send as document via BytesIO
+                    # Immediate visual feedback
                     try:
-                        bio = BytesIO(pdf_bytes)
-                        bio.name = 'uploaded.pdf'
-                        await context.bot.send_document(chat_id=user_id, document=bio, caption="📄 PDF Preview (from URL)\n📋 Next: Send your 12-digit FIN number")
+                        await update.message.reply_text("⏳ Processing data from your PDF...")
                     except Exception:
                         pass
-                    # Generate thumbnail
-                    try:
-                        import fitz
-                        doc = fitz.open(stream=pdf_bytes, filetype='pdf')
-                        if doc.page_count > 0:
-                            page = doc.load_page(0)
-                            zoom = 2.0
-                            mat = fitz.Matrix(zoom, zoom)
-                            pix = page.get_pixmap(matrix=mat, alpha=False)
-                            img_bytes = pix.tobytes("png")
-                            thumb_bio = BytesIO(img_bytes)
-                            thumb_bio.name = 'uploaded_preview.png'
-                            await context.bot.send_photo(chat_id=user_id, photo=thumb_bio, caption="🖼️ First page preview (thumbnail)")
-                        doc.close()
-                    except Exception:
-                        pass
+                    # Skip echoing the PDF back; just show a concise instruction message
                     # Store PDF filename for later use
                     self.user_sessions[user_id]['pdf_filename'] = 'uploaded_from_url.pdf'
                     
-                    # Success message
+                    # Success message (concise)
+                    prefs = self.user_sessions[user_id].get('prefs', {'language': 'en'})
                     await update.message.reply_text(
-                        "✅ **PDF Downloaded Successfully!**\n\n"
-                        f"📁 **File:** Downloaded from URL\n"
-                        f"📏 **Size:** {len(pdf_bytes) / (1024*1024):.1f} MB\n"
-                        "🔍 **PDF ready for processing**\n\n"
-                        "📋 **Next Step:** Send your 12-digit FIN number\n\n"
-                        "💡 *Your FIN number is the 12-digit ID from your Ethiopian ID card*",
-                        parse_mode=ParseMode.MARKDOWN
+                        get_text(prefs, 'pdf_uploaded')
                     )
                     
                     return WAITING_FOR_FIN
@@ -622,6 +763,12 @@ class FydaTelegramBot:
             return WAITING_FOR_PDF
         
         try:
+            # Immediate visual feedback
+            try:
+                await update.message.reply_text("⏳ Processing data from your PDF...")
+            except Exception:
+                pass
+
             # Download the PDF file
             file = await context.bot.get_file(update.message.document.file_id)
             pdf_bytes = await file.download_as_bytearray()
@@ -629,55 +776,16 @@ class FydaTelegramBot:
             # Store file_id for potential reuse
             self.user_sessions[user_id]['files']['pdf_file_id'] = update.message.document.file_id
 
-            # Send PDF back as a preview document
-            try:
-                await context.bot.send_document(
-                    chat_id=user_id,
-                    document=update.message.document.file_id,
-                    caption=(
-                        f"📄 PDF Preview: {update.message.document.file_name}\n"
-                        f"📏 Size: {file_size / (1024*1024):.1f} MB\n\n"
-                        "👆 Tap to open and review your PDF\n"
-                        "📋 Next Step: Send your 12-digit FIN number"
-                    )
-                )
-            except Exception:
-                pass
+            # Do not echo the PDF back; keep UX concise
 
-            # Also generate and send a thumbnail (first page) preview image
-            try:
-                import fitz  # PyMuPDF
-                doc = fitz.open(stream=pdf_bytes, filetype='pdf')
-                if doc.page_count > 0:
-                    page = doc.load_page(0)
-                    zoom = 2.0  # Higher zoom for clarity
-                    mat = fitz.Matrix(zoom, zoom)
-                    pix = page.get_pixmap(matrix=mat, alpha=False)
-                    img_bytes = pix.tobytes("png")
-                    thumb_bio = BytesIO(img_bytes)
-                    thumb_bio.name = os.path.splitext(update.message.document.file_name)[0] + "_preview.png"
-                    await context.bot.send_photo(
-                        chat_id=user_id,
-                        photo=thumb_bio,
-                        caption="🖼️ First page preview (thumbnail)\n📋 Next: Send your 12-digit FIN number"
-                    )
-                doc.close()
-            except Exception:
-                # Silently ignore thumbnail generation errors
-                pass
 
             # Store PDF filename for later use
             self.user_sessions[user_id]['pdf_filename'] = update.message.document.file_name
             
-            # Success message
+            # Success message (concise with state hint)
+            prefs = self.user_sessions[user_id].get('prefs', {'language': 'en'})
             await update.message.reply_text(
-                "✅ **PDF Uploaded Successfully!**\n\n"
-                f"📁 **File:** `{update.message.document.file_name}`\n"
-                f"📏 **Size:** {file_size / 1024:.1f} KB\n"
-                "🔍 **PDF ready for processing**\n\n"
-                "📋 **Next Step:** Send your 12-digit FIN number\n\n"
-                "💡 *Your FIN number is the 12-digit ID from your Ethiopian ID card*",
-                parse_mode=ParseMode.MARKDOWN
+                get_text(prefs, 'pdf_uploaded')
             )
             
             return WAITING_FOR_FIN
@@ -733,7 +841,7 @@ class FydaTelegramBot:
                                 parse_mode=ParseMode.MARKDOWN
                             )
                             
-                            await self.show_data_preview(update, context, user_id)
+                            await self.show_compact_controls(update, context, user_id)
                             return CONFIRMING_DATA
                             
                         except Exception as comp_error:
@@ -936,8 +1044,8 @@ class FydaTelegramBot:
         elif choice == "photo_download":
             # Send the currently stored photo as a downloadable document
             try:
-                # Prefer the saved file in static folder
-                photo_path = os.path.join(self.id_service.config.STATIC_FOLDER, 'photo_temp.png')
+                # Prefer the saved file in static folder (user-scoped)
+                photo_path = self._user_static_path(user_id, 'photo_temp.png')
                 if os.path.exists(photo_path):
                     with open(photo_path, 'rb') as f:
                         await context.bot.send_document(
@@ -983,44 +1091,22 @@ class FydaTelegramBot:
             return ConversationHandler.END
         
         choice = query.data
-        
-        if choice == "data_confirm":
-            # User confirmed the data, proceed directly to generation options
-            await query.edit_message_text(
-                "✅ **Data Confirmed!**\n\n"
-                "Your extracted data has been confirmed.\n\n"
-                "⚙️ **Next Step:** Configure your ID generation options",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # Go directly to generation options, using photo from PDF by default
-            return await self.show_generation_options(update, context, user_id)
-            
-        elif choice == "data_edit":
-            # User wants to edit the data
-            await query.edit_message_text(
-                "✏️ **Data Editing**\n\n"
-                "You can now review and edit your information.\n\n"
-                "📋 **What would you like to edit?**",
-                parse_mode=ParseMode.MARKDOWN
-            )
+
+        if choice == "data_continue":
+            await query.edit_message_text("➡️ Continuing to options...")
+            # Background removal first
+            return await self.show_background_options(update, context, user_id)
+
+        elif choice == "data_hide":
+            # Replace with compact controls (preview hidden)
+            await self.show_compact_controls(update, context, user_id, replace=True)
+            return CONFIRMING_DATA
+
+        elif choice == "data_unhide":
+            # Show the full data preview again
             await self.show_data_review(update, context, user_id)
             return CONFIRMING_DATA
-            
-        elif choice == "data_retry_pdf":
-            # User wants to upload a different PDF
-            await query.edit_message_text(
-                "🔄 **Upload Different PDF**\n\n"
-                "Please upload a different PDF document.\n\n"
-                "💡 **Make sure the new PDF contains:**\n"
-                "• Your personal information\n"
-                "• Your photo\n"
-                "• Official Ethiopian ID data\n\n"
-                "📄 **Upload your new PDF file now:**",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            return WAITING_FOR_PDF
-            
+
         elif choice == "data_cancel":
             # User wants to cancel the process
             await query.edit_message_text(
@@ -1035,6 +1121,14 @@ class FydaTelegramBot:
                 del self.user_sessions[user_id]
             return ConversationHandler.END
         
+        elif choice == "photo_replace":
+            await query.edit_message_text("📸 Send a new photo to replace the current one.", parse_mode=ParseMode.MARKDOWN)
+            return WAITING_FOR_PHOTO
+
+        elif choice == "edit_personal":
+            await self.show_data_review(update, context, user_id)
+            return CONFIRMING_DATA
+
         else:
             await query.edit_message_text("❌ Invalid choice. Please try again.")
             return CONFIRMING_DATA
@@ -1081,7 +1175,7 @@ class FydaTelegramBot:
                 # Convert to RGBA to preserve transparency if present
                 img = img.convert('RGBA')
                 filename = 'photo_temp.png'
-                filepath = os.path.join(self.id_service.config.STATIC_FOLDER, filename)
+                filepath = self._user_static_path(user_id, filename)
                 img.save(filepath, format='PNG')
                 self.user_sessions[user_id]['files']['custom_photo'] = file_bytes
                 await update.message.reply_text(
@@ -1160,7 +1254,7 @@ class FydaTelegramBot:
             from io import BytesIO
             img = Image.open(BytesIO(photo_bytes)).convert('RGBA')
             filename = 'photo_temp.png'
-            filepath = os.path.join(self.id_service.config.STATIC_FOLDER, filename)
+            filepath = self._user_static_path(user_id, filename)
             img.save(filepath, format='PNG')
             
             self.user_sessions[user_id]['files']['custom_photo'] = photo_bytes
@@ -1219,6 +1313,243 @@ class FydaTelegramBot:
             )
         return CONFIRMING_DATA
 
+    # New: output variant selection and handling
+    async def show_output_variant_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
+        data = self.user_sessions[user_id]['data']
+        id_type = data.get('id_type', 'normal')
+        if id_type == 'mini':
+            keyboard = [
+                [InlineKeyboardButton("Front Color", callback_data="variant_mini_front_color")],
+                [InlineKeyboardButton("Front Grayscale", callback_data="variant_mini_front_bw")],
+            ]
+        elif id_type == 'old':
+            keyboard = [
+                [InlineKeyboardButton("Front Color", callback_data="variant_old_front_color")],
+                [InlineKeyboardButton("Front Grayscale", callback_data="variant_old_front_bw")],
+                [InlineKeyboardButton("Reverse Color", callback_data="variant_old_reverse_color")],
+                [InlineKeyboardButton("Reverse Grayscale", callback_data="variant_old_reverse_bw")],
+            ]
+        else:
+            keyboard = [
+                [InlineKeyboardButton("Front Color", callback_data="variant_front_color")],
+                [InlineKeyboardButton("Front Grayscale", callback_data="variant_front_bw")],
+                [InlineKeyboardButton("Reverse Color", callback_data="variant_reverse")],
+                [InlineKeyboardButton("Reverse Grayscale", callback_data="variant_reverse_bw")],
+            ]
+        prompt = "Choose which single ID image to generate:"
+        if hasattr(update, 'callback_query') and update.callback_query:
+            await update.callback_query.edit_message_text(prompt, reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await context.bot.send_message(chat_id=user_id, text=prompt, reply_markup=InlineKeyboardMarkup(keyboard))
+        return CONFIRMING_DATA
+
+    # Consolidated Settings menu
+    async def show_settings_menu(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
+        # Ensure user session exists
+        if user_id not in self.user_sessions:
+            self.user_sessions[user_id] = {
+                'data': {},
+                'files': {},
+                'edit_field': None,
+                'edit_mode': None,
+                'current_edit_index': 0,
+                'prefs': {
+                    'id_type': None,
+                    'output_variant': None,
+                    'city_type': None,
+                    'mode': 'detail',
+                    'language': 'en',
+                },
+                'preview_visible': False,
+                'preview_message_id': None
+            }
+        else:
+            # Ensure prefs exists and has default values for missing keys
+            if 'prefs' not in self.user_sessions[user_id]:
+                self.user_sessions[user_id]['prefs'] = {}
+            prefs = self.user_sessions[user_id]['prefs']
+            if 'mode' not in prefs:
+                prefs['mode'] = 'detail'
+            if 'language' not in prefs:
+                prefs['language'] = 'en'
+        
+        data = self.user_sessions[user_id]['data']
+        prefs = self.user_sessions[user_id]['prefs']
+        
+        bg = 'None'
+        if data.get('remove_white_bg'):
+            bg = 'White'
+        elif data.get('remove_black_bg'):
+            bg = 'Black'
+
+        variant = (data.get('output_variant') or 'reverse').replace('_', ' ').title()
+        city = self._city_label(data.get('city_type') or 'residential_sheger')
+        id_type = (data.get('id_type') or 'normal').title()
+        mode = (prefs.get('mode') or 'detail').title()
+        language = (prefs.get('language') or 'en').upper()
+
+        text = get_text(prefs, 'settings', 
+                       bg=bg, id_type=id_type, variant=variant, 
+                       city=city, mode=mode, language=language)
+        
+        keyboard = [
+            [InlineKeyboardButton("Background Remover", callback_data="settings_bg")],
+            [InlineKeyboardButton("ID Type", callback_data="settings_idtype"), InlineKeyboardButton("Output Variant", callback_data="settings_variant")],
+            [InlineKeyboardButton("Address Format", callback_data="settings_city")],
+            [InlineKeyboardButton("Mode", callback_data="settings_mode"), InlineKeyboardButton("Language", callback_data="settings_lang")],
+            [InlineKeyboardButton(get_text(prefs, 'close'), callback_data="back_to_start")]
+        ]
+        await update.callback_query.edit_message_text(text, parse_mode=ParseMode.MARKDOWN, reply_markup=InlineKeyboardMarkup(keyboard))
+
+    async def handle_settings_choice(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        query = update.callback_query
+        await query.answer()
+        user_id = query.from_user.id
+        choice = query.data
+
+        if choice == 'settings_bg':
+            # Show background options with buttons
+            keyboard = [
+                [InlineKeyboardButton("❌ None", callback_data="bg_none")],
+                [InlineKeyboardButton("⚪ Remove White Background", callback_data="bg_white")],
+                [InlineKeyboardButton("⚫ Remove Black Background", callback_data="bg_black")],
+                [InlineKeyboardButton("🔙 Back to Settings", callback_data="settings_back")]
+            ]
+            prefs = self.user_sessions[user_id]['prefs']
+            await query.edit_message_text(get_text(prefs, 'bg_options'), reply_markup=InlineKeyboardMarkup(keyboard))
+            return CONFIRMING_DATA
+            
+        if choice == 'settings_idtype':
+            # Show ID type options with buttons
+            keyboard = [
+                [InlineKeyboardButton("📄 Normal ID", callback_data="id_normal")],
+                [InlineKeyboardButton("🆔 Mini ID", callback_data="id_mini")],
+                [InlineKeyboardButton("📜 Old ID", callback_data="id_old")],
+                [InlineKeyboardButton("🔙 Back to Settings", callback_data="settings_back")]
+            ]
+            prefs = self.user_sessions[user_id]['prefs']
+            await query.edit_message_text(get_text(prefs, 'id_type_options'), reply_markup=InlineKeyboardMarkup(keyboard))
+            return CONFIRMING_DATA
+            
+        if choice == 'settings_variant':
+            # Show output variant options with buttons
+            keyboard = [
+                [InlineKeyboardButton("🎨 Color", callback_data="variant_color")],
+                [InlineKeyboardButton("⚫ Grayscale", callback_data="variant_grayscale")],
+                [InlineKeyboardButton("🔄 Reverse Color", callback_data="variant_reverse")],
+                [InlineKeyboardButton("🔙 Back to Settings", callback_data="settings_back")]
+            ]
+            prefs = self.user_sessions[user_id]['prefs']
+            await query.edit_message_text(get_text(prefs, 'variant_options'), reply_markup=InlineKeyboardMarkup(keyboard))
+            return CONFIRMING_DATA
+            
+        if choice == 'settings_city':
+            # Show city type options with buttons
+            keyboard = [
+                [InlineKeyboardButton("🏙️ Default", callback_data="city_default")],
+                [InlineKeyboardButton("🏘️ Residential Sheger", callback_data="city_residential_sheger")],
+                [InlineKeyboardButton("🔙 Back to Settings", callback_data="settings_back")]
+            ]
+            prefs = self.user_sessions[user_id]['prefs']
+            await query.edit_message_text(get_text(prefs, 'city_options'), reply_markup=InlineKeyboardMarkup(keyboard))
+            return CONFIRMING_DATA
+        if choice == 'settings_mode':
+            prefs = self.user_sessions[user_id]['prefs']
+            keyboard = [
+                [InlineKeyboardButton(get_text(prefs, 'mode_detail'), callback_data="mode_detail")],
+                [InlineKeyboardButton(get_text(prefs, 'mode_default'), callback_data="mode_default")],
+                [InlineKeyboardButton(get_text(prefs, 'back'), callback_data="settings_back")]
+            ]
+            await query.edit_message_text(get_text(prefs, 'mode_options'), reply_markup=InlineKeyboardMarkup(keyboard))
+            return CONFIRMING_DATA
+        if choice == 'settings_lang':
+            prefs = self.user_sessions[user_id]['prefs']
+            keyboard = [
+                [InlineKeyboardButton(get_text(prefs, 'lang_english'), callback_data="lang_en")],
+                [InlineKeyboardButton(get_text(prefs, 'lang_amharic'), callback_data="lang_am")],
+                [InlineKeyboardButton(get_text(prefs, 'back'), callback_data="settings_back")]
+            ]
+            await query.edit_message_text(get_text(prefs, 'lang_options'), reply_markup=InlineKeyboardMarkup(keyboard))
+            return CONFIRMING_DATA
+        if choice == 'settings_start_pdf':
+            prefs = self.user_sessions[user_id]['prefs']
+            await query.edit_message_text(
+                get_text(prefs, 'ready_start'),
+                parse_mode=ParseMode.MARKDOWN
+            )
+            return WAITING_FOR_PDF
+        if choice == 'settings_back':
+            # Return to main settings menu
+            await self.show_settings_menu(update, context, user_id)
+            return CONFIRMING_DATA
+        if choice == 'data_unhide':
+            # Return to main settings menu from settings
+            await self.show_settings_menu(update, context, user_id)
+            return CONFIRMING_DATA
+        if choice == 'back_to_start':
+            # Return to main welcome message (render via callback-safe edit)
+            user_name = update.effective_user.first_name or "Unknown"
+            prefs = self.user_sessions[user_id]['prefs']
+            welcome = get_text(prefs, 'welcome', name=user_name)
+            keyboard = [[InlineKeyboardButton("⚙️ Settings", callback_data="quick_settings")]]
+            await query.edit_message_text(
+                welcome,
+                parse_mode=ParseMode.MARKDOWN,
+                reply_markup=InlineKeyboardMarkup(keyboard)
+            )
+            return ConversationHandler.END
+
+        return CONFIRMING_DATA
+
+    async def handle_mode_choice(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        query = update.callback_query
+        await query.answer()
+        user_id = query.from_user.id
+        choice = query.data
+        
+        if choice == 'mode_detail':
+            self.user_sessions[user_id]['prefs']['mode'] = 'detail'
+        elif choice == 'mode_default':
+            self.user_sessions[user_id]['prefs']['mode'] = 'default'
+        elif choice == 'settings_back':
+            await self.show_settings_menu(update, context, user_id)
+            return CONFIRMING_DATA
+        
+        await self.show_settings_menu(update, context, user_id)
+        return CONFIRMING_DATA
+
+    async def handle_language_choice(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        query = update.callback_query
+        await query.answer()
+        user_id = query.from_user.id
+        choice = query.data
+        
+        if choice == 'lang_en':
+            self.user_sessions[user_id]['prefs']['language'] = 'en'
+        elif choice == 'lang_am':
+            self.user_sessions[user_id]['prefs']['language'] = 'am'
+        elif choice == 'settings_back':
+            await self.show_settings_menu(update, context, user_id)
+            return CONFIRMING_DATA
+        
+        await self.show_settings_menu(update, context, user_id)
+        return CONFIRMING_DATA
+
+    async def handle_output_variant(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
+        query = update.callback_query
+        await query.answer()
+        user_id = query.from_user.id
+        variant = query.data.replace('variant_', '')
+        self.user_sessions[user_id]['data']['output_variant'] = variant
+        # Save defaults for next time
+        prefs = self.user_sessions[user_id].get('prefs', {})
+        prefs['output_variant'] = variant
+        prefs['id_type'] = self.user_sessions[user_id]['data'].get('id_type', 'normal')
+        self.user_sessions[user_id]['prefs'] = prefs
+        # After selecting variant, return to Settings
+        await self.show_settings_menu(update, context, user_id)
+        return CONFIRMING_DATA
+
     async def show_id_type_options(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> int:
         # Show ID type options separately
         keyboard = [
@@ -1263,8 +1594,9 @@ class FydaTelegramBot:
         self.user_sessions[user_id]['data']['generate_old_id'] = False
         self.user_sessions[user_id]['data']['generate_mini_id'] = False
 
-        # Next: ask for ID type
-        return await self.show_id_type_options(update, context, user_id)
+        # After choosing BG option, return to Settings
+        await self.show_settings_menu(update, context, user_id)
+        return CONFIRMING_DATA
 
     async def handle_id_type(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
@@ -1286,19 +1618,29 @@ class FydaTelegramBot:
         if id_choice == 'mini_id':
             self.user_sessions[user_id]['data']['generate_mini_id'] = True
             self.user_sessions[user_id]['data']['generate_old_id'] = False
+            self.user_sessions[user_id]['data']['id_type'] = 'mini'
+            # Sensible default variant for mini
+            self.user_sessions[user_id]['data']['output_variant'] = 'mini_front_color'
         elif id_choice == 'old_id':
             self.user_sessions[user_id]['data']['generate_old_id'] = True
             self.user_sessions[user_id]['data']['generate_mini_id'] = False
+            self.user_sessions[user_id]['data']['id_type'] = 'old'
+            # Sensible default variant for old
+            self.user_sessions[user_id]['data']['output_variant'] = 'old_front_color'
         else:  # id_normal
             self.user_sessions[user_id]['data']['generate_old_id'] = False
             self.user_sessions[user_id]['data']['generate_mini_id'] = False
+            self.user_sessions[user_id]['data']['id_type'] = 'normal'
+            # Default to reverse color for normal
+            self.user_sessions[user_id]['data']['output_variant'] = 'reverse'
 
-        # Finally ask for city type
-        keyboard = [[InlineKeyboardButton(city.replace('_', ' ').title(), callback_data=city)] for city in CITY_TYPES]
-        await query.edit_message_text(
-            "Select your address format (city type):",
-            reply_markup=InlineKeyboardMarkup(keyboard)
-        )
+        # Persist preference
+        prefs = self.user_sessions[user_id].get('prefs', {})
+        prefs['id_type'] = self.user_sessions[user_id]['data']['id_type']
+        self.user_sessions[user_id]['prefs'] = prefs
+
+        # After choosing ID type, return to Settings
+        await self.show_settings_menu(update, context, user_id)
         return CONFIRMING_DATA
 
     async def handle_city_type(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -1319,9 +1661,13 @@ class FydaTelegramBot:
         
         city_type = query.data
         self.user_sessions[user_id]['data']['city_type'] = city_type
+        # Save default city type
+        prefs = self.user_sessions[user_id].get('prefs', {})
+        prefs['city_type'] = city_type
+        self.user_sessions[user_id]['prefs'] = prefs
         
-        # Show data review and editing options
-        await self.show_data_review(update, context, user_id)
+        # After city type, return to Settings
+        await self.show_settings_menu(update, context, user_id)
         return CONFIRMING_DATA
 
     async def show_data_review(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int) -> None:
@@ -1356,20 +1702,17 @@ class FydaTelegramBot:
         
         # Generation Options
         text += "*⚙️ Generation Options:*\n"
-        text += f"• City Type: `{data.get('city_type', 'N/A')}`\n"
+        text += f"• ID Type: `{data.get('id_type', 'normal')}`\n"
+        text += f"• Output Variant: `{data.get('output_variant', 'front_color')}`\n"
+        text += f"• City Type: `{data.get('city_type', 'default')}`\n"
         text += f"• Remove White BG: `{data.get('remove_white_bg', False)}`\n"
         text += f"• Remove Black BG: `{data.get('remove_black_bg', False)}`\n"
-        text += f"• Generate Mini ID: `{data.get('generate_mini_id', False)}`\n"
-        text += f"• Generate Old ID: `{data.get('generate_old_id', False)}`\n"
         
         # Create keyboard with editing options
         keyboard = [
-            [InlineKeyboardButton("✏️ Edit Personal Info", callback_data="edit_personal")],
-            [InlineKeyboardButton("🏠 Edit Address", callback_data="edit_address")],
-            [InlineKeyboardButton("🌍 Edit Nationality", callback_data="edit_nationality")],
-            [InlineKeyboardButton("⚙️ Edit Generation Options", callback_data="edit_options")],
-            [InlineKeyboardButton("🔁 Replace Photo", callback_data="photo_replace")],
-            [InlineKeyboardButton("🚀 Generate ID Cards", callback_data="generate")]
+            [InlineKeyboardButton("👁️ Hide Preview", callback_data="data_hide"), InlineKeyboardButton("✏️ Edit", callback_data="edit_personal")],
+            [InlineKeyboardButton("🔁 Replace Photo", callback_data="photo_replace"), InlineKeyboardButton("❌ Cancel", callback_data="data_cancel")],
+            [InlineKeyboardButton("🚀 Generate ID", callback_data="generate")]
         ]
         
         # Determine if this is a callback query or message
@@ -1386,6 +1729,23 @@ class FydaTelegramBot:
                 parse_mode=ParseMode.MARKDOWN,
                 reply_markup=InlineKeyboardMarkup(keyboard)
             )
+
+    async def show_compact_controls(self, update: Update, context: ContextTypes.DEFAULT_TYPE, user_id: int, replace: bool = False) -> None:
+        """Show a compact control panel with preview hidden by default."""
+        keyboard = [
+            [InlineKeyboardButton("👁️ Unhide Preview", callback_data="data_unhide"), InlineKeyboardButton("✏️ Edit", callback_data="edit_personal")],
+            [InlineKeyboardButton("⚙️ Settings", callback_data="edit_options"), InlineKeyboardButton("❌ Cancel", callback_data="data_cancel")],
+            [InlineKeyboardButton("🚀 Generate ID", callback_data="generate")]
+        ]
+        prefs = self.user_sessions[user_id].get('prefs', {'language': 'en'})
+        text = get_text(prefs, 'settings_prompt')
+        if hasattr(update, 'callback_query') and update.callback_query:
+            if replace:
+                await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(keyboard))
+            else:
+                await context.bot.send_message(chat_id=user_id, text=text, reply_markup=InlineKeyboardMarkup(keyboard))
+        else:
+            await context.bot.send_message(chat_id=user_id, text=text, reply_markup=InlineKeyboardMarkup(keyboard))
 
     async def handle_edit_choice(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
         query = update.callback_query
@@ -1417,7 +1777,8 @@ class FydaTelegramBot:
         elif choice == "edit_nationality":
             return await self.show_nationality_edit_options(update, context, user_id)
         elif choice == "edit_options":
-            return await self.show_generation_options(update, context, user_id)
+            await self.show_settings_menu(update, context, user_id)
+            return CONFIRMING_DATA
         
         return CONFIRMING_DATA
 
@@ -1660,79 +2021,72 @@ class FydaTelegramBot:
                 )
             except asyncio.TimeoutError:
                 await processing_msg.edit_text(
-                    "⏰ **Generation Timeout**\n\n"
-                    "The ID generation is taking longer than expected.\n\n"
-                    "🔄 **Please try again:**\n"
-                    "• Click 'Generate ID Cards' again\n"
-                    "• Or start a new session\n\n"
-                    "💡 *This usually happens with complex images or high server load.*",
-                    parse_mode=ParseMode.MARKDOWN
+                    "⏰ Generation timeout. Please try again or start a new session."
                 )
                 return
             except Exception as gen_error:
                 await processing_msg.edit_text(
-                    f"❌ **Generation Error**\n\n"
-                    f"Failed to generate ID cards:\n`{str(gen_error)}`\n\n"
-                    "🔄 **Please try again:**\n"
-                    "• Click 'Generate ID Cards' again\n"
-                    "• Or start a new session",
-                    parse_mode=ParseMode.MARKDOWN
+                    f"❌ Generation error: {str(gen_error)}\nPlease try again or start a new session."
                 )
                 return
             
-            # Prepare list of image keys to send
-            image_keys = ['front_color', 'front_bw', 'reverse', 'reverse_bw']
-            
-            # Add mini ID files if generated
-            if generate_mini_id:
-                image_keys.extend(['mini_front_color', 'mini_front_bw'])
-            
-            # Add old ID files if generated
-            if generate_old_id:
-                image_keys.extend(['old_front_color', 'old_front_bw', 'old_reverse_color', 'old_reverse_bw'])
+            # Determine single output variant to send
+            variant = self.user_sessions[user_id]['data'].get('output_variant')
+            # Default variant depending on id type
+            if not variant:
+                if generate_mini_id:
+                    variant = 'mini_front_color'
+                elif generate_old_id:
+                    variant = 'old_front_color'
+                else:
+                    variant = 'reverse'
+            # Map variants if ID type changed without updating variant
+            if generate_old_id and not variant.startswith('old_'):
+                mapping = {
+                    'front_color': 'old_front_color',
+                    'front_bw': 'old_front_bw',
+                    'reverse': 'old_reverse_color',
+                    'reverse_bw': 'old_reverse_bw'
+                }
+                variant = mapping.get(variant, 'old_front_color')
+            if generate_mini_id and not variant.startswith('mini_'):
+                mapping = {
+                    'front_color': 'mini_front_color',
+                    'front_bw': 'mini_front_bw',
+                }
+                variant = mapping.get(variant, 'mini_front_color')
 
             # Update processing message
-            total_images = len([k for k in image_keys if generated_files.get(k)])
-            await processing_msg.edit_text(
-                "✅ **ID Cards Generated!**\n\n"
-                f"📤 Sending {total_images} images...\n"
-                "⏳ Please wait...",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # Send all generated ID images as documents with file names derived from user data
-            
-            # Optimize: Send images as documents with better error handling and batching
-            sent_count = 0
-            send_tasks = []
-            
-            # Prepare all files for sending
-            for key in image_keys:
-                filename = generated_files.get(key)
-                if filename:
-                    path = os.path.join(self.id_service.config.STATIC_FOLDER, filename)
-                    if os.path.exists(path):
-                        try:
-                            with open(path, 'rb') as img_file:
-                                # Send immediately (avoiding memory issues with large batches)
-                                await context.bot.send_document(
-                                    chat_id=user_id,
-                                    document=InputFile(img_file, filename=filename)
-                                )
-                                sent_count += 1
-                        except Exception as send_error:
-                            # Continue sending other files even if one fails
-                            print(f"Failed to send {filename}: {send_error}")
-                            continue
-            
-            # Final success message
+            filename = generated_files.get(variant)
+            if not filename:
+                await processing_msg.edit_text(
+                    "❌ Generation error. Could not create the selected ID variant." + self.get_support_footer()
+                )
+                return
+            path = os.path.join(self.id_service.config.STATIC_FOLDER, filename)
+            if not os.path.exists(path):
+                await processing_msg.edit_text(
+                    "❌ File missing. The output file was not found." + self.get_support_footer()
+                )
+                return
+
+            await processing_msg.edit_text("✅ ID generated! Sending your image...")
+            try:
+                with open(path, 'rb') as img_file:
+                    await context.bot.send_document(
+                        chat_id=user_id,
+                        document=InputFile(img_file, filename=filename)
+                    )
+            except Exception as send_error:
+                await context.bot.send_message(
+                    chat_id=user_id,
+                    text=("❌ Send error: " f"{send_error}" + self.get_support_footer())
+                )
+                return
+
             await context.bot.send_message(
-                chat_id=user_id, 
-                text=f"🎉 **Your Ethiopian Digital ID cards are ready!**\n\n"
-                     f"📱 **{sent_count} images** have been sent above.\n\n"
-                     "🔄 **Ready to generate another ID?**\n"
-                     "Just send any message to start a new session!\n\n"
-                     "💡 *No need to use /start - just send your FIN number or any message.*"
+                chat_id=user_id,
+                text="🎉 Your ID is ready! Send any message to start a new session."
             )
             
         except Exception as e:
@@ -1740,27 +2094,12 @@ class FydaTelegramBot:
             if "Timed out" in error_msg:
                 await context.bot.send_message(
                     chat_id=user_id,
-                    text="⏰ **Request Timeout**\n\n"
-                         "The operation took too long to complete.\n\n"
-                         "🔄 **Please try again:**\n"
-                         "• Click 'Generate ID Cards' again\n"
-                         "• Or start a new session\n\n"
-                         "💡 *This usually happens with:\n"
-                         "• Large image files\n"
-                         "• High server load\n"
-                         "• Slow internet connection*",
-                    parse_mode=ParseMode.MARKDOWN
+                    text=("⏰ Request timeout. The operation took too long. Please try again or start a new session." + self.get_support_footer())
                 )
             else:
                 await context.bot.send_message(
                     chat_id=user_id,
-                    text=f"❌ **Error generating ID cards**\n\n"
-                         f"**Error:** `{error_msg}`\n\n"
-                         "🔄 **Please try again:**\n"
-                         "• Click 'Generate ID Cards' again\n"
-                         "• Or start a new session\n\n"
-                         "💡 *If this error persists, please contact support.*",
-                    parse_mode=ParseMode.MARKDOWN
+                    text=(f"❌ Error generating ID cards: {error_msg}\nPlease try again or start a new session." + self.get_support_footer())
                 )
         
         # Clear session and reset for next use
@@ -2224,7 +2563,10 @@ class FydaTelegramBot:
         conv_handler = ConversationHandler(
             entry_points=[
                 CommandHandler("start", self.start),
-                MessageHandler(filters.ALL, self.auto_start)  # Auto-start on any message
+                # Allow users to send a PDF immediately without /start
+                MessageHandler(filters.Document.ALL, self.receive_pdf),
+                # Fallback: auto-start on any other message
+                MessageHandler(filters.ALL, self.auto_start)
             ],
             states={
                 WAITING_FOR_PDF: [
@@ -2246,11 +2588,15 @@ class FydaTelegramBot:
                 CONFIRMING_DATA: [
                     CallbackQueryHandler(self.handle_data_preview_choice, pattern="^data_"),
                     CallbackQueryHandler(self.handle_edit_choice, pattern="^(edit_personal|edit_address|edit_nationality|edit_options|generate)$"),
+                    CallbackQueryHandler(self.handle_settings_choice, pattern="^settings_"),
+                    CallbackQueryHandler(self.handle_mode_choice, pattern="^mode_"),
+                    CallbackQueryHandler(self.handle_language_choice, pattern="^lang_"),
+                    CallbackQueryHandler(self.handle_bg_option, pattern="^bg_"),
+                    CallbackQueryHandler(self.handle_id_type, pattern="^id_"),
+                    CallbackQueryHandler(self.handle_output_variant, pattern="^variant_"),
+                    CallbackQueryHandler(self.handle_city_type, pattern="^city_"),
                     CallbackQueryHandler(self.handle_field_edit, pattern="^edit_(?!personal$|address$|nationality$|options$).+"),
                     CallbackQueryHandler(self.handle_photo_choice, pattern="^photo_"),
-                    CallbackQueryHandler(self.handle_bg_option, pattern="^bg_"),
-                    CallbackQueryHandler(self.handle_id_type, pattern="^(id_normal|mini_id|old_id)$"),
-                    CallbackQueryHandler(self.handle_city_type, pattern="^(default|residential_sheger)$"),
                     CallbackQueryHandler(self.handle_compression_choice, pattern="^compress_"),
                     MessageHandler(filters.TEXT & ~filters.COMMAND, self.handle_field_value)
                 ],
@@ -2270,11 +2616,33 @@ class FydaTelegramBot:
             fallbacks=[CommandHandler("cancel", self.cancel), CommandHandler("help", self.help_command)]
         )
         application.add_handler(conv_handler)
+        # Add quick settings handler outside conversation
+        application.add_handler(CallbackQueryHandler(self.handle_quick_settings, pattern="^quick_"))
+        # Add settings menu handlers outside conversation
+        application.add_handler(CallbackQueryHandler(self.handle_settings_choice, pattern="^settings_"))
+        application.add_handler(CallbackQueryHandler(self.handle_mode_choice, pattern="^mode_"))
+        application.add_handler(CallbackQueryHandler(self.handle_language_choice, pattern="^lang_"))
+        # Add all other settings handlers (mapped to their specific callbacks)
+        application.add_handler(CallbackQueryHandler(self.handle_bg_option, pattern="^bg_"))
+        application.add_handler(CallbackQueryHandler(self.handle_id_type, pattern="^id_"))
+        application.add_handler(CallbackQueryHandler(self.handle_output_variant, pattern="^variant_"))
+        application.add_handler(CallbackQueryHandler(self.handle_city_type, pattern="^city_"))
+        application.add_handler(CallbackQueryHandler(self.handle_data_preview_choice, pattern="^data_"))
+        application.add_handler(CallbackQueryHandler(self.handle_settings_choice, pattern="^back_to_start"))
         application.add_handler(CommandHandler('help', self.help_command))
         application.add_handler(CommandHandler('cancel', self.cancel))
         application.add_handler(CommandHandler('compress', self.compress_pdf))
         print("🤖 Starting Fyda Telegram Bot...")
         if self.restrict_access:
+            # Merge file-based allowlist if available
+            try:
+                from .allowlist_store import read_allowlist
+                dynamic_ids = read_allowlist()
+                if dynamic_ids:
+                    self.allowed_user_ids = sorted(set([*self.allowed_user_ids, *dynamic_ids]))
+                    self.restrict_access = len(self.allowed_user_ids) > 0
+            except Exception:
+                pass
             print(f"🔒 Access restricted to {len(self.allowed_user_ids)} authorized users")
         else:
             print("🌐 Access open to all users")
@@ -2288,5 +2656,17 @@ if __name__ == "__main__":
         print("❌ Error: TELEGRAM_BOT_TOKEN not found in environment variables.")
         print("Please set your Telegram bot token in a .env file or environment variable.")
         sys.exit(1)
-    bot = FydaTelegramBot(BOT_TOKEN)
-    bot.run() 
+
+    # Parse optional ALLOWED_USER_IDS from environment (comma-separated integers)
+    allowed_user_ids_env = os.getenv('ALLOWED_USER_IDS', '')
+    allowed_user_ids: list[int] = []
+    if allowed_user_ids_env:
+        try:
+            allowed_user_ids = [int(uid.strip()) for uid in allowed_user_ids_env.split(',') if uid.strip()]
+        except ValueError as e:
+            print(f"❌ Error parsing ALLOWED_USER_IDS: {e}")
+            print("Please use comma-separated integers, e.g. '123456789,987654321'")
+            allowed_user_ids = []
+
+    bot = FydaTelegramBot(BOT_TOKEN, allowed_user_ids=allowed_user_ids)
+    bot.run()
