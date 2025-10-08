@@ -410,15 +410,15 @@ class FydaTelegramBot:
                 return await self.generate_id_direct(update, context, user_id)
             else:
                 # Detail mode - show review interface
-            await update.message.reply_text(
-                "✅ **Data Extraction Complete!**\n\n"
-                "You can tap 🚀 Generate ID now, or adjust ⚙️ Settings first.",
-                parse_mode=ParseMode.MARKDOWN
-            )
-            
-            # Show compact control panel (preview hidden by default)
-            await self.show_compact_controls(update, context, user_id)
-            return CONFIRMING_DATA
+                await update.message.reply_text(
+                    "✅ **Data Extraction Complete!**\n\n"
+                    "You can tap 🚀 Generate ID now, or adjust ⚙️ Settings first.",
+                    parse_mode=ParseMode.MARKDOWN
+                )
+                
+                # Show compact control panel (preview hidden by default)
+                await self.show_compact_controls(update, context, user_id)
+                return CONFIRMING_DATA
             
         except Exception as e:
             await update.message.reply_text(
@@ -2632,7 +2632,7 @@ class FydaTelegramBot:
         application.add_handler(CommandHandler('help', self.help_command))
         application.add_handler(CommandHandler('cancel', self.cancel))
         application.add_handler(CommandHandler('compress', self.compress_pdf))
-        print("🤖 Starting Fyda Telegram Bot...")
+        print("Starting Fyda Telegram Bot...")
         if self.restrict_access:
             # Merge file-based allowlist if available
             try:
@@ -2643,9 +2643,9 @@ class FydaTelegramBot:
                     self.restrict_access = len(self.allowed_user_ids) > 0
             except Exception:
                 pass
-            print(f"🔒 Access restricted to {len(self.allowed_user_ids)} authorized users")
+            print(f"Access restricted to {len(self.allowed_user_ids)} authorized users")
         else:
-            print("🌐 Access open to all users")
+            print("Access open to all users")
         application.run_polling()
 
 if __name__ == "__main__":
