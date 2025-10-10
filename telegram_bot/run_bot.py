@@ -104,7 +104,16 @@ def main():
         load_dotenv()
         token = os.getenv('TELEGRAM_BOT_TOKEN')
         
-        bot = FydaTelegramBot(token)
+        # Load allowed user IDs from environment
+        allowed_user_ids = []
+        allowed_ids_env = os.getenv('ALLOWED_USER_IDS', '')
+        if allowed_ids_env:
+            try:
+                allowed_user_ids = [int(x.strip()) for x in allowed_ids_env.split(',') if x.strip()]
+            except ValueError:
+                print("Warning: Invalid ALLOWED_USER_IDS format")
+        
+        bot = FydaTelegramBot(token, allowed_user_ids=allowed_user_ids)
         bot.run()
         
     except KeyboardInterrupt:

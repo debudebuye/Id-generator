@@ -7,8 +7,8 @@ import { AuthProvider, ProtectedRoute, useAuth } from './auth/AuthContext'
 import Login from './pages/Login'
 import Settings from './pages/Settings'
 import Approvals from './pages/Approvals'
+import Approved from './pages/Approved'
 import Allowlist from './pages/Allowlist'
-import Logs from './pages/Logs'
 import NewComer from './pages/NewComer'
 import DailyReport from './pages/DailyReport'
 
@@ -57,21 +57,21 @@ function AppRoutes() {
         }
       />
       <Route
-        path="/allowlist"
+        path="/approved"
         element={
           <ProtectedRoute>
             <DashboardLayout>
-              <Allowlist />
+              <Approved />
             </DashboardLayout>
           </ProtectedRoute>
         }
       />
       <Route
-        path="/logs"
+        path="/allowlist"
         element={
           <ProtectedRoute>
             <DashboardLayout>
-              <Logs />
+              <Allowlist />
             </DashboardLayout>
           </ProtectedRoute>
         }
@@ -122,11 +122,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
 
   const title = (() => {
     const path = location.pathname
-    if (path.startsWith('/approvals')) return 'Approvals'
-    if (path.startsWith('/allowlist')) return 'Allowlist'
-    if (path.startsWith('/logs')) return 'Logs'
     if (path.startsWith('/new-comer')) return 'New Comer'
+    if (path.startsWith('/approvals')) return 'Approvals'
+    if (path.startsWith('/approved')) return 'Approved'
     if (path.startsWith('/daily-report')) return 'Daily Report'
+    if (path.startsWith('/allowlist')) return 'Allowlist'
+    if (path.startsWith('/')) return 'Settings'
     return 'Settings'
   })()
   return (
@@ -135,14 +136,12 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
       <aside style={{ background: 'linear-gradient(180deg, #0b1220 0%, #0f172a 100%)', color: 'white', padding: 16, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
         <div style={{ fontWeight: 800, letterSpacing: 0.5, marginBottom: 20 }}>Admin Dashboard</div>
         <nav style={{ display: 'grid', gap: 6 }}>
-          <SidebarLink to="/" label="Settings" />
-          <SidebarLink to="/approvals" label="Approvals" />
-          <SidebarLink to="/allowlist" label="Allowlist" />
-          <SidebarLink to="/logs" label="Logs" />
-          <div style={{ height: 8 }} />
-          <div style={{ color: 'rgba(255,255,255,0.6)', fontSize: 12, padding: '6px 12px' }}>Reports</div>
           <SidebarLink to="/new-comer" label="New Comer" />
+          <SidebarLink to="/approvals" label="Approvals" />
+          <SidebarLink to="/approved" label="Approved" />
           <SidebarLink to="/daily-report" label="Daily Report" />
+          <SidebarLink to="/allowlist" label="Allowlist" />
+          <SidebarLink to="/" label="Settings" />
         </nav>
       </aside>
 

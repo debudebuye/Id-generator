@@ -37,6 +37,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (LOCAL_AUTH_ENABLED) {
+      // Check for persisted user in localStorage
+      const persistedUser = localStorage.getItem('admin_user');
+      if (persistedUser) {
+        try {
+          const userData = JSON.parse(persistedUser);
+          setUser(userData);
+        } catch (e) {
+          localStorage.removeItem('admin_user');
+        }
+      }
       setLoading(false);
       return;
     }
@@ -57,6 +67,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (email === FIXED_EMAIL && password === FIXED_PASSWORD) {
         const fakeUser = { uid: 'local-user', email: FIXED_EMAIL } as unknown as User;
         setUser(fakeUser);
+        // Persist user in localStorage to prevent auto-logout on refresh
+        localStorage.setItem('admin_user', JSON.stringify(fakeUser));
         return;
       }
       throw new Error('Invalid credentials');
@@ -79,6 +91,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOutUser = async () => {
     if (LOCAL_AUTH_ENABLED) {
       setUser(null);
+      localStorage.removeItem('admin_user');
       return;
     }
     await signOut(auth);

@@ -1,16 +1,44 @@
 from flask import Blueprint, request, render_template, redirect, url_for, session, jsonify, current_app
 from werkzeug.utils import secure_filename
 import os
-from typing import Dict, Optional
+import json
+from typing import Dict, Optional, List
 from io import BytesIO
+from datetime import datetime
 
 from .config.settings import Config
 from .services.id_card_service import IDCardService
+from .services.firebase_service import firebase_service
 
 # Create blueprint
 bp = Blueprint('main', __name__)
 config = Config()
 id_service = IDCardService()
+
+def sync_firebase_to_local_allowlist():
+    """Sync Firebase approved users to local allowlist for bot access"""
+    try:
+        # Get approved users from Firebase
+        approved_users = firebase_service.get_approved_users()
+        
+        # Extract telegram IDs
+        telegram_ids = []
+        for user in approved_users:
+            try:
+                telegram_id = int(user.get('telegramId', user.get('id')))
+                telegram_ids.append(telegram_id)
+            except (ValueError, TypeError):
+                continue
+        
+        # Update local allowlist
+        allowlist_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'allowed_users.json')
+        with open(allowlist_path, 'w', encoding='utf-8') as f:
+            json.dump(telegram_ids, f, ensure_ascii=False, indent=2)
+        
+        print(f"✅ Synced {len(telegram_ids)} approved users to local allowlist")
+        
+    except Exception as e:
+        print(f"⚠️ Error syncing Firebase to local allowlist: {e}")
 
 def allowed_file(filename: str) -> bool:
     """Check if file extension is allowed."""
@@ -39,6 +67,291 @@ def health_check():
           description: Healthy status
     """
     return jsonify({"status": "healthy"})
+
+@bp.route('/api/new-users', methods=['GET'])
+def get_new_users():
+    """
+    ---
+    get:
+      summary: Get new users for admin panel
+      responses:
+        200:
+          description: List of new users
+    """
+    try:
+        # Persisted new user events emitted by the bot
+        new_users_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'new_users.json')
+        if os.path.exists(new_users_path):
+            with open(new_users_path, 'r', encoding='utf-8') as f:
+                new_users = json.load(f)
+        else:
+            new_users = []
+        # Sort by timestamp desc
+        new_users_sorted = sorted(new_users, key=lambda x: x.get('timestamp', ''), reverse=True)
+        return jsonify(new_users_sorted)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route('/api/new-users', methods=['POST'])
+def add_new_user():
+    """
+    Receive a new user event from the Telegram bot and persist it.
+    Body JSON: { id, username, telegramId, firstName, lastName, timestamp }
+    """
+    try:
+        payload = request.get_json(force=True, silent=True) or {}
+        required = ['id', 'telegramId', 'firstName', 'timestamp']
+        for key in required:
+            if key not in payload:
+                return jsonify({"error": f"Missing field: {key}"}), 400
+
+        new_users_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'new_users.json')
+        os.makedirs(os.path.dirname(new_users_path), exist_ok=True)
+        if os.path.exists(new_users_path):
+            with open(new_users_path, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+        else:
+            items = []
+
+        # Upsert by telegramId if already exists
+        found = False
+        for item in items:
+            if str(item.get('telegramId')) == str(payload['telegramId']):
+                item.update(payload)
+                found = True
+                break
+        if not found:
+            payload.setdefault('status', 'pending')
+            items.append(payload)
+
+        with open(new_users_path, 'w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+        return jsonify({"ok": True}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route('/api/users/<user_id>/approve', methods=['POST'])
+def approve_user(user_id):
+    """
+    ---
+    post:
+      summary: Approve a user and add to allowlist
+      parameters:
+        - name: user_id
+          in: path
+          type: string
+          required: true
+      responses:
+        200:
+          description: User approved and added to allowlist
+    """
+    try:
+        new_users_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'new_users.json')
+        allowlist_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'allowed_users.json')
+        
+        # Update new_users.json status
+        items = []
+        if os.path.exists(new_users_path):
+            with open(new_users_path, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+        
+        user_data = None
+        for item in items:
+            if str(item.get('id')) == str(user_id) or str(item.get('telegramId')) == str(user_id):
+                item['status'] = 'approved'
+                user_data = item
+                break
+        
+        with open(new_users_path, 'w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+        
+        # Add user to allowlist and Firebase
+        if user_data:
+            telegram_id = int(user_data.get('telegramId', user_id))
+            
+            # Add to Firebase (approved users collection)
+            firebase_service.add_approved_user(user_data)
+            
+            # Sync Firebase approved users to local allowlist
+            sync_firebase_to_local_allowlist()
+            
+            print(f"✅ Added user {telegram_id} ({user_data.get('firstName', 'Unknown')}) to allowlist")
+        
+        # Notify the user via Telegram bot
+        if user_data:
+            try:
+                import requests
+                bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+                if bot_token:
+                    telegram_id = int(user_data.get('telegramId', user_id))
+                    user_name = user_data.get('firstName', 'User')
+                    
+                    # Send approval notification to user
+                    message = (
+                        f"🎉 **Access Granted!**\n\n"
+                        f"Hello {user_name}!\n\n"
+                        f"Your access request has been **approved** by the administrator.\n"
+                        f"You can now use the bot to generate your digital ID card.\n\n"
+                        f"🔄 **To start:** Send /start or any message to the bot\n\n"
+                        f"Thank you for your patience!"
+                    )
+                    
+                    url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                    payload = {
+                        'chat_id': telegram_id,
+                        'text': message,
+                        'parse_mode': 'Markdown'
+                    }
+                    
+                    response = requests.post(url, json=payload, timeout=10)
+                    if response.status_code == 200:
+                        print(f"✅ Sent approval notification to user {telegram_id}")
+                    else:
+                        response_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
+                        if 'chat not found' in str(response_data):
+                            print(f"ℹ️ User {telegram_id} not found in Telegram (test user or user hasn't started bot)")
+                        else:
+                            print(f"⚠️ Failed to send notification to user {telegram_id}: {response_data}")
+                else:
+                    print("⚠️ TELEGRAM_BOT_TOKEN not found, skipping user notification")
+            except Exception as notify_error:
+                print(f"⚠️ Error sending notification: {notify_error}")
+        
+        return jsonify({"status": "approved", "message": f"User {user_id} approved and added to allowlist"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route('/api/approved-users', methods=['GET'])
+def get_approved_users():
+    """
+    ---
+    get:
+      summary: Get all approved users
+      responses:
+        200:
+          description: List of approved users
+    """
+    try:
+        approved_users = firebase_service.get_approved_users()
+        return jsonify(approved_users)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route('/api/sync-firebase-to-local', methods=['POST'])
+def sync_firebase_endpoint():
+    """
+    ---
+    post:
+      summary: Manually sync Firebase approved users to local allowlist
+      responses:
+        200:
+          description: Sync completed
+    """
+    try:
+        sync_firebase_to_local_allowlist()
+        return jsonify({"status": "success", "message": "Firebase synced to local allowlist"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route('/api/users/<user_id>/revoke', methods=['POST'])
+def revoke_user_access(user_id):
+    """
+    ---
+    post:
+      summary: Revoke user access and remove from approved users
+      parameters:
+        - name: user_id
+          in: path
+          type: string
+          required: true
+      responses:
+        200:
+          description: User access revoked
+    """
+    try:
+        allowlist_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'allowed_users.json')
+        
+        # Remove user from Firebase/local storage
+        success = firebase_service.remove_approved_user(user_id)
+        
+        # Sync Firebase approved users to local allowlist (this will remove the user)
+        sync_firebase_to_local_allowlist()
+        
+        telegram_id = int(user_id)
+        print(f"✅ Removed user {telegram_id} from allowlist")
+        
+        # Notify the user via Telegram bot
+        try:
+            import requests
+            bot_token = os.getenv('TELEGRAM_BOT_TOKEN')
+            print(f"🔍 Bot token found: {bool(bot_token)}")
+            if bot_token:
+                message = (
+                    "🚫 **Access Revoked**\n\n"
+                    "Your access to the bot has been revoked by the administrator.\n"
+                    "You can no longer use the bot to generate ID cards.\n\n"
+                    "If you believe this is an error, please contact the administrator.\n"
+                    "Contact Administrator:\n\n"
+                    "@fayda\\_software\n\n"
+                    "Thank you for your understanding."
+                )
+                
+                url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+                payload = {
+                    'chat_id': telegram_id,
+                    'text': message,
+                    'parse_mode': 'Markdown'
+                }
+                
+                response = requests.post(url, json=payload, timeout=10)
+                print(f"🔍 Telegram API response status: {response.status_code}")
+                if response.status_code == 200:
+                    print(f"✅ Sent revocation notification to user {telegram_id}")
+                else:
+                    response_data = response.json() if response.headers.get('content-type', '').startswith('application/json') else response.text
+                    print(f"🔍 Telegram API response: {response_data}")
+                    if 'chat not found' in str(response_data):
+                        print(f"ℹ️ User {telegram_id} not found in Telegram (user hasn't started bot)")
+                    else:
+                        print(f"⚠️ Failed to send revocation notification to user {telegram_id}: {response_data}")
+            else:
+                print("⚠️ TELEGRAM_BOT_TOKEN not found, skipping user notification")
+        except Exception as notify_error:
+            print(f"⚠️ Error sending revocation notification: {notify_error}")
+        
+        return jsonify({"status": "revoked", "message": f"User {user_id} access revoked"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+@bp.route('/api/users/<user_id>/reject', methods=['POST'])
+def reject_user(user_id):
+    """
+    ---
+    post:
+      summary: Reject a user
+      parameters:
+        - name: user_id
+          in: path
+          type: string
+          required: true
+      responses:
+        200:
+          description: User rejected
+    """
+    try:
+        new_users_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'new_users.json')
+        items = []
+        if os.path.exists(new_users_path):
+            with open(new_users_path, 'r', encoding='utf-8') as f:
+                items = json.load(f)
+        for item in items:
+            if str(item.get('id')) == str(user_id) or str(item.get('telegramId')) == str(user_id):
+                item['status'] = 'rejected'
+        with open(new_users_path, 'w', encoding='utf-8') as f:
+            json.dump(items, f, ensure_ascii=False, indent=2)
+        return jsonify({"status": "rejected", "message": f"User {user_id} rejected"})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
 @bp.route('/upload_photo', methods=['POST'])
 def upload_photo():

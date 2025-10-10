@@ -93,6 +93,8 @@ class FydaTelegramBot:
         self.restrict_access = len(self.allowed_user_ids) > 0
         # Admin IDs (for notifications)
         self.admin_user_ids: List[int] = []
+        # Track recently notified users to prevent duplicates
+        self.recently_notified: Dict[int, float] = {}
         try:
             admin_ids_env = os.getenv('ADMIN_USER_IDS', '')
             if admin_ids_env:
@@ -109,19 +111,18 @@ class FydaTelegramBot:
         return city_key.replace('_', ' ').title()
 
     def _refresh_allowlist_from_file(self) -> None:
-        """Merge file-based allowlist if available so updates apply at runtime."""
-        if not self.restrict_access:
-            # If open access, no need to load allowlist
-            return
+        """Load allowlist from file so updates apply at runtime."""
         try:
             # Lazy import to avoid hard dependency if file/module not present
             from allowlist_store import read_allowlist
-            dynamic_ids = read_allowlist()
-            if dynamic_ids:
-                merged = sorted(set([*self.allowed_user_ids, *dynamic_ids]))
-                self.allowed_user_ids = merged
+            file_ids = read_allowlist()
+            if file_ids:
+                # Use file-based allowlist as the source of truth
+                self.allowed_user_ids = file_ids
                 self.restrict_access = len(self.allowed_user_ids) > 0
-        except Exception:
+                print(f"🔄 Refreshed allowlist from file: {len(self.allowed_user_ids)} users")
+        except Exception as e:
+            print(f"⚠️ Error refreshing allowlist from file: {e}")
             # Fail closed to current in-memory list
             pass
 
@@ -134,36 +135,59 @@ class FydaTelegramBot:
         return user_id in self.allowed_user_ids
 
     async def _notify_admins_new_user(self, context: ContextTypes.DEFAULT_TYPE, user_id: int, user_name: str, username: str) -> None:
-        username_display = f"@{username}" if username else "(no username)"
-        msg = (
-            "👤 *New user tried to start the bot*\n\n"
-            f"🆔 ID: `{user_id}`\n"
-            f"👤 Name: {user_name}\n"
-            f"📛 Username: {username_display}"
-        )
-        # Prefer sending to a dedicated admin chat if configured
-        admin_chat_id = os.getenv('ADMIN_NOTIFICATION_CHAT_ID', '').strip()
-        if admin_chat_id:
-            try:
-                await context.bot.send_message(chat_id=int(admin_chat_id), text=msg, parse_mode=ParseMode.MARKDOWN)
+        import time
+        
+        # Check if we've already notified about this user recently (within 30 seconds)
+        current_time = time.time()
+        if user_id in self.recently_notified:
+            time_diff = current_time - self.recently_notified[user_id]
+            if time_diff < 30:  # 30 seconds cooldown
+                print(f"⏭️ Skipping duplicate notification for user {user_id} (notified {time_diff:.1f}s ago)")
                 return
-            except Exception:
-                pass
-        # Fallback: DM each admin user ID
-        if not self.admin_user_ids:
-            return
-        for admin_id in self.admin_user_ids:
-            try:
-                await context.bot.send_message(chat_id=admin_id, text=msg, parse_mode=ParseMode.MARKDOWN)
-            except Exception:
-                continue
+        
+        # Record this notification
+        self.recently_notified[user_id] = current_time
+        
+        # Clean up old entries (older than 5 minutes)
+        cutoff_time = current_time - 300  # 5 minutes
+        self.recently_notified = {uid: timestamp for uid, timestamp in self.recently_notified.items() if timestamp > cutoff_time}
+        
+        # Send to admin dashboard backend to appear in New Comer page
+        try:
+            import asyncio
+            import requests
+            from datetime import datetime
+            payload = {
+                "id": str(user_id),
+                "telegramId": str(user_id),
+                "username": username or "",
+                "firstName": user_name,
+                "lastName": "",
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+                "status": "pending",
+            }
+            backend_url = os.getenv('ADMIN_BACKEND_URL', 'http://localhost:5000')
+            loop = asyncio.get_running_loop()
+            response = await loop.run_in_executor(
+                None,
+                lambda: requests.post(f"{backend_url}/api/new-users", json=payload, timeout=5)
+            )
+            print(f"✅ New user {user_id} ({user_name}) sent to admin dashboard")
+        except Exception as e:
+            print(f"❌ Error sending new user to dashboard: {e}")
+            pass
 
     def get_unauthorized_message(self) -> str:
+        admin_contact = os.getenv('ADMIN_CONTACT', '@fayda_software')
+        # Escape underscores for Markdown to avoid entity parse errors
+        safe_admin = admin_contact.replace('_', '\\_')
         return (
-            "🚫 *Access Denied*\n\n"
-            "You are not authorized to use this bot.\n"
-            "Please contact the administrator to get access.\n\n"
-            "@fayda_software"
+            "🚫 **Access Denied**\n\n"
+            "Sorry, you are not authorized to use this bot.\n\n"
+            "This bot is restricted to authorized users only. If you wanna to get access, you should talk to administrators,\n\n"
+            "For Access, Contact Administrator:\n\n"
+            f"{safe_admin}\n\n"
+            "Thank you for your understanding."
         )
 
     def get_support_footer(self) -> str:
