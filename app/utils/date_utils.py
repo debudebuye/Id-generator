@@ -34,21 +34,17 @@ def format_ethiopian_date(eth_date: Tuple[int, int, int]) -> str:
 
 def ethiopian_to_gregorian(eth_year: int, eth_month: int, eth_day: int) -> date:
     """Convert Ethiopian date to Gregorian date."""
-    # Determine the Gregorian year
-    # Ethiopian months 1-4 fall in the second half of the Gregorian year
-    # Ethiopian months 5-13 fall in the first half of the next Gregorian year
-    if eth_month <= 4:
-        greg_year = eth_year + 7
-    else:
-        greg_year = eth_year + 8
-    
-    # Calculate the Gregorian date of Ethiopian New Year (Meskerem 1)
-    # Ethiopian New Year is September 11, except when the previous Gregorian year was a leap year,
+    # Ethiopian New Year (Meskerem 1) always falls in September
+    # Ethiopian year N starts in September of Gregorian year (N + 7)
+    # The Ethiopian New Year is September 11, except when the Gregorian year is a leap year,
     # in which case it's September 12
-    prev_greg_year = greg_year - 1
-    is_prev_greg_leap = (prev_greg_year % 4 == 0 and prev_greg_year % 100 != 0) or (prev_greg_year % 400 == 0)
-    new_year_day = 12 if is_prev_greg_leap else 11
-    new_year = date(prev_greg_year, 9, new_year_day)
+    
+    greg_year_of_new_year = eth_year + 7
+    
+    # Check if the Gregorian year is a leap year
+    is_greg_leap = (greg_year_of_new_year % 4 == 0 and greg_year_of_new_year % 100 != 0) or (greg_year_of_new_year % 400 == 0)
+    new_year_day = 12 if is_greg_leap else 11
+    new_year = date(greg_year_of_new_year, 9, new_year_day)
     
     # Calculate days from Ethiopian New Year
     # Meskerem 1 (Ethiopian New Year) = new_year date (0 days offset)

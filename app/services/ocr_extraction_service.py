@@ -454,6 +454,25 @@ class OCRExtractionService:
                 # Extract sex from separate Amharic and English regions
                 if 'sex_am' in regions and regions['sex_am']:
                     sex_am = regions['sex_am'].strip()
+                    
+                    # Common OCR corrections for Amharic sex text
+                    # "ሴት" (female) is often misread as "ATE", "SET", "SEET"
+                    # "ወንድ" (male) is often misread as "WND", "WEND"
+                    sex_ocr_corrections = {
+                        '"ATE': 'ሴት',
+                        'ATE': 'ሴት',
+                        'SET': 'ሴት',
+                        'SEET': 'ሴት',
+                        'WND': 'ወንድ',
+                        'WEND': 'ወንድ',
+                    }
+                    
+                    # Apply corrections
+                    for wrong, correct in sex_ocr_corrections.items():
+                        if wrong in sex_am:
+                            sex_am = sex_am.replace(wrong, correct)
+                            print(f"🔧 Applied sex OCR correction: '{wrong}' → '{correct}'")
+                    
                     if 'ወንድ' in sex_am or 'ወ/ድ' in sex_am:
                         data['sex'] = 'Male'
                         data['sex_am'] = 'ወንድ'
@@ -1500,12 +1519,20 @@ class OCRExtractionService:
                     print(f"🔍 Raw region_am OCR: '{region_am_text}'")
                     
                     # Common OCR corrections for Amharic text misread as Latin
-                    # "አበባ" is often misread as "ANA" or "ABA"
+                    # "አበባ" is often misread as "ANA", "ANN", "ABA"
+                    # "ክልል" is often misread as "HAA", "KAA", "KLIL"
                     ocr_corrections = {
                         'አዲስ ANA': 'አዲስ አበባ',
+                        'አዲስ ANN': 'አዲስ አበባ',
                         'አዲስ ABA': 'አዲስ አበባ',
                         'አዲስ ABABA': 'አዲስ አበባ',
                         'አዲስ Ababa': 'አዲስ አበባ',
+                        ' HAA': ' ክልል',
+                        ' KAA': ' ክልል',
+                        ' KLIL': ' ክልል',
+                        ' Klil': ' ክልል',
+                        'ደቡብ ኢትዮጵያ HAA': 'ደቡብ ኢትዮጵያ ክልል',
+                        'ደቡብ ኢትዮጵያ KAA': 'ደቡብ ኢትዮጵያ ክልል',
                     }
                     
                     # Apply corrections
@@ -1561,6 +1588,23 @@ class OCRExtractionService:
                 if 'woreda_am' in regions and regions['woreda_am']:
                     woreda_am_text = regions['woreda_am'].strip()
                     print(f"🔍 Raw woreda_am OCR: '{woreda_am_text}'")
+                    
+                    # Common OCR corrections for Amharic woreda text
+                    # "ወረዳ" is often misread as "UNF", "WRD", "WRDA"
+                    # "ሆቢቻ" might be misread as various Latin characters
+                    ocr_corrections_woreda = {
+                        'UNF ': 'ወረዳ ',
+                        'WRD ': 'ወረዳ ',
+                        'WRDA ': 'ወረዳ ',
+                        'Woreda ': 'ወረዳ ',
+                    }
+                    
+                    # Apply corrections
+                    for wrong, correct in ocr_corrections_woreda.items():
+                        if wrong in woreda_am_text:
+                            woreda_am_text = woreda_am_text.replace(wrong, correct)
+                            print(f"🔧 Applied OCR correction: '{wrong}' → '{correct}'")
+                    
                     # Clean Amharic text - keep Amharic characters, spaces, and digits
                     woreda_am_clean = ''.join(c for c in woreda_am_text if '\u1200' <= c <= '\u137F' or c.isspace() or c.isdigit())
                     woreda_am_clean = ' '.join(woreda_am_clean.split())
@@ -1579,6 +1623,102 @@ class OCRExtractionService:
                     if len(woreda_en_text) >= 3:
                         data['woreda_en'] = woreda_en_text
                         print(f"✓ Extracted woreda (EN): {data['woreda_en']}")
+                
+                # Translation fallback: If Amharic extraction failed but English succeeded, translate
+                # Common Ethiopian regions, zones, and woredas translation map
+                en_to_am_translations = {
+                    # Regions
+                    'Addis Ababa': 'አዲስ አበባ',
+                    'Addis Abeba': 'አዲስ አበባ',
+                    'Oromia': 'ኦሮሚያ',
+                    'Oromiya': 'ኦሮሚያ',
+                    'Amhara': 'አማራ',
+                    'Tigray': 'ትግራይ',
+                    'Afar': 'አፋር',
+                    'Somali': 'ሶማሊ',
+                    'Benishangul': 'ቤንሻንጉል',
+                    'Gambela': 'ጋምቤላ',
+                    'Harari': 'ሐረሪ',
+                    'Dire Dawa': 'ድሬዳዋ',
+                    'Sidama': 'ሲዳማ',
+                    'South Ethiopia': 'ደቡብ ኢትዮጵያ',
+                    'Southern': 'ደቡብ',
+                    'Region': 'ክልል',
+                    # Common zones/subcities
+                    'Nifas Silk': 'ንፋስ ስልክ',
+                    'Nifas SilkLafto': 'ንፋስ ስልክ ላፍቶ',
+                    'Silk': 'ስልክ',
+                    'Lafto': 'ላፍቶ',
+                    'Lemi Kura': 'ለሚ ኩራ',
+                    'Bole': 'ቦሌ',
+                    'Yeka': 'የካ',
+                    'Kirkos': 'ቂርቆስ',
+                    'Arada': 'አራዳ',
+                    'Lideta': 'ልደታ',
+                    'Kolfe': 'ኮልፌ',
+                    'Akaki': 'አቃቂ',
+                    'Gulele': 'ጉለሌ',
+                    'Addis Ketema': 'አዲስ ከተማ',
+                    'Wolayita': 'ወላይታ',
+                    'Wolaita': 'ወላይታ',
+                    'Arsi': 'አርሲ',
+                    'Bale': 'ባሌ',
+                    'West': 'ምዕራብ',
+                    'East': 'ምስራቅ',
+                    'North': 'ሰሜን',
+                    'South': 'ደቡብ',
+                    # Woreda
+                    'Woreda': 'ወረዳ',
+                    'Hobicha': 'ሆቢቻ',
+                    'Kebele': 'ቀበሌ',
+                }
+                
+                # Apply translation fallback for region_am
+                if not data['region_am'] and data['region_en']:
+                    print(f"🔄 Attempting translation fallback for region_am from: '{data['region_en']}'")
+                    translated = data['region_en']
+                    for en_word, am_word in en_to_am_translations.items():
+                        if en_word.lower() in translated.lower():
+                            translated = translated.replace(en_word, am_word)
+                    # Check if translation produced Amharic text
+                    if any('\u1200' <= c <= '\u137F' for c in translated):
+                        data['region_am'] = translated
+                        print(f"✓ Translated region_am: {data['region_am']}")
+                
+                # Apply translation fallback for subcity_am
+                if not data['subcity_am'] and data['subcity_en']:
+                    print(f"🔄 Attempting translation fallback for subcity_am from: '{data['subcity_en']}'")
+                    translated = data['subcity_en']
+                    for en_word, am_word in en_to_am_translations.items():
+                        if en_word.lower() in translated.lower():
+                            translated = translated.replace(en_word, am_word)
+                    # Check if translation produced Amharic text
+                    if any('\u1200' <= c <= '\u137F' for c in translated):
+                        data['subcity_am'] = translated
+                        print(f"✓ Translated subcity_am: {data['subcity_am']}")
+                # If subcity_am is incomplete (too short), try translation
+                elif data['subcity_am'] and len(data['subcity_am']) < 5 and data['subcity_en']:
+                    print(f"🔄 Subcity_am seems incomplete ('{data['subcity_am']}'), attempting translation from: '{data['subcity_en']}'")
+                    translated = data['subcity_en']
+                    for en_word, am_word in en_to_am_translations.items():
+                        if en_word.lower() in translated.lower():
+                            translated = translated.replace(en_word, am_word)
+                    # Check if translation produced Amharic text
+                    if any('\u1200' <= c <= '\u137F' for c in translated):
+                        data['subcity_am'] = translated
+                        print(f"✓ Translated subcity_am: {data['subcity_am']}")
+                
+                # Apply translation fallback for woreda_am
+                if not data['woreda_am'] and data['woreda_en']:
+                    print(f"🔄 Attempting translation fallback for woreda_am from: '{data['woreda_en']}'")
+                    translated = data['woreda_en']
+                    for en_word, am_word in en_to_am_translations.items():
+                        if en_word.lower() in translated.lower():
+                            translated = translated.replace(en_word, am_word)
+                    # Check if translation produced Amharic text
+                    if any('\u1200' <= c <= '\u137F' for c in translated):
+                        data['woreda_am'] = translated
+                        print(f"✓ Translated woreda_am: {data['woreda_am']}")
                 
                 # Build complete address strings from components
                 if data['region_am'] or data['subcity_am'] or data['woreda_am']:
