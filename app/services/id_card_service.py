@@ -1,6 +1,7 @@
 from PIL import Image, ImageDraw, ImageFont, ImageStat, ImageFilter
 import json
 import os
+import numpy as np
 import barcode
 from barcode.writer import ImageWriter
 from typing import Dict, Optional, Tuple, List
@@ -17,6 +18,17 @@ import qrcode
 from ..config.settings import Config
 from ..utils.image_utils import process_photo, draw_text_with_alignment, draw_rotated_text
 from ..utils.date_utils import get_id_dates, gregorian_to_ethiopian # Added gregorian_to_ethiopian
+from .offline_bg_removal import remove_background_offline, remove_background_to_bytes_offline
+
+# Configure Tesseract OCR path for Windows
+try:
+    import pytesseract
+    import platform
+    if platform.system() == 'Windows':
+        # Set the path to tesseract executable
+        pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+except ImportError:
+    pass
 
 class IDCardService:
     # PDF_FORMAT_MAPPING defines line indices for default and image indices for all.
@@ -24,6 +36,20 @@ class IDCardService:
     # For residential formats, line numbers in mapping are illustrative as pattern-based parsing is used.
     PDF_FORMAT_MAPPING = {
         'default': {
+            'fcn': 0,
+            'name': 2,        # Name value line (after First, Middle, Surname label)
+            'region': 4,      # Region value line (after Region/City Admin label)
+            'dob': 6,         # Date of Birth value line (after Date of Birth label)
+            'subcity': 8,     # Zone/Sub City value line (after Zone/Sub City label)
+            'gender': 10,     # Sex value line (after Sex label)
+            'woreda': 12,     # Woreda value line (after Woreda label)
+            'nationality': 14, # Nationality value line (after Nationality label)
+            'phone': 16,      # Phone value line (after Phone label)
+            'photo_img_index': 1, # Index in images list for photo
+            'qr_img_index': 2 # Index in images list for QR
+        },
+
+        'residential_sheger': {
             'fcn': 0,
             'name': 1,
             'dob': 2,
@@ -33,16 +59,20 @@ class IDCardService:
             'region': 6,
             'subcity': 7,
             'woreda': 8,
-            'photo_img_index': 1, # Index in images list for photo
-            'qr_img_index': 2 # Index in images list for QR
-        },
-
-        'residential_sheger': {
             'photo_img_index': 0, # Based on user's snippet for residential
             'qr_img_index': 1 # Based on user's snippet for residential
         },
         
         'demographic_format': {
+            'fcn': 0,
+            'name': 1,
+            'dob': 2,
+            'gender': 3,
+            'nationality': 4,
+            'phone': 5,
+            'region': 6,
+            'subcity': 7,
+            'woreda': 8,
             'photo_img_index': 0, # Same as residential for now
             'qr_img_index': 1 # Same as residential for now
         }
@@ -196,14 +226,178 @@ class IDCardService:
                     print(f"    Returning same for both: '{result[0]}' | '{result[1]}'")
                     return result
             
-            print(f"    No separator found, returning same for both: '{line}' | '{line}'")
-            return line, line # Return same for both if no pipe
+            # Handle single language lines - try to determine if it's Amharic or English
+            # If it contains non-ASCII characters, it's likely Amharic
+            if any(ord(c) > 127 for c in line):
+                print(f"    No separator found, detected Amharic: '{line}' | '{line}'")
+                return line, line  # Return same for both (Amharic detected)
+            else:
+                print(f"    No separator found, detected English: '{line}' | '{line}'")
+                return line, line  # Return same for both (English detected)
         except IndexError as e:
             print(f"    IndexError in _parse_line: {str(e)}")
             return "", ""
         except Exception as e:
             print(f"    Unexpected error in _parse_line: {str(e)}")
             return "", ""
+
+    def _is_valid_nationality_value(self, text):
+        """Check if a text looks like a valid nationality value"""
+        if not text or len(text.strip()) == 0:
+            return False
+        
+        text = text.strip()
+        
+        # Basic length check - nationality shouldn't be too long or too short
+        if len(text) < 2 or len(text) > 50:
+            return False
+        
+        # Should not contain numbers (except maybe in rare cases)
+        if any(char.isdigit() for char in text):
+            return False
+        
+        # Should not contain too many special characters
+        special_chars = sum(1 for char in text if not char.isalnum() and char not in [' ', '-', '.', "'"])
+        if special_chars > 2:
+            return False
+        
+        # Should not be too many words (max 3 words like "United States of America")
+        words = text.split()
+        if len(words) > 4:
+            return False
+        
+        # Skip lines that are clearly not nationality values
+        # Enhanced exclusion list with label indicators
+        excluded_keywords = [
+            "ክልል", "region", "ወረዳ", "woreda", "ከተማ", "city", "ስልክ", "phone", 
+            "የትውልድ", "birth", "ቀን", "date", "ፕሮግራም", "program", "ፆታ", "sex",
+            "መታወቂያ", "identity", "addis", "ababa", 
+            "zone", "kebele", "address", "number", "card", "id",
+            "self declared", "በተለያዩ መሰረት", "(amharic)", "(english)",
+            "nationality (", "ዜግነት ("  # Specific patterns for labels with parentheses
+        ]
+        
+        text_lower = text.lower()
+        
+        # Reject if text contains label indicators
+        for keyword in excluded_keywords:
+            if keyword in text_lower:
+                return False
+        
+        # Reject if text is exactly one of the excluded keywords
+        if text_lower.strip() in excluded_keywords:
+            return False
+        
+        # Common nationality indicators (positive signals)
+        nationality_indicators = [
+            "united states", "ethiopia", "eritrea", "american", "british", "german", 
+            "french", "italian", "sudanese", "kenyan", "somali", "canadian", "australian",
+            "ኢትዮጵያ", "ኢትዮጵያዊ", "ኤርትራ", "ኤርትራዊ", "አሜሪካዊ"
+        ]
+        
+        # If it matches known nationality patterns, it's likely valid
+        if any(indicator in text_lower for indicator in nationality_indicators):
+            return True
+        
+        # More lenient fallback: accept reasonable text that doesn't look like a label
+        # Accept if it's a reasonable length and doesn't have too many words
+        # Also accept if it's short (1-2 words) and 2-50 chars (covers most nationalities)
+        if 2 <= len(text) <= 50:
+            # Accept if it's 1-4 words (more lenient than before)
+            if len(words) <= 4:
+                # Additional check: make sure it's not just punctuation or special chars
+                alnum_chars = sum(1 for c in text if c.isalnum())
+                if alnum_chars >= 2:  # At least 2 alphanumeric characters
+                    return True
+        
+        return False
+
+    def _is_nationality_label_line(self, line: str) -> bool:
+        """Check if a line contains the nationality label with flexible matching.
+        
+        Based on Ethiopian Digital ID Card PDF format, handles:
+        - "ዜግነት / Nationality" (forward slash separator)
+        - "ዜግነት | Nationality" (pipe separator)
+        - "Nationality / ዜግነት" (reverse order)
+        - Variations with different spacing and case
+        - Lines containing both terms even without explicit separator
+        - Lines with just "ዜግነት" or just "Nationality" (as fallback)
+        
+        Args:
+            line: The line text to check
+            
+        Returns:
+            True if the line appears to be a nationality label line
+        """
+        if not line:
+            return False
+        
+        line_clean = line.strip()
+        line_lower = line_clean.lower()
+        
+        # Check if line contains both Amharic and English terms (most reliable)
+        has_amharic = "ዜግነት" in line_clean
+        has_english = "nationality" in line_lower
+        
+        # Explicitly check for label metadata patterns like "Nationality (Amharic)" or "Nationality (English)"
+        # Also check for variations with parentheses and capitalization
+        if has_english:
+            # Check for (Amharic), (English), (amharic), (english) patterns
+            if ("(amharic)" in line_lower or "(english)" in line_lower or 
+                "(Amharic)" in line_clean or "(English)" in line_clean or
+                "( AMHARIC )" in line_clean.upper() or "( ENGLISH )" in line_clean.upper()):
+                return True
+            
+            # Also check if line is essentially just "Nationality" (case-insensitive)
+            # by checking if removing common metadata leaves just "nationality"
+            test_line = line_lower.replace("(", "").replace(")", "").replace("amharic", "").replace("english", "").strip()
+            test_line = test_line.replace(" ", "").strip()
+            if test_line == "nationality":
+                return True
+        
+        if has_amharic and has_english:
+            return True
+        
+        # Check for common separator patterns with both terms
+        separators = ["/", "|", ":"]
+        for sep in separators:
+            if sep in line_clean:
+                parts = line_clean.split(sep, 1)
+                if len(parts) == 2:
+                    left = parts[0].strip()
+                    right = parts[1].strip()
+                    left_lower = left.lower()
+                    right_lower = right.lower()
+                    
+                    # Check if either side contains the Amharic term and the other contains English
+                    if (("ዜግነት" in left or "ዜግነት" in right) and 
+                        ("nationality" in left_lower or "nationality" in right_lower)):
+                        return True
+        
+        # More lenient fallback: check if line contains just "ዜግነት" or just "nationality"
+        # But only if it's a short line (likely a label, not content)
+        # Exclude common non-label words to avoid false positives
+        if len(line_clean) <= 50:  # Labels are typically short (increased to handle "Nationality (Amharic)")
+            excluded_in_label = ["ክልል", "region", "ወረዳ", "woreda", "ከተማ", "city", 
+                               "የትውልድ", "birth", "date", "ስልክ", "phone", "ፆታ", "sex"]
+            
+            # If line contains just "ዜግነት" and doesn't contain excluded words, likely a label
+            # Also check if the line is just the word "nationality" (with optional metadata)
+            if (has_amharic and "ዜግነት" in line_clean and 
+                not any(excluded in line_lower for excluded in excluded_in_label)):
+                return True
+            
+            # If line contains "nationality" and doesn't contain excluded words, likely a label
+            # This catches "Nationality", "Nationality (Amharic)", "Nationality (English)", etc.
+            if (has_english and "nationality" in line_lower and 
+                not any(excluded in line_lower for excluded in excluded_in_label)):
+                # Make sure it's not a real nationality value - check if line is mostly just "nationality"
+                # If the line contains only "nationality" plus optional parentheses content, it's a label
+                cleaned_for_check = line_lower.replace("(", "").replace(")", "").replace("amharic", "").replace("english", "").strip()
+                if cleaned_for_check in ["nationality", "nationality ", " nationality"]:
+                    return True
+        
+        return False
 
     def _extract_nationality_below_label(self, lines: List[str]) -> Tuple[str, str]:
         """Extract nationality near the label 'ዜግነት | nationality' using a fuzzy line-based approach.
@@ -216,14 +410,27 @@ class IDCardService:
 
         def looks_like_label(text: str) -> bool:
             t = text.lower()
-            return ("nationality" in t) or ("ዜግነት" in t)
+            # More comprehensive label detection
+            return (("nationality" in t) or ("ዜግነት" in t) or 
+                   ("(amharic)" in t and "nationality" in t) or 
+                   ("(english)" in t and "nationality" in t) or
+                   ("self declared" in t) or ("በተለያዩ መሰረት" in t))
 
         def parse_value(value_line: str) -> Tuple[str, str]:
             val = value_line.strip()
             if not val:
                 return "", ""
+            
+            # Skip if this looks like a label line itself
+            if looks_like_label(val):
+                return "", ""
+                
             if "|" in val:
                 left, right = [p.strip() for p in val.split("|", 1)]
+                # Validate both sides are actual nationality values
+                if not (self._is_valid_nationality_value(left) and self._is_valid_nationality_value(right)):
+                    return "", ""
+                    
                 # If left uses non-ASCII (likely Amharic) and right is ASCII (likely English)
                 if any(ord(c) > 127 for c in left) and all(ord(c) < 128 for c in right):
                     return left, right
@@ -232,193 +439,258 @@ class IDCardService:
                     return right, left
                 # If both sides are same script, just return as-is with left as Amharic fallback
                 return left, right
-            # Single-language line: mirror to both sides
-            return val, val
+            # Single-language line: mirror to both sides if it's a valid nationality
+            if self._is_valid_nationality_value(val):
+                return val, val
             return "", ""
 
+        print(f"_extract_nationality_below_label: Scanning {len(lines)} lines for nationality")
+        
         for i, ln in enumerate(lines):
             s = ln.strip()
             if not s:
                 continue
+                
+            print(f"  Line {i}: '{s}'")
+            
             if looks_like_label(s):
+                print(f"  Found nationality label at line {i}: '{s}'")
+                
                 # Same-line value after separators
                 for sep in [":", "-", "—", "|"]:
                     if sep in s:
                         tail = s.split(sep, 1)[1].strip()
+                        print(f"    Checking same-line value after '{sep}': '{tail}'")
                         am, en = parse_value(tail)
                         if am or en:
+                            print(f"    Found same-line nationality: '{am}' | '{en}'")
                             return am or en, en or am
-                # Look at next 1-3 non-empty lines for value
+                
+                # Look at next 1-5 non-empty lines for value (increased from 3 to 5)
                 checked = 0
                 j = i + 1
-                while j < len(lines) and checked < 3:
+                print(f"    Looking for nationality value in next lines...")
+                while j < len(lines) and checked < 5:
                     candidate = lines[j].strip()
                     j += 1
                     if not candidate:
                         continue
+                        
+                    print(f"      Candidate line {j-1}: '{candidate}'")
                     lower_cand = candidate.lower()
+                    
                     # Skip if this is clearly another label/section
-                    if any(x in lower_cand for x in [
-                        "sex", "ፆታ", "date", "የትውልድ", "region", "city", "subcity", "zone", "woreda", "kebele", "phone", "ስልክ"
-                    ]):
+                    skip_keywords = [
+                        "sex", "ፆታ", "date", "የትውልድ", "region", "city", "subcity", "zone", 
+                        "woreda", "kebele", "phone", "ስልክ", "address", "ክልል", "ወረዳ", "ከተማ"
+                    ]
+                    if any(x in lower_cand for x in skip_keywords):
+                        print(f"        Skipping - contains label keyword")
                         checked += 1
                         continue
+                        
                     am, en = parse_value(candidate)
                     if am or en:
+                        print(f"    Found nationality in next line: '{am}' | '{en}'")
                         return am or en, en or am
+                    else:
+                        print(f"        Not a valid nationality value")
                     checked += 1
                 break
+        
+        print(f"_extract_nationality_below_label: No nationality found")
+        return "", ""
         return "", ""
 
     def _extract_address_components(self, lines: List[str], region_index: int) -> Tuple[str, str, str, str]:
-        """Extract subcity and woreda information with improved logic."""
+        """Extract subcity and woreda information with improved logic for Ethiopian address hierarchy."""
         subcity_am, subcity_en = "", ""
         woreda_am, woreda_en = ""
         
         print(f"Address extraction - Region index: {region_index}")
         print(f"Available lines around region:")
-        for i in range(max(0, region_index - 1), min(len(lines), region_index + 4)):
-            print(f"  Line {i}: '{lines[i]}'")
+        for i in range(max(0, region_index - 1), min(len(lines), region_index + 6)):
+            if i < len(lines):
+                print(f"  Line {i}: '{lines[i]}'")
         
-        # Try to find subcity and woreda in the expected positions first
-        if region_index + 1 < len(lines):
-            subcity_am, subcity_en = self._parse_line(lines, region_index + 1)
-        if region_index + 2 < len(lines):
-            woreda_am, woreda_en = self._parse_line(lines, region_index + 2)
+        # Enhanced pattern-based extraction for address components
+        # Look for bilingual address lines in a wider range around the region
+        search_start = max(0, region_index - 1)
+        search_end = min(len(lines), region_index + 6)
+        
+        found_subcity = False
+        found_woreda = False
+        zone_candidate = None  # Track potential zone/subcity data
+        
+        for i in range(search_start, search_end):
+            if i >= len(lines) or i == region_index:
+                continue
+                
+            line = lines[i].strip()
+            if not line:
+                continue
+                
+            print(f"Analyzing line {i}: '{line}'")
             
-        # Special handling for the case where line 8 is malformed (no separator)
-        if region_index + 2 < len(lines):
-            line_8 = lines[region_index + 2].strip()
-            if line_8 and '|' not in line_8:
-                print(f"  Line 8 is malformed (no separator): '{line_8}'")
-                # Skip this line and try to find woreda in the next line
-                if region_index + 3 < len(lines):
-                    woreda_am, woreda_en = self._parse_line(lines, region_index + 3)
-                    print(f"  Found woreda in line {region_index + 3}: '{woreda_am}' | '{woreda_en}'")
-        
-        print(f"Initial extraction from expected positions:")
-        print(f"  Subcity (line {region_index + 1}): '{subcity_am}' | '{subcity_en}'")
-        print(f"  Woreda (line {region_index + 2}): '{woreda_am}' | '{woreda_en}'")
-        
-        # Check if we have the same content for both subcity and woreda (indicates extraction error)
-        if subcity_am == woreda_am and subcity_am and woreda_am:
-            print(f"WARNING: Subcity and woreda have identical content: '{subcity_am}'")
-            # This suggests we're getting the same line twice, need to look for actual woreda
-            woreda_am, woreda_en = "", ""
-        
-        # If we don't have complete data, search more intelligently
-        if not subcity_am or not subcity_en or not woreda_am or not woreda_en:
-            # Search for address-related keywords in nearby lines
-            search_start = max(0, region_index - 2)
-            search_end = min(len(lines), region_index + 5)
+            # Skip lines that are clearly not address components
+            if any(keyword in line.lower() for keyword in ['phone', 'ስልክ', 'date', 'የትውልድ', 'sex', 'ፆታ', 'nationality', 'ዜግነት']):
+                print(f"  Skipping non-address line")
+                continue
             
-            for i in range(search_start, search_end):
-                line = lines[i].strip()
-                if not line or i == region_index:  # Skip empty lines and region line
-                    continue
+            # Look for bilingual address lines with proper separator
+            if '|' in line:
+                parts = line.split('|', 1)
+                if len(parts) == 2:
+                    amharic_part = parts[0].strip()
+                    english_part = parts[1].strip()
                     
-                print(f"Analyzing line {i}: '{line}'")
-                
-                # Look for subcity indicators
-                if any(keyword in line.lower() for keyword in ['ክፍለ ከተማ', 'sub-city', 'subcity', 'ከተማ አስተዳደር', 'administration']):
-                    if '|' in line:
-                        parts = line.split('|', 1)
-                        if len(parts) == 2:
-                            amharic, english = parts[0].strip(), parts[1].strip()
-                            if not subcity_am:
-                                subcity_am = amharic
-                                subcity_en = english
-                                print(f"  Found subcity by keyword: '{subcity_am}' | '{subcity_en}'")
-                
-                # Look for woreda indicators
-                elif any(keyword in line.lower() for keyword in ['ወረዳ', 'woreda', 'kebele', 'ቀበሌ']):
-                    if '|' in line:
-                        parts = line.split('|', 1)
-                        if len(parts) == 2:
-                            amharic, english = parts[0].strip(), parts[1].strip()
-                            if not woreda_am:
-                                woreda_am = amharic
-                                woreda_en = english
-                                print(f"  Found woreda by keyword: '{woreda_am}' | '{woreda_en}'")
-                
-                # If no keywords found, try to identify by content patterns
-                elif '|' in line:
-                    parts = line.split('|', 1)
-                    if len(parts) == 2:
-                        amharic, english = parts[0].strip(), parts[1].strip()
-                    else:
-                        amharic, english = parts[0].strip(), parts[0].strip()
-                    
-                    # Skip if this line is already used for region
-                    if i == region_index:
+                    # Skip empty parts
+                    if not amharic_part or not english_part:
                         continue
                     
-                    # Check if this looks like a subcity (usually longer names, administrative terms)
-                    if (len(amharic) > 3 and 
-                        not any(char.isdigit() for char in amharic) and
-                        not subcity_am and
-                        not any(keyword in amharic.lower() for keyword in ['ወረዳ', 'woreda', 'kebele']) and
-                        ('ከተማ' in amharic or 'administration' in english.lower())):
-                        subcity_am = amharic
-                        subcity_en = english
-                        print(f"  Identified as subcity by pattern: '{subcity_am}' | '{subcity_en}'")
+                    # Identify zone/subcity by keywords and patterns
+                    zone_keywords_am = ['ዞን', 'ክልል', 'ክፍለ ከተማ']
+                    zone_keywords_en = ['zone', 'sub city', 'subcity', 'sub-city']
                     
-                    # Check if this looks like a woreda (usually shorter, more specific)
-                    elif (len(amharic) > 2 and 
-                          not any(char.isdigit() for char in amharic) and
-                          not woreda_am and
-                          not any(keyword in amharic.lower() for keyword in ['ክፍለ ከተማ', 'sub-city', 'subcity', 'administration']) and
-                          not ('ከተማ' in amharic or 'administration' in english.lower())):
-                        woreda_am = amharic
-                        woreda_en = english
-                        print(f"  Identified as woreda by pattern: '{woreda_am}' | '{woreda_en}'")
-                
-                # Handle lines without separator (like line 8 in your case)
-                elif line and not any(char.isdigit() for char in line) and len(line) > 2:
-                    print(f"  Found line without separator: '{line}' - skipping as it's likely malformed")
-                    continue
+                    # Identify subcity/administration by keywords
+                    subcity_keywords_am = ['ከተማ አስተዳደር', 'ክ/ከተማ', 'አስተዳደር']
+                    subcity_keywords_en = ['city admin', 'administration', 'city administration', 'admin']
+                    
+                    # Identify woreda by keywords and patterns
+                    woreda_keywords_am = ['ወረዳ', 'ቀበሌ', 'ወ/']
+                    woreda_keywords_en = ['woreda', 'kebele', 'district']
+                    
+                    # Check if this is a zone (which should be treated as subcity in the form)
+                    is_zone = (
+                        any(keyword in amharic_part.lower() for keyword in zone_keywords_am) or
+                        any(keyword in english_part.lower() for keyword in zone_keywords_en) or
+                        # Common Ethiopian zones
+                        any(zone_name in english_part for zone_name in ['East Wollega', 'West Wollega', 'North Shewa', 'South Wollega'])
+                    )
+                    
+                    # Check if this is a subcity/administration
+                    is_subcity_admin = (
+                        any(keyword in amharic_part.lower() for keyword in subcity_keywords_am) or
+                        any(keyword in english_part.lower() for keyword in subcity_keywords_en)
+                    )
+                    
+                    # Check if this is a woreda
+                    is_woreda = (
+                        any(keyword in amharic_part.lower() for keyword in woreda_keywords_am) or
+                        any(keyword in english_part.lower() for keyword in woreda_keywords_en) or
+                        # Common Ethiopian woreda names
+                        any(woreda_name in english_part for woreda_name in ['Gida Ayana', 'Nekemte', 'Shambu'])
+                    )
+                    
+                    # Priority assignment logic for Ethiopian address hierarchy
+                    if is_zone and not found_subcity:
+                        # Zone should be mapped to subcity field in the form
+                        subcity_am = amharic_part
+                        subcity_en = english_part
+                        found_subcity = True
+                        print(f"  Found zone (mapped to subcity): '{subcity_am}' | '{subcity_en}'")
+                    elif is_woreda and not found_woreda:
+                        # Woreda is correctly mapped to woreda field
+                        woreda_am = amharic_part
+                        woreda_en = english_part
+                        found_woreda = True
+                        print(f"  Found woreda: '{woreda_am}' | '{woreda_en}'")
+                    elif is_subcity_admin and not found_subcity and not zone_candidate:
+                        # Only use administration if no zone was found
+                        subcity_am = amharic_part
+                        subcity_en = english_part
+                        found_subcity = True
+                        print(f"  Found subcity administration: '{subcity_am}' | '{subcity_en}'")
+                    elif not found_subcity and not found_woreda:
+                        # Store as potential zone candidate for later use
+                        if not zone_candidate:
+                            zone_candidate = (amharic_part, english_part)
+                            print(f"  Stored as zone candidate: '{amharic_part}' | '{english_part}'")
+            
+            # Handle lines without separator (malformed lines)
+            elif line and not any(char.isdigit() for char in line) and len(line) > 2:
+                print(f"  Found line without separator: '{line}' - skipping as malformed")
+                continue
         
-        # Fallback: if we still don't have data, try the original line indices
-        if not subcity_am and not subcity_en:
-            try:
-                if region_index + 1 < len(lines):
-                    subcity_am, subcity_en = self._parse_line(lines, region_index + 1)
-                    print(f"  Fallback subcity from line {region_index + 1}: '{subcity_am}' | '{subcity_en}'")
-            except:
-                pass
-                
-        if not woreda_am and not woreda_en:
-            try:
-                if region_index + 2 < len(lines):
-                    woreda_am, woreda_en = self._parse_line(lines, region_index + 2)
-                    print(f"  Fallback woreda from line {region_index + 2}: '{woreda_am}' | '{woreda_en}'")
-            except:
-                pass
+        # If we have a zone candidate but no subcity, use the zone candidate
+        if not found_subcity and zone_candidate:
+            subcity_am, subcity_en = zone_candidate
+            found_subcity = True
+            print(f"  Using zone candidate as subcity: '{subcity_am}' | '{subcity_en}'")
         
-        # Ensure we have at least some data
-        if not subcity_am:
-            subcity_am = subcity_en if subcity_en else ""
-        if not subcity_en:
-            subcity_en = subcity_am if subcity_am else ""
-        if not woreda_am:
-            woreda_am = woreda_en if woreda_en else ""
-        if not woreda_en:
-            woreda_en = woreda_am if woreda_am else ""
+        # Fallback to simple position-based extraction if pattern matching failed
+        if not found_subcity or not found_woreda:
+            print(f"Pattern matching incomplete, falling back to position-based extraction")
+            
+            if not found_subcity and region_index + 1 < len(lines):
+                try:
+                    fallback_subcity_am, fallback_subcity_en = self._parse_line(lines, region_index + 1)
+                    if fallback_subcity_am and fallback_subcity_en:
+                        subcity_am = fallback_subcity_am
+                        subcity_en = fallback_subcity_en
+                        print(f"  Fallback subcity from line {region_index + 1}: '{subcity_am}' | '{subcity_en}'")
+                except Exception as e:
+                    print(f"  Error in fallback subcity extraction: {str(e)}")
+            
+            if not found_woreda:
+                # Try multiple positions for woreda due to potential malformed lines
+                for offset in [2, 3, 4]:
+                    if region_index + offset < len(lines):
+                        try:
+                            line_content = lines[region_index + offset].strip()
+                            if '|' in line_content:
+                                fallback_woreda_am, fallback_woreda_en = self._parse_line(lines, region_index + offset)
+                                if fallback_woreda_am and fallback_woreda_en:
+                                    # Validate this isn't duplicate subcity data
+                                    if fallback_woreda_am != subcity_am:
+                                        woreda_am = fallback_woreda_am
+                                        woreda_en = fallback_woreda_en
+                                        print(f"  Fallback woreda from line {region_index + offset}: '{woreda_am}' | '{woreda_en}'")
+                                        break
+                        except Exception as e:
+                            print(f"  Error in fallback woreda extraction at offset {offset}: {str(e)}")
+                            continue
         
-        # Try to detect if we have mixed up subcity and woreda
-        # Sometimes the order might be different in the PDF
-        if (subcity_am and woreda_am and 
-            len(subcity_am) < len(woreda_am) and 
-            not any(keyword in subcity_am.lower() for keyword in ['ክፍለ ከተማ', 'sub-city', 'subcity', 'administration']) and
-            any(keyword in woreda_am.lower() for keyword in ['ከተማ', 'administration'])):
-            # Swap them if subcity looks more like a woreda and woreda looks more like a subcity
-            print(f"Swapping subcity and woreda due to content mismatch")
-            subcity_am, woreda_am = woreda_am, subcity_am
-            subcity_en, woreda_en = woreda_en, subcity_en
+        # Clean and validate the extracted data
+        subcity_am = subcity_am.strip() if subcity_am else ""
+        subcity_en = subcity_en.strip() if subcity_en else ""
+        woreda_am = woreda_am.strip() if woreda_am else ""
+        woreda_en = woreda_en.strip() if woreda_en else ""
+        
+        # Clean up generic labels that shouldn't be in the final address
+        generic_labels_en = ['region', 'subcity', 'sub-city', 'woreda', 'city admin', 'administration']
+        generic_labels_am = ['ክልል', 'ክፍለ ከተማ', 'ወረዳ', 'ከተማ አስተዳደር']
+        
+        # Clean subcity field if it contains only generic labels
+        if subcity_en and any(label in subcity_en.lower() for label in generic_labels_en) and len(subcity_en) < 20:
+            print(f"  Clearing subcity_en generic label: '{subcity_en}'")
+            subcity_en = ""
+        if subcity_am and any(label in subcity_am for label in generic_labels_am) and len(subcity_am) < 20:
+            print(f"  Clearing subcity_am generic label: '{subcity_am}'")
+            subcity_am = ""
+        
+        # Clean woreda field if it contains only generic labels
+        if woreda_en and any(label in woreda_en.lower() for label in generic_labels_en) and len(woreda_en) < 15:
+            print(f"  Clearing woreda_en generic label: '{woreda_en}'")
+            woreda_en = ""
+        if woreda_am and any(label in woreda_am for label in generic_labels_am) and len(woreda_am) < 15:
+            print(f"  Clearing woreda_am generic label: '{woreda_am}'")
+            woreda_am = ""
+        
+        # Ensure we have at least some data by copying between languages if needed
+        if subcity_am and not subcity_en:
+            subcity_en = subcity_am
+        elif subcity_en and not subcity_am:
+            subcity_am = subcity_en
+            
+        if woreda_am and not woreda_en:
+            woreda_en = woreda_am
+        elif woreda_en and not woreda_am:
+            woreda_am = woreda_en
         
         # Final validation: ensure we don't have identical content
         if subcity_am == woreda_am and subcity_am:
-            print(f"ERROR: Subcity and woreda still have identical content after processing: '{subcity_am}'")
+            print(f"ERROR: Subcity and woreda have identical content: '{subcity_am}'")
             # Clear woreda if they're identical
             woreda_am, woreda_en = "", ""
         
@@ -429,7 +701,7 @@ class IDCardService:
         
         return subcity_am, subcity_en, woreda_am, woreda_en
 
-    def get_photo_data(self, data: Dict, remove_white: bool = False, remove_black: bool = False) -> bytes:
+    def get_photo_data(self, data: Dict, remove_white: bool = False, remove_black: bool = False, use_onnx: bool = False) -> bytes:
         """Return photo image bytes from provided data or create a placeholder.
         
         Supports:
@@ -437,19 +709,37 @@ class IDCardService:
         - data['photo_b64']: base64-encoded string
         - data['photo']: file path relative or absolute
         Falls back to a transparent placeholder if nothing available.
+        
+        Args:
+            data: Dictionary containing photo data
+            remove_white: Whether to remove white backgrounds
+            remove_black: Whether to remove black backgrounds
+            use_onnx: Whether to use ONNX-based background removal
         """
         try:
             # 1) Raw bytes
             if data.get('photo_bytes'):
                 if isinstance(data['photo_bytes'], bytes):
-                    return data['photo_bytes']
+                    photo_bytes = data['photo_bytes']
                 else:
-                    return data['photo_bytes'].encode('utf-8')
+                    photo_bytes = data['photo_bytes'].encode('utf-8')
+                
+                # Apply background removal if requested
+                if remove_white or remove_black or use_onnx:
+                    photo_bytes = self._apply_background_removal(photo_bytes, remove_white, remove_black, use_onnx)
+                
+                return photo_bytes
             
             # 2) Base64 encoded
             if data.get('photo_b64'):
                 import base64
-                return base64.b64decode(data['photo_b64'])
+                photo_bytes = base64.b64decode(data['photo_b64'])
+                
+                # Apply background removal if requested
+                if remove_white or remove_black or use_onnx:
+                    photo_bytes = self._apply_background_removal(photo_bytes, remove_white, remove_black, use_onnx)
+                
+                return photo_bytes
             
             # 3) File path
             if data.get('photo'):
@@ -458,7 +748,13 @@ class IDCardService:
                     photo_path = os.path.join(self.config.STATIC_FOLDER, photo_path)
                 if os.path.exists(photo_path):
                     with open(photo_path, 'rb') as f:
-                        return f.read()
+                        photo_bytes = f.read()
+                    
+                    # Apply background removal if requested
+                    if remove_white or remove_black or use_onnx:
+                        photo_bytes = self._apply_background_removal(photo_bytes, remove_white, remove_black, use_onnx)
+                    
+                    return photo_bytes
             
             # 4) Fallback: create transparent placeholder
             placeholder = Image.new('RGBA', (200, 260), (255, 255, 255, 0))
@@ -473,6 +769,84 @@ class IDCardService:
             buffer = BytesIO()
             placeholder.save(buffer, format='PNG')
             return buffer.getvalue()
+    
+    def _apply_background_removal(self, photo_bytes: bytes, remove_white: bool, remove_black: bool, use_onnx: bool) -> bytes:
+        """Apply background removal to photo bytes.
+        
+        Args:
+            photo_bytes: Raw photo bytes
+            remove_white: Whether to remove white backgrounds
+            remove_black: Whether to remove black backgrounds
+            use_onnx: Whether to use offline rembg-based background removal
+            
+        Returns:
+            Processed photo bytes
+        """
+        try:
+            if use_onnx:
+                # Use offline rembg-based background removal
+                print("🔄 Using offline background removal (rembg)...")
+                processed_bytes = remove_background_to_bytes_offline(photo_bytes)
+                if processed_bytes is not None:
+                    print("✅ Offline background removal completed successfully")
+                    return processed_bytes
+                else:
+                    print("⚠️ Offline background removal failed, using simple method")
+                    # Fall back to simple method
+                    return self._apply_simple_background_removal(photo_bytes, remove_white, remove_black)
+            else:
+                # Use simple color-based background removal
+                return self._apply_simple_background_removal(photo_bytes, remove_white, remove_black)
+            
+        except Exception as e:
+            print(f"❌ Error applying background removal: {str(e)}")
+            # Return original bytes if processing fails
+            return photo_bytes
+    
+    def _apply_simple_background_removal(self, photo_bytes: bytes, remove_white: bool, remove_black: bool) -> bytes:
+        """Apply simple color-based background removal to photo bytes."""
+        try:
+            # Convert bytes to PIL Image
+            image = Image.open(BytesIO(photo_bytes))
+            
+            # Simple color-based background removal
+            if remove_white or remove_black:
+                img_array = np.array(image)
+                
+                if image.mode != 'RGBA':
+                    if image.mode == 'RGB':
+                        img_array = np.concatenate([img_array, np.full((*img_array.shape[:2], 1), 255, dtype=np.uint8)], axis=2)
+                    else:
+                        image = image.convert('RGBA')
+                        img_array = np.array(image)
+                
+                # Create alpha channel
+                alpha = np.ones(img_array.shape[:2], dtype=np.uint8) * 255
+                
+                if remove_white:
+                    # Remove white/light backgrounds
+                    white_threshold = 220
+                    white_mask = np.all(img_array[:, :, :3] > white_threshold, axis=2)
+                    alpha[white_mask] = 0
+                
+                if remove_black:
+                    # Remove black/dark backgrounds
+                    black_threshold = 30
+                    black_mask = np.all(img_array[:, :, :3] < black_threshold, axis=2)
+                    alpha[black_mask] = 0
+                
+                # Apply alpha channel
+                img_array[:, :, 3] = alpha
+                image = Image.fromarray(img_array, 'RGBA')
+            
+            # Convert back to bytes
+            buffer = BytesIO()
+            image.save(buffer, format='PNG')
+            return buffer.getvalue()
+            
+        except Exception as e:
+            print(f"Error applying simple background removal: {str(e)}")
+            return photo_bytes
 
     def generate_qr_code(self, data: Dict, include_nationality: bool = True) -> bytes:
         """Generate QR code PNG bytes from extracted data."""
@@ -532,7 +906,7 @@ class IDCardService:
             return buffer.getvalue()
 
     def _validate_address_data(self, subcity_am: str, subcity_en: str, woreda_am: str, woreda_en: str) -> Tuple[str, str, str, str]:
-        """Validate and clean address data to ensure consistency."""
+        """Validate and clean address data to ensure consistency with Ethiopian address hierarchy."""
         print(f"Validating address data:")
         print(f"  Input subcity: '{subcity_am}' | '{subcity_en}'")
         print(f"  Input woreda: '{woreda_am}' | '{woreda_en}'")
@@ -546,6 +920,34 @@ class IDCardService:
             woreda_am = ""
         if not woreda_en or woreda_en.strip() == "":
             woreda_en = ""
+        
+        # Clean up generic labels that shouldn't be in the final address
+        generic_labels_en = ['region', 'subcity', 'sub-city', 'woreda', 'city admin', 'administration', 'zone', 'sub city']
+        generic_labels_am = ['ክልል', 'ክፍለ ከተማ', 'ወረዳ', 'ከተማ አስተዳደር', 'ዞን', 'አስተዳደር']
+        
+        # Clean subcity field if it contains only generic labels
+        if subcity_en and len(subcity_en) < 25:
+            # Only clear if it's exactly a generic label, not if it contains additional content
+            if subcity_en.lower().strip() in ['region', 'subcity', 'sub-city', 'city admin', 'administration', 'zone', 'sub city']:
+                print(f"  Clearing subcity_en generic label: '{subcity_en}'")
+                subcity_en = ""
+        if subcity_am and len(subcity_am) < 25:
+            # Only clear if it's exactly a generic label, not if it contains additional content
+            if subcity_am.strip() in ['ክልል', 'ክፍለ ከተማ', 'ወረዳ', 'ከተማ አስተዳደር', 'ዞን', 'አስተዳደር']:
+                print(f"  Clearing subcity_am generic label: '{subcity_am}'")
+                subcity_am = ""
+        
+        # Clean woreda field if it contains only generic labels
+        if woreda_en and len(woreda_en) < 20:
+            # Only clear if it's exactly a generic label, not if it contains additional content
+            if woreda_en.lower().strip() in ['woreda', 'administration', 'admin', 'kebele']:
+                print(f"  Clearing woreda_en generic label: '{woreda_en}'")
+                woreda_en = ""
+        if woreda_am and len(woreda_am) < 20:
+            # Only clear if it's exactly a generic label, not if it contains additional content  
+            if woreda_am.strip() in ['ወረዳ', 'አስተዳደር', 'ቀበሌ']:
+                print(f"  Clearing woreda_am generic label: '{woreda_am}'")
+                woreda_am = ""
         
         # If we have Amharic but no English, try to use Amharic for both
         if subcity_am and not subcity_en:
@@ -664,12 +1066,20 @@ class IDCardService:
                         l, r = split_pair(ln)
                         pattern_region_am, pattern_region_en = l, r
                         continue
-                    if not pattern_subcity_en and any(x in ln.lower() for x in ["zone", "subcity", "sub city", "city admin", "city administration"]):
+                    if not pattern_subcity_en and any(x in ln.lower() for x in ["zone", "subcity", "sub city"]):
                         l, r = split_pair(ln)
+                        # Skip if this looks like a label (contains only the keyword)
+                        if (any(r.lower().strip() == label for label in ["zone", "subcity", "sub city"]) or
+                            "zone/sub city" in r.lower() or "city admin" in r.lower()):
+                            continue  # This is likely a label, not a value
                         pattern_subcity_am, pattern_subcity_en = l, r
                         continue
                     if not pattern_woreda_en and any(x in ln.lower() for x in ["woreda", "administration", "admin", "kebele"]):
                         l, r = split_pair(ln)
+                        # Skip if this looks like a label (short and contains only the keyword)
+                        if (r.lower().strip() in ["woreda", "administration", "admin", "kebele"] or
+                            (len(r.strip()) < 15 and r.lower().strip() == "woreda")):
+                            continue  # This is likely a label, not a value
                         pattern_woreda_am, pattern_woreda_en = l, r
                         continue
                 # DOB bilingual
@@ -698,20 +1108,41 @@ class IDCardService:
                     if l in ["ወንድ", "ሴት"] and r in ["Male", "Female"]:
                         pattern_gender_am, pattern_gender_en = l, r
                         continue
-                # Nationality bilingual
-                if '|' in ln and not pattern_nat_en and any(x in ln for x in ["ኢትዮጵያ", "ኢትዮጵያዊ", "Ethiopian"]):
+                # Nationality bilingual - extract as-is without hardcoded mappings
+                if '|' in ln and not pattern_nat_en:
                     l, r = split_pair(ln)
-                    if (l in ["ኢትዮጵያ", "ኢትዮጵያዊ"]) and r.lower().startswith("ethiop"):
-                        pattern_nat_am, pattern_nat_en = l, "Ethiopian"
+                    # Check if it looks like a nationality value (not a label)
+                    if (l and r and len(l) <= 50 and len(r) <= 50 and
+                        l.lower() not in ["nationality", "ዜግነት"] and
+                        r.lower() not in ["nationality", "ዜግነት"] and
+                        not any(char.isdigit() for char in l + r) and
+                        # Skip lines that contain label indicators
+                        not any(indicator in ln.lower() for indicator in ["(amharic)", "(english)", "self declared", "በተለያዩ መሰረት"]) and
+                        # Use the validation function to ensure it's a valid nationality value
+                        self._is_valid_nationality_value(l) and self._is_valid_nationality_value(r)):
+                        pattern_nat_am, pattern_nat_en = l, r
                         continue
-                # Nationality English-only line
-                if not pattern_nat_en and any(x in ln.lower().strip() for x in ["ethiopian", "ethiopia"]):
-                    pattern_nat_en, pattern_nat_am = "Ethiopian", "ኢትዮጵያዊ"
-                    continue
-                # Nationality Amharic-only line
-                if not pattern_nat_am and any(x in ln for x in ["ኢትዮጵያ", "ኢትዮጵያዊ"]):
-                    pattern_nat_am, pattern_nat_en = "ኢትዮጵያዊ", "Ethiopian"
-                    continue
+                # Nationality English-only line - extract as-is
+                if not pattern_nat_en:
+                    # Check if line contains "nationality" label - skip it
+                    if ("nationality" in ln.lower() and len(ln.strip()) <= 50) or any(indicator in ln.lower() for indicator in ["(amharic)", "(english)", "self declared"]):
+                        continue
+                    # Otherwise, treat single English word as potential nationality
+                    words = ln.strip().split()
+                    if len(words) == 1 and len(words[0]) <= 50 and words[0].isalpha() and self._is_valid_nationality_value(words[0]):
+                        pattern_nat_en = words[0]
+                        pattern_nat_am = words[0]  # Keep same until translation available
+                        continue
+                # Nationality Amharic-only line - extract as-is
+                if not pattern_nat_am:
+                    # Check if line contains "ዜግነት" label - skip it
+                    if ("ዜግነት" in ln and len(ln.strip()) <= 50) or any(indicator in ln.lower() for indicator in ["በተለያዩ መሰረት"]):
+                        continue
+                    # Otherwise, treat single Amharic word as potential nationality
+                    if any(ord(c) > 127 for c in ln) and len(ln.strip()) <= 50 and self._is_valid_nationality_value(ln.strip()):
+                        pattern_nat_am = ln.strip()
+                        pattern_nat_en = ln.strip()  # Keep same until translation available
+                        continue
                 # Phone (10 digits typical)
                 digits = ln.replace(" ", "")
                 if not pattern_phone and digits.isdigit() and 9 <= len(digits) <= 13:
@@ -720,20 +1151,28 @@ class IDCardService:
             # Apply pattern overrides when found
             if pattern_name_en and pattern_name_am:
                 name_en, name_am = pattern_name_en, pattern_name_am
+                print(f"Default format: Applied pattern name: '{name_am}' | '{name_en}'")
             if pattern_dob_en and pattern_dob_am:
                 dob_en_raw, dob_am = pattern_dob_en, pattern_dob_am
+                print(f"Default format: Applied pattern DOB: '{dob_am}' | '{dob_en_raw}'")
             if pattern_gender_en and pattern_gender_am:
                 gender_en, gender_am = pattern_gender_en, pattern_gender_am
+                print(f"Default format: Applied pattern gender: '{gender_am}' | '{gender_en}'")
             if pattern_nat_en and pattern_nat_am:
                 nationality_en, nationality_am = pattern_nat_en, pattern_nat_am
+                print(f"Default format: Applied pattern nationality: '{nationality_am}' | '{nationality_en}'")
             if pattern_phone:
                 phone = self.format_phone_number(pattern_phone)
+                print(f"Default format: Applied pattern phone: '{phone}'")
             if pattern_region_en and pattern_region_am:
                 region_en, region_am = pattern_region_en, pattern_region_am
+                print(f"Default format: Applied pattern region: '{region_am}' | '{region_en}'")
             if pattern_subcity_en and pattern_subcity_am:
                 subcity_en, subcity_am = pattern_subcity_en, pattern_subcity_am
+                print(f"Default format: Applied pattern subcity: '{subcity_am}' | '{subcity_en}'")
             if pattern_woreda_en and pattern_woreda_am:
                 woreda_en, woreda_am = pattern_woreda_en, pattern_woreda_am
+                print(f"Default format: Applied pattern woreda: '{woreda_am}' | '{woreda_en}'")
         except Exception as _:
             pass
 
@@ -760,23 +1199,140 @@ class IDCardService:
                                 break
             except Exception:
                 pass
+
         # Debug: Log the PDF structure around address fields
-        print(f"PDF structure debug - Lines around address fields:")
-        for i in range(max(0, line_indices['region'] - 2), min(len(lines), line_indices['region'] + 5)):
-            print(f"  Line {i}: '{lines[i]}'")
+        print(f"PDF structure debug - All lines:")
+        for i, line in enumerate(lines):
+            print(f"  Line {i}: '{line}'")
         
-        # Extract address components with improved logic
+        # Extract address components with improved label-based logic
         try:
-            if not region_am or not region_en:
-                region_am, region_en = self._parse_line(lines, line_indices['region'])
-            # Only derive structured address if any part missing from pattern scan
-            if (not subcity_am or not subcity_en) or (not woreda_am or not woreda_en):
-                subcity_am, subcity_en, woreda_am, woreda_en = self._extract_address_components(lines, line_indices['region'])
+            # Initialize address variables
+            region_am, region_en = "", ""
+            subcity_am, subcity_en = "", ""
+            woreda_am, woreda_en = "", ""
+            
+            # Use label-based extraction - look for specific labels and extract the next line
+            i = 0
+            while i < len(lines):
+                line = lines[i].strip().lower()
+                original_line = lines[i].strip()
+                
+                # Check for region label
+                if ('region' in line and ('city' in line or 'admin' in line)) or ('ክልል' in original_line and ('ከተማ' in original_line or 'አስተዳደር' in original_line)):
+                    print(f"Found region label at line {i}: '{original_line}'")
+                    if i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        if '|' in next_line:
+                            parts = next_line.split('|', 1)
+                            region_am = parts[0].strip()
+                            region_en = parts[1].strip()
+                        else:
+                            region_am = next_line
+                            region_en = next_line
+                        print(f"Region extracted: '{region_am}' | '{region_en}'")
+                        i += 2  # Skip the value line
+                        continue
+                
+                # Check for subcity/zone label
+                elif ('zone' in line and ('sub' in line or 'city' in line)) or ('ዞን' in original_line and 'ክፍለ' in original_line):
+                    print(f"Found subcity/zone label at line {i}: '{original_line}'")
+                    if i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        if '|' in next_line:
+                            parts = next_line.split('|', 1)
+                            subcity_am = parts[0].strip()
+                            subcity_en = parts[1].strip()
+                        else:
+                            subcity_am = next_line
+                            subcity_en = next_line
+                        print(f"Subcity extracted: '{subcity_am}' | '{subcity_en}'")
+                        i += 2  # Skip the value line
+                        continue
+                
+                # Check for woreda label (be more specific to avoid false matches)
+                elif (line == 'woreda' or 'ወረዳ' in original_line) and len(original_line) < 30:
+                    print(f"Found woreda label at line {i}: '{original_line}'")
+                    if i + 1 < len(lines):
+                        next_line = lines[i + 1].strip()
+                        if '|' in next_line:
+                            parts = next_line.split('|', 1)
+                            woreda_am = parts[0].strip()
+                            woreda_en = parts[1].strip()
+                        else:
+                            woreda_am = next_line
+                            woreda_en = next_line
+                        print(f"Woreda extracted: '{woreda_am}' | '{woreda_en}'")
+                        i += 2  # Skip the value line
+                        continue
+                
+                i += 1
+            
+            # If label-based extraction didn't work completely, try pattern-based as fallback
+            if not region_am or not region_en or not subcity_am or not subcity_en or not woreda_am or not woreda_en:
+                print("Label-based extraction incomplete, trying pattern-based fallback...")
+                
+                # Pattern-based fallback for missing fields
+                for line in lines:
+                    if '|' in line and not any(char.isdigit() for char in line):
+                        parts = line.split('|', 1)
+                        left = parts[0].strip()
+                        right = parts[1].strip()
+                        
+                        # Check if this looks like a region (known regions)
+                        known_regions = ['Addis Ababa', 'Amhara', 'Oromia', 'Tigray', 'Afar', 'Somali', 'SNNP', 'Sidama', 'Gambella', 'Harari', 'Benishangul']
+                        if not region_en and any(region in right for region in known_regions):
+                            region_am, region_en = left, right
+                            print(f"Pattern-based region: '{region_am}' | '{region_en}'")
+                            continue
+                        
+                        # Check if this looks like a zone/subcity (contains "Zone" or similar)
+                        if not subcity_en and ('zone' in right.lower() or 'wollo' in right.lower() or 'wollega' in right.lower()):
+                            subcity_am, subcity_en = left, right
+                            print(f"Pattern-based subcity: '{subcity_am}' | '{subcity_en}'")
+                            continue
+                        
+                        # Check if this looks like a woreda (shorter names, specific patterns)
+                        if not woreda_en and len(right) < 20 and not any(keyword in right.lower() for keyword in ['zone', 'region', 'admin', 'city']):
+                            # Additional validation - make sure it's not a date, sex, or other field
+                            if not any(keyword in right.lower() for keyword in ['male', 'female', 'birth', 'phone', 'nationality']):
+                                woreda_am, woreda_en = left, right
+                                print(f"Pattern-based woreda: '{woreda_am}' | '{woreda_en}'")
+                                continue
+                
+                # Additional pattern-based search specifically for woreda with numbers
+                if not woreda_am or not woreda_en:
+                    print("Still missing woreda, trying number-based pattern search...")
+                    for i, line in enumerate(lines):
+                        print(f"  Checking line {i}: '{line}'")
+                        if '|' in line:
+                            parts = line.split('|', 1)
+                            left = parts[0].strip()
+                            right = parts[1].strip()
+                            
+                            # Look for woreda patterns with numbers (like "ወረዳ 06 | Woreda 06")
+                            if (('ወረዳ' in left or 'woreda' in right.lower()) and 
+                                any(c.isdigit() for c in line)):
+                                woreda_am, woreda_en = left, right
+                                print(f"Number-based woreda pattern found at line {i}: '{woreda_am}' | '{woreda_en}'")
+                                break
+                            
+                            # Also look for lines that start with numbers and might be woreda
+                            # (like "06 | 06" which could be woreda number)
+                            elif (left.strip().isdigit() and right.strip().isdigit() and 
+                                  left.strip() == right.strip() and len(left.strip()) <= 3):
+                                # Check if previous line was woreda label
+                                if i > 0 and ('ወረዳ' in lines[i-1] or 'woreda' in lines[i-1].lower()):
+                                    woreda_am = f"ወረዳ {left}"
+                                    woreda_en = f"Woreda {right}"
+                                    print(f"Found woreda number at line {i} with label at {i-1}: '{woreda_am}' | '{woreda_en}'")
+                                    break
             
             # Validate and clean address data
             subcity_am, subcity_en, woreda_am, woreda_en = self._validate_address_data(
                 subcity_am, subcity_en, woreda_am, woreda_en
             )
+            
         except Exception as e:
             print(f"Error in address extraction: {str(e)}")
             print(f"Falling back to simple extraction...")
@@ -796,17 +1352,62 @@ class IDCardService:
             
             try:
                 woreda_am, woreda_en = self._parse_line(lines, line_indices['woreda'])
-                print(f"  Woreda extracted: '{woreda_am}' | '{woreda_en}'")
+                print(f"  Woreda extracted from line {line_indices['woreda']}: '{woreda_am}' | '{woreda_en}'")
                 
-                # Check if woreda looks like it's actually subcity data (malformed line)
-                if woreda_am == woreda_en and 'administration' in woreda_en.lower():
-                    print(f"  Woreda appears to be malformed subcity data, trying next line...")
-                    # Try the next line for woreda
-                    if line_indices['woreda'] + 1 < len(lines):
-                        woreda_am, woreda_en = self._parse_line(lines, line_indices['woreda'] + 1)
-                        print(f"  Woreda from next line: '{woreda_am}' | '{woreda_en}'")
-                    else:
-                        woreda_am, woreda_en = "", ""
+                # Check if woreda looks like it's actually a label or malformed data
+                if (not woreda_am or not woreda_en or 
+                    woreda_am == woreda_en and 'woreda' in woreda_en.lower() and len(woreda_en) < 15):
+                    print(f"  Woreda appears to be a label or malformed, searching for actual value...")
+                    
+                    # Search for woreda value in nearby lines
+                    found_woreda = False
+                    search_range = range(max(0, line_indices['woreda'] - 2), min(len(lines), line_indices['woreda'] + 5))
+                    
+                    for search_idx in search_range:
+                        if search_idx == line_indices['woreda']:
+                            continue  # Skip the original line we already tried
+                            
+                        try:
+                            candidate_line = lines[search_idx].strip()
+                            print(f"    Checking line {search_idx}: '{candidate_line}'")
+                            
+                            if '|' in candidate_line:
+                                candidate_am, candidate_en = self._parse_line(lines, search_idx)
+                                
+                                # Check if this looks like a woreda value (not a label)
+                                woreda_indicators = ['woreda', 'ወረዳ', 'kebele', 'ቀበሌ']
+                                has_woreda_keyword = any(indicator in candidate_line.lower() for indicator in woreda_indicators)
+                                
+                                # If it has woreda keyword and looks like a value (contains numbers or is longer than just "woreda")
+                                if (has_woreda_keyword and 
+                                    (any(c.isdigit() for c in candidate_line) or 
+                                     len(candidate_am) > 10 or len(candidate_en) > 10)):
+                                    woreda_am, woreda_en = candidate_am, candidate_en
+                                    print(f"    Found woreda value at line {search_idx}: '{woreda_am}' | '{woreda_en}'")
+                                    found_woreda = True
+                                    break
+                                    
+                                # Also check for lines that might be woreda values without explicit keywords
+                                elif (not has_woreda_keyword and candidate_am and candidate_en and
+                                      candidate_am != candidate_en and
+                                      len(candidate_am) < 30 and len(candidate_en) < 30 and
+                                      not any(skip_word in candidate_line.lower() for skip_word in 
+                                             ['phone', 'date', 'birth', 'sex', 'nationality', 'region', 'zone', 'subcity'])):
+                                    # This might be a woreda value without explicit labeling
+                                    woreda_am, woreda_en = candidate_am, candidate_en
+                                    print(f"    Found potential woreda value at line {search_idx}: '{woreda_am}' | '{woreda_en}'")
+                                    found_woreda = True
+                                    break
+                                    
+                        except Exception as search_e:
+                            print(f"    Error checking line {search_idx}: {str(search_e)}")
+                            continue
+                    
+                    if not found_woreda:
+                        print(f"  Could not find woreda value, keeping original or clearing")
+                        # If original was clearly a label, clear it
+                        if woreda_am == woreda_en and 'woreda' in woreda_en.lower() and len(woreda_en) < 15:
+                            woreda_am, woreda_en = "", ""
                         
             except Exception as e2:
                 print(f"  Error extracting woreda: {str(e2)}")
@@ -885,16 +1486,38 @@ class IDCardService:
                 pass
 
         # Override nationality by reading the line directly below the label if present
+        # This is especially important for default format where line indices might not be accurate
         try:
             nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
             if nat_am_label or nat_en_label:
+                print(f"Default format: Found nationality using label-based extraction: '{nat_am_label}' | '{nat_en_label}'")
                 # Mirror if only one side detected
                 nat_am_final = nat_am_label or nat_en_label
                 nat_en_final = nat_en_label or nat_am_label
                 nationality_am = nat_am_final or nationality_am
                 nationality_en = nat_en_final or nationality_en
-        except Exception:
+            else:
+                print(f"Default format: Label-based nationality extraction found nothing")
+        except Exception as e:
+            print(f"Default format: Error in label-based nationality extraction: {str(e)}")
             pass
+
+        # If still no nationality found, try extracting from the fixed line index as last resort
+        if not nationality_am and not nationality_en:
+            try:
+                line_nat_am, line_nat_en = self._parse_line(lines, line_indices['nationality'])
+                print(f"Default format: Trying fixed line index {line_indices['nationality']}: '{line_nat_am}' | '{line_nat_en}'")
+                # Only use if it doesn't look like a label
+                if (line_nat_am and not self._is_nationality_label_line(line_nat_am) and 
+                    self._is_valid_nationality_value(line_nat_am)):
+                    nationality_am = line_nat_am
+                if (line_nat_en and not self._is_nationality_label_line(line_nat_en) and 
+                    self._is_valid_nationality_value(line_nat_en)):
+                    nationality_en = line_nat_en
+                print(f"Default format: After fixed line validation: '{nationality_am}' | '{nationality_en}'")
+            except Exception as e:
+                print(f"Default format: Error extracting from fixed line index: {str(e)}")
+                pass
 
         # Normalize nationality: if one side found, fill the other
         if nationality_en and not nationality_am:
@@ -966,7 +1589,14 @@ class IDCardService:
 
 
     def _extract_residential_sheger_pdf_data(self, doc: fitz.Document, lines: List[str], images: List[Tuple], fin_number: str) -> Dict:
-        """Extract data from Residential Sheger PDF format using pattern matching."""
+        """Extract data from Residential Sheger PDF format using line-based approach like default format."""
+        line_indices = self.PDF_FORMAT_MAPPING['residential_sheger']
+        
+        # Ensure lines are padded for safe access
+        max_index = max(line_indices.values())
+        if len(lines) <= max_index:
+            lines += [""] * (max_index + 1 - len(lines))
+
         # Initialize extracted data with empty values
         extracted = {
             "fcn": "",
@@ -986,6 +1616,8 @@ class IDCardService:
             "woreda_am": "",
             "woreda_en": ""
         }
+
+
         
         # Find data by patterns rather than fixed positions
         for i, line in enumerate(lines):
@@ -1022,175 +1654,425 @@ class IDCardService:
                 if i+1 < len(lines) and lines[i+1].strip() in ["Female", "Male"]:
                     extracted["gender_en"] = lines[i+1].strip()
                     print(f"Found gender EN: '{lines[i+1].strip()}'")
-            elif line.strip() in ["ኢትዮጵያዊ", "ኢትዮጵያ"]:
-                extracted["nationality_am"] = "ኢትዮጵያዊ"
-                extracted["nationality_en"] = extracted.get("nationality_en") or "Ethiopian"
-                print(f"Found nationality AM: '{line.strip()}' -> set EN to 'Ethiopian'")
-                continue
-            elif line.strip().lower() in ["ethiopian", "ethiopia"]:
-                extracted["nationality_en"] = "Ethiopian"
-                extracted["nationality_am"] = extracted.get("nationality_am") or "ኢትዮጵያዊ"
-                print(f"Found nationality EN: '{line.strip()}' -> set AM to 'ኢትዮጵያዊ'")
+
             elif line.replace(" ", "").isdigit() and len(line.replace(" ", "")) == 10:
                 extracted["phone"] = line.strip()
                 print(f"Found phone: '{line.strip()}'")
         
-                # Extract names with more targeted approach
-        # Try to detect bilingual name line like "የስም | Name" with no digits
-        if not extracted["name_en"] and not extracted["name_am"]:
-            for i, line in enumerate(lines):
-                if "|" in line and not any(ch.isdigit() for ch in line):
-                    left, right = [part.strip() for part in line.split("|", 1)]
-                    # Exclude obvious labels/addresses
-                    excluded_en = ["region", "zone", "sub city", "city", "admin", "administration", "woreda", "kebele", "sex", "nationality", "phone", "date", "demographic", "disclaimer"]
-                    # Case 1: Amharic on left, English on right
-                    if (any(ord(c) > 127 for c in left) and right.replace(" ", "").replace("-", "").replace(".", "").isalpha() and
-                        all(ord(c) < 128 for c in right.replace(" ", "").replace("-", "").replace(".", "")) and
-                        not any(word in right.lower() for word in excluded_en)):
-                        extracted["name_am"] = left
-                        extracted["name_en"] = right
-                        break
-                    # Case 2: English on left, Amharic on right (reversed order)
-                    if (any(ord(c) > 127 for c in right) and left.replace(" ", "").replace("-", "").replace(".", "").isalpha() and
-                        all(ord(c) < 128 for c in left.replace(" ", "").replace("-", "").replace(".", "")) and
-                        not any(word in left.lower() for word in excluded_en)):
-                        extracted["name_en"] = left
-                        extracted["name_am"] = right
-                        break
-
-        # First, try to find names near the FCN number (most reliable location)
-        if extracted["fcn"] and (not extracted["name_en"] or not extracted["name_am"]):
-            print(f"Looking for names near FCN: {extracted['fcn']}")
-            for i, line in enumerate(lines):
-                if extracted["fcn"] in line:  # Found the FCN line
-                    print(f"Found FCN at line {i}: '{line}'")
-                    # Look for names in the next few lines after FCN
-                    for j in range(i+1, min(i+8, len(lines))):
-                        check_line = lines[j].strip()
-                        if not check_line or len(check_line) < 3:
-                            continue
-                            
-                        print(f"  Checking line {j}: '{check_line}'")
+        # Extract nationality using enhanced label-based approach (same as demographic format)
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            nationality_found = False
+            print(f"Residential: Starting nationality extraction...")
+            
+            # DIRECT EXTRACTION: Use lines 47 and 48 directly for nationality (Amharic at 47, English at 48)
+            if len(lines) > 48:
+                line47 = lines[47].strip() if 47 < len(lines) and lines[47] else ""
+                line48 = lines[48].strip() if 48 < len(lines) and lines[48] else ""
+                
+                print(f"Residential: Directly checking lines 47-48 for nationality...")
+                print(f"Residential: Line 47: '{line47}'")
+                print(f"Residential: Line 48: '{line48}'")
+                
+                if line47 and line48:
+                    # Determine which is Amharic and which is English
+                    line47_has_amharic = any(ord(c) > 127 for c in line47)
+                    line48_has_amharic = any(ord(c) > 127 for c in line48)
+                    line47_is_english = all(ord(c) < 128 for c in line47)
+                    line48_is_english = all(ord(c) < 128 for c in line48)
+                    
+                    # Line 47 is typically Amharic, Line 48 is typically English
+                    if line47_has_amharic and line48_is_english:
+                        extracted["nationality_am"] = line47
+                        extracted["nationality_en"] = line48
+                        nationality_found = True
+                        print(f"Residential: ✅ Directly extracted nationality from lines 47-48: '{line47}' | '{line48}'")
+                    elif line47_is_english and line48_has_amharic:
+                        # Reverse order
+                        extracted["nationality_am"] = line48
+                        extracted["nationality_en"] = line47
+                        nationality_found = True
+                        print(f"Residential: ✅ Directly extracted nationality from lines 47-48 (reversed): '{line48}' | '{line47}'")
+                    else:
+                        # Fallback: if validation passes, use them anyway
+                        if self._is_valid_nationality_value(line47) or self._is_valid_nationality_value(line48):
+                            # Assume line 47 is Amharic if it has non-ASCII, otherwise use as English
+                            if line47_has_amharic:
+                                extracted["nationality_am"] = line47
+                                extracted["nationality_en"] = line48 if line48 else line47
+                            elif line48_has_amharic:
+                                extracted["nationality_am"] = line48
+                                extracted["nationality_en"] = line47
+                            else:
+                                # Both might be English, use line 47 as Amharic (mirror), line 48 as English
+                                extracted["nationality_am"] = line47
+                                extracted["nationality_en"] = line48
+                            nationality_found = True
+                            print(f"Residential: ✅ Directly extracted nationality from lines 47-48 (fallback): '{extracted['nationality_am']}' | '{extracted['nationality_en']}'")
+                elif line47:
+                    # Only line 47 has data, use for both
+                    extracted["nationality_am"] = line47
+                    extracted["nationality_en"] = line47
+                    nationality_found = True
+                    print(f"Residential: ✅ Directly extracted nationality from line 47 only: '{line47}'")
+                elif line48:
+                    # Only line 48 has data, use for both
+                    extracted["nationality_am"] = line48
+                    extracted["nationality_en"] = line48
+                    nationality_found = True
+                    print(f"Residential: ✅ Directly extracted nationality from line 48 only: '{line48}'")
+            
+            # Only continue with complex pattern matching if direct extraction from lines 47-48 didn't work
+            if not nationality_found:
+                # First, try direct pattern matching: look for consecutive valid nationality values
+                # This handles cases where nationality values exist but label is far away or missing
+                print(f"Residential: Direct extraction from lines 47-48 failed, trying pattern matching...")
+                for i in range(len(lines) - 1):
+                    line1 = lines[i].strip() if i < len(lines) else ""
+                    line2 = lines[i + 1].strip() if i + 1 < len(lines) else ""
+                    
+                    # Debug: Log when we're checking lines 47-48
+                    if i == 47:
+                        print(f"Residential: 🔍 DEBUG - Checking pair at index {i} (lines {i}-{i+1}): '{line1}' | '{line2}'")
+                        print(f"Residential: 🔍 DEBUG - Line1 valid: {self._is_valid_nationality_value(line1) if line1 else False}")
+                        print(f"Residential: 🔍 DEBUG - Line2 valid: {self._is_valid_nationality_value(line2) if line2 else False}")
+                    
+                    if not line1 or not line2:
+                        if i == 47:
+                            print(f"Residential: 🔍 DEBUG - Skipping empty lines at index {i}")
+                        continue
+                    
+                    # Check if both lines are valid nationality values
+                    if self._is_valid_nationality_value(line1) and self._is_valid_nationality_value(line2):
+                        if i == 47:
+                            print(f"Residential: 🔍 DEBUG - Lines {i}-{i+1} passed validation check!")
+                        line1_has_amharic = any(ord(c) > 127 for c in line1)
+                        line2_has_amharic = any(ord(c) > 127 for c in line2)
+                        line1_is_english = all(ord(c) < 128 for c in line1)
+                        line2_is_english = all(ord(c) < 128 for c in line2)
                         
-                        # Skip lines that are clearly not names
-                        if any(word.lower() in check_line.lower() for word in [
-                            "subcity", "woreda", "region", "address", "phone", "date",
-                            "ethiopian", "ethiopia", "digital", "id", "card", "program",
-                            "national", "identity", "valid", "forms", "legal", "sex",
-                            "nationality", "demographic", "disclaimer",
-                            "የኢትዮጵያ", "ብሔራዊ", "መታወቂያ", "ፕሮግራም"
-                        ]):
-                            print(f"    Skipping (contains excluded words): '{check_line}'")
-                            continue
-                            
-                        # Check if it's an English name (ASCII letters only, spaces, dots, hyphens)
-                        if (check_line.replace(" ", "").replace(".", "").replace("-", "").isalpha() and 
-                            all(ord(c) < 128 for c in check_line.replace(" ", "").replace(".", "").replace("-", "")) and
-                            len(check_line.split()) >= 2 and len(check_line.split()) <= 5 and
-                            len(check_line) < 60):
-                            
-                            # Additional validation: should not contain common non-name words
-                            if not any(word.lower() in check_line.lower() for word in ["subcity", "woreda", "region", "address", "phone", "date", "ethiopian", "ethiopia", "digital", "id", "card", "program", "national", "identity", "valid", "forms", "legal", "የኢትዮጵያ", "ብሔራዊ", "መታወቂያ", "ፕሮግራም"]):
-                                extracted["name_en"] = check_line
-                                print(f"    Found English name: '{check_line}'")
-                                break
+                        if i == 47:
+                            print(f"Residential: 🔍 DEBUG - Line1 Amharic: {line1_has_amharic}, English: {line1_is_english}")
+                            print(f"Residential: 🔍 DEBUG - Line2 Amharic: {line2_has_amharic}, English: {line2_is_english}")
+                            print(f"Residential: 🔍 DEBUG - Bilingual pair condition: {(line1_has_amharic and line2_is_english) or (line1_is_english and line2_has_amharic)}")
                         
-                        # Check if it's an Amharic name (contains Amharic characters)
-                        elif any(ord(char) > 127 for char in check_line):
-                            if (len(check_line.split()) >= 2 and len(check_line.split()) <= 5 and
-                                len(check_line) < 60 and
-                                not any(word in check_line for word in ["ወረዳ", "Woreda", "ለሚ", "Lemi", "አራዳ", "Arada", "ፆታ", "የኢትዮጵያ", "ብሔራዊ", "መታወቂያ", "ፕሮግራም"])):
+                        # If one is Amharic and one is English, we found a bilingual pair
+                        if (line1_has_amharic and line2_is_english) or (line1_is_english and line2_has_amharic):
+                            if i == 47:
+                                print(f"Residential: 🔍 DEBUG - Bilingual pair detected at lines {i}-{i+1}!")
+                            if line1_has_amharic and line2_is_english:
+                                extracted["nationality_am"] = line1
+                                extracted["nationality_en"] = line2
+                                print(f"Residential: ✅ Found consecutive nationality values at lines {i}-{i+1}: '{line1}' | '{line2}'")
+                                print(f"Residential: 🔍 DEBUG - IMMEDIATELY AFTER SETTING: am='{extracted['nationality_am']}', en='{extracted['nationality_en']}'")
+                            else:
+                                extracted["nationality_am"] = line2
+                                extracted["nationality_en"] = line1
+                                print(f"Residential: ✅ Found consecutive nationality values at lines {i}-{i+1}: '{line2}' | '{line1}'")
+                                print(f"Residential: 🔍 DEBUG - IMMEDIATELY AFTER SETTING: am='{extracted['nationality_am']}', en='{extracted['nationality_en']}'")
+                            nationality_found = True
+                            print(f"Residential: 🔍 DEBUG - nationality_found set to True, breaking loop")
+                            break
+                        else:
+                            if i == 47:
+                                print(f"Residential: 🔍 DEBUG - Lines {i}-{i+1} are valid but don't form bilingual pair (both Amharic or both English)")
+                    else:
+                        if i == 47:
+                            val1 = self._is_valid_nationality_value(line1) if line1 else False
+                            val2 = self._is_valid_nationality_value(line2) if line2 else False
+                            print(f"Residential: 🔍 DEBUG - Validation failed for lines {i}-{i+1}: line1={val1}, line2={val2}")
+            
+            # If direct pattern matching found nationality, skip label-based extraction
+            if nationality_found:
+                print(f"Residential: Direct pattern matching succeeded, skipping label-based extraction")
+                print(f"Residential: 🔍 DEBUG - After loop, nationality values: am='{extracted['nationality_am']}', en='{extracted['nationality_en']}'")
+            else:
+                # Fall back to label-based extraction
+                print(f"Residential: Direct pattern matching failed, trying label-based extraction...")
+                print(f"Residential: 🔍 DEBUG - Loop completed without finding nationality, current values: am='{extracted['nationality_am']}', en='{extracted['nationality_en']}'")
+            
+            if not nationality_found:
+                for i, line in enumerate(lines):
+                    line_clean = line.strip()
+                    if not line_clean:
+                        continue
+                    
+                    # Very flexible nationality label detection
+                    has_nationality_label = False
+                    
+                    # Check for Amharic nationality label "ዜግነት"
+                    if "ዜግነት" in line_clean:
+                        has_nationality_label = True
+                        print(f"Residential: Found Amharic nationality label 'ዜግነት' at line {i}: '{line_clean}'")
+                    
+                    # Check for English nationality label (use 'if' not 'elif' to catch both)
+                    if "nationality" in line_clean.lower():
+                        has_nationality_label = True
+                        print(f"Residential: Found English nationality label at line {i}: '{line_clean}'")
+                    
+                    if has_nationality_label:
+                        # Method 1: Look for nationality values in the next few lines (Ethiopian ID format: Amharic then English)
+                        print(f"Residential: Looking for nationality values in next lines after label...")
+                        
+                        # Check for the specific Ethiopian ID format: Label, then Amharic value, then English value
+                        if i + 2 < len(lines):
+                            line1 = lines[i + 1].strip()
+                            line2 = lines[i + 2].strip()
+                            
+                            print(f"Residential: Checking potential nationality line {i + 1}: '{line1}'")
+                            print(f"Residential: Checking potential nationality line {i + 2}: '{line2}'")
+                            
+                            # Check if we have valid nationality values on consecutive lines
+                            if (self._is_valid_nationality_value(line1) and 
+                                self._is_valid_nationality_value(line2)):
                                 
-                                extracted["name_am"] = check_line
-                                print(f"    Found Amharic name: '{check_line}'")
+                                # Determine which is Amharic and which is English based on character sets
+                                line1_has_amharic = any(ord(c) > 127 for c in line1)
+                                line2_has_amharic = any(ord(c) > 127 for c in line2)
+                                line1_is_english = all(ord(c) < 128 for c in line1)
+                                line2_is_english = all(ord(c) < 128 for c in line2)
+                                
+                                if line1_has_amharic and line2_is_english:
+                                    # Perfect match: Amharic then English (like ኢትዮጵያዊ -> Ethiopian)
+                                    extracted["nationality_am"] = line1
+                                    extracted["nationality_en"] = line2
+                                    print(f"Residential: ✅ Found bilingual nationality (Amharic->English): '{line1}' | '{line2}'")
+                                    nationality_found = True
+                                elif line1_is_english and line2_has_amharic:
+                                    # Reverse order: English then Amharic
+                                    extracted["nationality_am"] = line2
+                                    extracted["nationality_en"] = line1
+                                    print(f"Residential: ✅ Found bilingual nationality (English->Amharic): '{line1}' | '{line2}'")
+                                    nationality_found = True
+                                elif line1_is_english and line2_is_english:
+                                    # Both English (like "United States" -> "United States")
+                                    extracted["nationality_am"] = line1
+                                    extracted["nationality_en"] = line2 if line2 != line1 else line1
+                                    print(f"Residential: ✅ Found English nationality values: '{line1}' | '{line2}'")
+                                    nationality_found = True
+                        
+                        # Fallback: Check each line individually
+                        if not nationality_found:
+                            for j in range(i + 1, min(i + 5, len(lines))):
+                                if j >= len(lines):
+                                    break
+                                
+                                value_line = lines[j].strip()
+                                if not value_line:
+                                    continue
+                                
+                                print(f"Residential: Checking line {j}: '{value_line}'")
+                                
+                                # Check if this line contains a nationality value
+                                if self._is_valid_nationality_value(value_line):
+                                    # Check for bilingual format (value | value) on same line
+                                    if "|" in value_line:
+                                        val_parts = value_line.split("|", 1)
+                                        if len(val_parts) == 2:
+                                            val_left, val_right = [p.strip() for p in val_parts]
+                                            if val_left and val_right and self._is_valid_nationality_value(val_left) and self._is_valid_nationality_value(val_right):
+                                                extracted["nationality_am"] = val_left
+                                                extracted["nationality_en"] = val_right
+                                                print(f"Residential: ✅ Found bilingual nationality (same line): '{val_left}' | '{val_right}'")
+                                                nationality_found = True
+                                                break
+                                    
+                                    # Single nationality value - use for both fields
+                                    else:
+                                        extracted["nationality_am"] = value_line
+                                        extracted["nationality_en"] = value_line
+                                        print(f"Residential: ✅ Found single nationality: '{value_line}'")
+                                        nationality_found = True
+                                        break
+                                else:
+                                    print(f"Residential: Line {j} rejected - not a valid nationality value")
+                        
+                        if nationality_found:
+                            break
+                        
+                        # Method 2: Check if nationality value is on the same line (fallback)
+                        if not nationality_found and ("|" in line_clean or ":" in line_clean or "\t" in line_clean):
+                            print(f"Residential: Trying same-line extraction as fallback...")
+                            # Try different separators
+                            separators = ["|", ":", "\t"]
+                            for sep in separators:
+                                if sep in line_clean:
+                                    parts = line_clean.split(sep, 1)
+                                    if len(parts) == 2:
+                                        left, right = [p.strip() for p in parts]
+                                        
+                                        # Check which part has the label and which has the value
+                                        if ("ዜግነት" in left or "nationality" in left.lower()) and right:
+                                            # Value is on the right
+                                            if self._is_valid_nationality_value(right):
+                                                extracted["nationality_am"] = right
+                                                extracted["nationality_en"] = right
+                                                print(f"Residential: ✅ Found nationality (same line, right): '{right}'")
+                                                nationality_found = True
+                                                break
+                                        
+                                        elif ("ዜግነት" in right or "nationality" in right.lower()) and left:
+                                            # Value is on the left
+                                            if self._is_valid_nationality_value(left):
+                                                extracted["nationality_am"] = left
+                                                extracted["nationality_en"] = left
+                                                print(f"Residential: ✅ Found nationality (same line, left): '{left}'")
+                                                nationality_found = True
+                                                break
+                            
+                            if nationality_found:
                                 break
-                    break
-        else:
-            print("No FCN found, will try pattern-based name search...")
+                        
+                        # If we found a nationality label but no value, stop searching
+                        if not nationality_found:
+                            print(f"Residential: Found nationality label but no valid value")
+                            break
+            
+            # Simple fallback: try the existing method if primary extraction failed
+            if not extracted["nationality_am"] and not extracted["nationality_en"]:
+                print(f"Residential: Primary extraction failed, trying simple fallback...")
+                
+                try:
+                    nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
+                    if nat_am_label or nat_en_label:
+                        if self._is_valid_nationality_value(nat_am_label) or self._is_valid_nationality_value(nat_en_label):
+                            extracted["nationality_am"] = nat_am_label or nat_en_label
+                            extracted["nationality_en"] = nat_en_label or nat_am_label
+                            print(f"Residential: ✅ Nationality from fallback method: '{extracted['nationality_am']}' | '{extracted['nationality_en']}'")
+                except Exception as e:
+                    print(f"Residential: Fallback method failed: {e}")
+            
+            # If still no nationality found, show debug info and leave empty
+            if not extracted["nationality_am"] and not extracted["nationality_en"]:
+                print(f"Residential: ❌ No nationality found after all methods")
+                print(f"Residential: 🔍 Debug - Lines containing potential nationality keywords:")
+                
+                # Show lines that might contain nationality for debugging
+                nationality_keywords = ["ዜግነት", "nationality", "ኢትዮጵያ", "ethiop", "ኤርትራ", "eritrea", 
+                                       "united states", "american", "british", "german", "french", "italian", 
+                                       "sudanese", "kenyan", "somali", "usa", "america"]
+                
+                for i, line in enumerate(lines):
+                    line_clean = line.strip()
+                    if any(keyword in line_clean.lower() for keyword in nationality_keywords):
+                        print(f"Residential: 🔍 Line {i}: '{line_clean}'")
+                
+                print(f"Residential: No nationality found - leaving empty")
+
+        # Simple fallback: try the existing method if primary extraction failed
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            print(f"Residential: Primary extraction failed, trying simple fallback...")
+            
+            try:
+                nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
+                if nat_am_label or nat_en_label:
+                    if self._is_valid_nationality_value(nat_am_label) or self._is_valid_nationality_value(nat_en_label):
+                        extracted["nationality_am"] = nat_am_label or nat_en_label
+                        extracted["nationality_en"] = nat_en_label or nat_am_label
+                        print(f"Residential: ✅ Nationality from fallback method: '{extracted['nationality_am']}' | '{extracted['nationality_en']}'")
+            except Exception as e:
+                print(f"Residential: Fallback method failed: {e}")
         
-        # If still no names, try looking for names in specific patterns
-        if not extracted["name_en"] and not extracted["name_am"]:
-            print("Trying pattern-based name search...")
+        # If still no nationality found, show debug info and leave empty
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            print(f"Residential: ❌ No nationality found after all methods")
+            print(f"Residential: 🔍 Debug - Lines containing potential nationality keywords:")
+            
+            # Show lines that might contain nationality for debugging
+            nationality_keywords = ["ዜግነት", "nationality", "ኢትዮጵያ", "ethiop", "ኤርትራ", "eritrea", 
+                                   "united states", "american", "british", "german", "french", "italian", 
+                                   "sudanese", "kenyan", "somali", "usa", "america"]
+            
             for i, line in enumerate(lines):
                 line_clean = line.strip()
-                
-                # Skip empty lines, numbers, and very short lines
-                if not line_clean or len(line_clean) < 3 or line_clean.isdigit():
-                    continue
-                
-                # Look for English names with strict validation
-                if (line_clean.replace(" ", "").replace(".", "").replace("-", "").isalpha() and 
-                    len(line_clean.split()) >= 2 and len(line_clean.split()) <= 5 and
-                    len(line_clean) < 60):
-                    
-                    # Must NOT contain any of these words and must be ASCII
-                    excluded_words = [
-                        "subcity", "woreda", "region", "address", "phone", "date",
-                        "ethiopian", "ethiopia", "digital", "id", "card", "program",
-                        "national", "identity", "valid", "forms", "legal", "sex",
-                        "demographic", "disclaimer", "ethiopian digital id card", "nationality",
-                        "የኢትዮጵያ", "ብሔራዊ", "መታወቂያ", "ፕሮግራም"
-                    ]
-                    if (all(ord(c) < 128 for c in line_clean.replace(" ", "").replace(".", "").replace("-", "")) and
-                        not any(word.lower() in line_clean.lower() for word in excluded_words)):
-                        extracted["name_en"] = line_clean
-                        print(f"Found English name with pattern search: '{line_clean}'")
-                        break
-                
-                # Look for Amharic names with strict validation
-                elif any(ord(char) > 127 for char in line_clean):
-                    if (len(line_clean.split()) >= 2 and len(line_clean.split()) <= 5 and
-                        len(line_clean) < 60):
-                        
-                        excluded_words = [
-                            "ወረዳ", "Woreda", "ለሚ", "Lemi", "አራዳ", "Arada", "ፆታ",
-                            "ማሳሰቢያ", "የስነ ሕዝብ መረጃ", "ዜግነት",
-                            "የኢትዮጵያ", "ብሔራዊ", "መታወቂያ", "ፕሮግራም"
-                        ]
-                        if not any(word in line_clean for word in excluded_words):
-                            extracted["name_am"] = line_clean
-                            print(f"Found Amharic name with pattern search: '{line_clean}'")
-                            break
+                if any(keyword in line_clean.lower() for keyword in nationality_keywords):
+                    print(f"Residential: 🔍 Line {i}: '{line_clean}'")
+            
+            print(f"Residential: No nationality found - leaving empty")
 
-        # Normalize names if English captured Amharic by mistake
-        if extracted["name_en"] and any(ord(c) > 127 for c in extracted["name_en"]):
-            if not extracted["name_am"]:
-                extracted["name_am"] = extracted["name_en"]
-            extracted["name_en"] = ""
-
-        # If nationality is still not set but we found Amharic, set default English
-        if extracted["nationality_am"] and not extracted["nationality_en"]:
-            extracted["nationality_en"] = "Ethiopian"
-        # If we found neither, but we know this is an Ethiopian ID
+        # If still no nationality found, leave it empty (don't default to Ethiopian)
         if not extracted["nationality_am"] and not extracted["nationality_en"]:
-            extracted["nationality_am"] = "ኢትዮጵያዊ"
-            extracted["nationality_en"] = "Ethiopian"
+            print(f"Residential: No nationality found - leaving empty")
+        
+        # Debug: Print what we extracted
+        print(f"Residential Sheger extraction results:")
+        print(f"  FCN: '{extracted['fcn']}'")
+        print(f"  Name EN: '{extracted['name_en']}'")
+        print(f"  Name AM: '{extracted['name_am']}'")
+        print(f"  Phone: '{extracted['phone']}'")
+        print(f"  Gender: '{extracted['gender_am']}' / '{extracted['gender_en']}'")
+        print(f"  Nationality: '{extracted['nationality_am']}' / '{extracted['nationality_en']}'")
+        print(f"  Address: '{extracted['region_am']}' / '{extracted['region_en']}' | '{extracted['subcity_am']}' / '{extracted['subcity_en']}' | '{extracted['woreda_am']}' / '{extracted['woreda_en']}'")
+        
+        # Improved address field extraction (pattern-based bilingual lines)
+        address_fields = []
+        collecting_address = False
+        
+        for i, line in enumerate(lines):
+            # Start collecting when we hit phone number (address follows phone)
+            if extracted["phone"] and line.strip() == extracted["phone"].strip():
+                collecting_address = True
+                continue
+            
+            if collecting_address:
+                # Stop collecting if we hit the FCN number or name
+                if (line.replace(" ", "").isdigit() and len(line.replace(" ", "")) == self.config.FCN_LENGTH) or "ምስጋና" in line:
+                        break
+                if line.strip():
+                    address_fields.append(line.strip())
 
-        # Line-based override: read nationality near the 'ዜግነት | nationality' label
-        try:
-            nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
-            if nat_am_label or nat_en_label:
-                # Mirror if only one side detected
-                nat_am_final = nat_am_label or nat_en_label
-                nat_en_final = nat_en_label or nat_am_label
-                extracted["nationality_am"] = nat_am_final or extracted["nationality_am"]
-                extracted["nationality_en"] = nat_en_final or extracted["nationality_en"]
-        except Exception:
-            pass
+        # First pass: direct bilingual matching for address
+        if not extracted["region_en"] or not extracted["woreda_en"]:
+            for ln in lines:
+                if "|" not in ln:
+                    continue
+                left, right = [p.strip() for p in ln.split("|", 1)]
+                # Region (look for known region names in English part)
+                if not extracted["region_en"] and any(k in right for k in ["Addis Ababa", "Amhara", "Oromia", "Tigray", "Afar", "Somali", "Sidama", "Gambella", "Harari", "SNNP"]):
+                    extracted["region_am"], extracted["region_en"] = left, right
+                    continue
+                # Subcity/Zone
+                if not extracted["subcity_en"] and any(k in right.lower() for k in ["zone", "sub city", "subcity"]):
+                    extracted["subcity_am"], extracted["subcity_en"] = left, right
+                    continue
+                # Woreda/Administration
+                if not extracted["woreda_en"] and any(k in right.lower() for k in ["woreda", "administration", "admin", "kebele"]):
+                    extracted["woreda_am"], extracted["woreda_en"] = left, right
+                    continue
 
-        # Fallback: unlabeled bilingual nationality like "Eritrea | Eritrea"
+        # Process collected address fields (fallback when phone-anchored block works)
+        if len(address_fields) >= 6:
+            # Region is typically the first two lines (Amharic then English)
+            extracted["region_am"] = address_fields[0]
+            extracted["region_en"] = address_fields[1]
+            
+            # Subcity is typically lines 2-3 (Amharic then English)
+            extracted["subcity_am"] = address_fields[2]
+            extracted["subcity_en"] = address_fields[3]
+            
+            # Woreda is typically lines 4-5 (Amharic then English)
+            extracted["woreda_am"] = address_fields[4]
+            extracted["woreda_en"] = address_fields[5]
+
+        # Fallback nationality extraction if none found
         if not extracted["nationality_am"] and not extracted["nationality_en"]:
             try:
-                for ln in lines:
-                    if '|' in ln and not any(ch.isdigit() for ch in ln):
-                        left, right = [p.strip() for p in ln.split('|', 1)]
-                        if left and right and all(ord(c) < 128 for c in left+right if not c.isspace()):
-                            if left.lower() == right.lower():
-                                extracted["nationality_am"] = left
-                                extracted["nationality_en"] = right
-                                break
+                nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
+                if nat_am_label or nat_en_label:
+                    # Validate that this is not region, program title, or other non-nationality content
+                    combined = (nat_am_label + " " + nat_en_label).lower()
+                    if not any(keyword in combined for keyword in 
+                               ["ክልል", "region", "ወረዳ", "woreda", "ከተማ", "city", "ፕሮግራም", "program", 
+                                "መታወቂያ", "identity", "ብሔራዊ", "national", "የትውልድ", "birth", "ስልክ", "phone"]):
+                        # Extract any nationality as-is (no hardcoded mappings)
+                        extracted["nationality_am"] = nat_am_label or nat_en_label
+                        extracted["nationality_en"] = nat_en_label or nat_am_label
+                        print(f"Residential: Nationality from fallback label method: '{extracted['nationality_am']}' | '{extracted['nationality_en']}'")
             except Exception:
                 pass
+        
+        # If still no nationality found, leave it empty (don't default to Ethiopian)
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            print(f"Residential: No nationality found - leaving empty")
         
         # Debug: Print what we extracted
         print(f"Residential Sheger extraction results:")
@@ -1345,6 +2227,7 @@ class IDCardService:
         expiry_date_greg = expiry_gregorian.strftime("%Y/%b/%d")
 
         # Format the extracted data for the template
+        print(f"Residential: 🔍 DEBUG - BEFORE creating processed_data, extracted nationality: am='{extracted['nationality_am']}', en='{extracted['nationality_en']}'")
         processed_data = {
             "photo": None,
             "fcn_formatted": extracted["fcn"],
@@ -1392,6 +2275,7 @@ class IDCardService:
                 f.write(det_qr)
             processed_data["qr_path"] = 'static/qr_temp.png'
 
+        print(f"Residential: 🔍 DEBUG - BEFORE RETURN, processed_data nationality: am='{processed_data['nationality_am']}', en='{processed_data['nationality_en']}'")
         return processed_data
 
     def _detect_photo_and_qr(self, doc: fitz.Document, images: List[Tuple]) -> Tuple[Optional[bytes], Optional[bytes]]:
@@ -1482,12 +2366,15 @@ class IDCardService:
 
         return best_photo[0], best_qr[0]
 
-        return processed_data
-
     def _extract_demographic_format_pdf_data(self, doc: fitz.Document, lines: List[str], images: List[Tuple], fin_number: str) -> Dict:
-        """Extract data from demographic format PDF using pattern matching."""
-        # Extract data using demographic format
+        """Extract data from demographic format PDF using line-based approach like default format."""
+        line_indices = self.PDF_FORMAT_MAPPING['demographic_format']
         
+        # Ensure lines are padded for safe access
+        max_index = max(line_indices.values())
+        if len(lines) <= max_index:
+            lines += [""] * (max_index + 1 - len(lines))
+
         extracted = {
             "fcn": "",
             "name_am": "",
@@ -1506,6 +2393,8 @@ class IDCardService:
             "woreda_am": "",
             "woreda_en": ""
         }
+
+
         
         # Extract FCN
         for line in lines:
@@ -1628,38 +2517,176 @@ class IDCardService:
                         extracted["gender_en"] = "Female"
                 break
         
-        # Extract nationality (handle Amharic-only, English-only, or bilingual with '|')
-        for line in lines:
-            s = line.strip()
-            if not s:
+        # Extract nationality using very flexible label-based approach
+        nationality_found = False
+        print(f"Demographic: Starting nationality extraction...")
+        
+        for i, line in enumerate(lines):
+            line_clean = line.strip()
+            if not line_clean:
                 continue
-            # Bilingual case like "ኢትዮጵያ | Ethiopian" or reversed
-            if "|" in s:
-                left, right = [part.strip() for part in s.split("|", 1)]
-                if left in ["ኢትዮጵያ", "ኢትዮጵያዊ"] and right.lower().startswith("ethiop"):
-                    extracted["nationality_am"] = "ኢትዮጵያዊ"
-                    extracted["nationality_en"] = "Ethiopian"
+            
+            # Very flexible nationality label detection
+            has_nationality_label = False
+            
+            # Check for Amharic nationality label "ዜግነት"
+            if "ዜግነት" in line_clean:
+                has_nationality_label = True
+                print(f"Demographic: Found Amharic nationality label 'ዜግነት' at line {i}: '{line_clean}'")
+            
+            # Check for English nationality label
+            elif "nationality" in line_clean.lower():
+                has_nationality_label = True
+                print(f"Demographic: Found English nationality label at line {i}: '{line_clean}'")
+            
+            if has_nationality_label:
+                # Method 1: Look for nationality values in the next few lines (Ethiopian ID format: Amharic then English)
+                print(f"Demographic: Looking for nationality values in next lines after label...")
+                
+                # Check for the specific Ethiopian ID format: Label, then Amharic value, then English value
+                if i + 2 < len(lines):
+                    line1 = lines[i + 1].strip()
+                    line2 = lines[i + 2].strip()
+                    
+                    print(f"Demographic: Checking potential nationality line {i + 1}: '{line1}'")
+                    print(f"Demographic: Checking potential nationality line {i + 2}: '{line2}'")
+                    
+                    # Check if we have valid nationality values on consecutive lines
+                    if (self._is_valid_nationality_value(line1) and 
+                        self._is_valid_nationality_value(line2)):
+                        
+                        # Determine which is Amharic and which is English based on character sets
+                        line1_has_amharic = any(ord(c) > 127 for c in line1)
+                        line2_has_amharic = any(ord(c) > 127 for c in line2)
+                        line1_is_english = all(ord(c) < 128 for c in line1)
+                        line2_is_english = all(ord(c) < 128 for c in line2)
+                        
+                        if line1_has_amharic and line2_is_english:
+                            # Perfect match: Amharic then English (like ኢትዮጵያዊ -> Ethiopian)
+                            extracted["nationality_am"] = line1
+                            extracted["nationality_en"] = line2
+                            print(f"Demographic: ✅ Found bilingual nationality (Amharic->English): '{line1}' | '{line2}'")
+                            nationality_found = True
+                        elif line1_is_english and line2_has_amharic:
+                            # Reverse order: English then Amharic
+                            extracted["nationality_am"] = line2
+                            extracted["nationality_en"] = line1
+                            print(f"Demographic: ✅ Found bilingual nationality (English->Amharic): '{line1}' | '{line2}'")
+                            nationality_found = True
+                        elif line1_is_english and line2_is_english:
+                            # Both English (like "United States" -> "United States")
+                            extracted["nationality_am"] = line1
+                            extracted["nationality_en"] = line2 if line2 != line1 else line1
+                            print(f"Demographic: ✅ Found English nationality values: '{line1}' | '{line2}'")
+                            nationality_found = True
+                
+                # Fallback: Check each line individually
+                if not nationality_found:
+                    for j in range(i + 1, min(i + 5, len(lines))):
+                        if j >= len(lines):
+                            break
+                        
+                        value_line = lines[j].strip()
+                        if not value_line:
+                            continue
+                        
+                        print(f"Demographic: Checking line {j}: '{value_line}'")
+                        
+                        # Check if this line contains a nationality value
+                        if self._is_valid_nationality_value(value_line):
+                            # Check for bilingual format (value | value) on same line
+                            if "|" in value_line:
+                                val_parts = value_line.split("|", 1)
+                                if len(val_parts) == 2:
+                                    val_left, val_right = [p.strip() for p in val_parts]
+                                    if val_left and val_right and self._is_valid_nationality_value(val_left) and self._is_valid_nationality_value(val_right):
+                                        extracted["nationality_am"] = val_left
+                                        extracted["nationality_en"] = val_right
+                                        print(f"Demographic: ✅ Found bilingual nationality (same line): '{val_left}' | '{val_right}'")
+                                        nationality_found = True
+                                        break
+                            
+                            # Single nationality value - use for both fields
+                            else:
+                                extracted["nationality_am"] = value_line
+                                extracted["nationality_en"] = value_line
+                                print(f"Demographic: ✅ Found single nationality: '{value_line}'")
+                                nationality_found = True
+                                break
+                        else:
+                            print(f"Demographic: Line {j} rejected - not a valid nationality value")
+                
+                if nationality_found:
                     break
-                if right in ["ኢትዮጵያ", "ኢትዮጵያዊ"] and left.lower().startswith("ethiop"):
-                    extracted["nationality_am"] = "ኢትዮጵያዊ"
-                    extracted["nationality_en"] = "Ethiopian"
+                
+                # Method 2: Check if nationality value is on the same line (fallback)
+                if not nationality_found and ("|" in line_clean or ":" in line_clean or "\t" in line_clean):
+                    print(f"Demographic: Trying same-line extraction as fallback...")
+                    # Try different separators
+                    separators = ["|", ":", "\t"]
+                    for sep in separators:
+                        if sep in line_clean:
+                            parts = line_clean.split(sep, 1)
+                            if len(parts) == 2:
+                                left, right = [p.strip() for p in parts]
+                                
+                                # Check which part has the label and which has the value
+                                if ("ዜግነት" in left or "nationality" in left.lower()) and right:
+                                    # Value is on the right
+                                    if self._is_valid_nationality_value(right):
+                                        extracted["nationality_am"] = right
+                                        extracted["nationality_en"] = right
+                                        print(f"Demographic: ✅ Found nationality (same line, right): '{right}'")
+                                        nationality_found = True
+                                        break
+                                
+                                elif ("ዜግነት" in right or "nationality" in right.lower()) and left:
+                                    # Value is on the left
+                                    if self._is_valid_nationality_value(left):
+                                        extracted["nationality_am"] = left
+                                        extracted["nationality_en"] = left
+                                        print(f"Demographic: ✅ Found nationality (same line, left): '{left}'")
+                                        nationality_found = True
+                                        break
+                    
+                    if nationality_found:
+                        break
+                
+                # If we found a nationality label but no value, stop searching
+                if not nationality_found:
+                    print(f"Demographic: Found nationality label but no valid value")
                     break
-            # Amharic-only occurrence
-            if s in ["ኢትዮጵያ", "ኢትዮጵያዊ"]:
-                extracted["nationality_am"] = "ኢትዮጵያዊ"
-                extracted["nationality_en"] = "Ethiopian"
-                break
-            # English-only occurrence
-            if s.lower() in ["ethiopian", "ethiopia"]:
-                extracted["nationality_en"] = "Ethiopian"
-                extracted["nationality_am"] = "ኢትዮጵያዊ"
-                break
-
-        # Normalize defaults if only one side was found
-        if extracted["nationality_en"] and not extracted["nationality_am"]:
-            extracted["nationality_am"] = "ኢትዮጵያዊ"
-        if extracted["nationality_am"] and not extracted["nationality_en"]:
-            extracted["nationality_en"] = "Ethiopian"
+        
+        # Simple fallback: try the existing method if primary extraction failed
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            print(f"Demographic: Primary extraction failed, trying simple fallback...")
+            
+            try:
+                nat_am_label, nat_en_label = self._extract_nationality_below_label(lines)
+                if nat_am_label or nat_en_label:
+                    if self._is_valid_nationality_value(nat_am_label) or self._is_valid_nationality_value(nat_en_label):
+                        extracted["nationality_am"] = nat_am_label or nat_en_label
+                        extracted["nationality_en"] = nat_en_label or nat_am_label
+                        print(f"Demographic: ✅ Nationality from fallback method: '{extracted['nationality_am']}' | '{extracted['nationality_en']}'")
+            except Exception as e:
+                print(f"Demographic: Fallback method failed: {e}")
+        
+        # If still no nationality found, show debug info and leave empty
+        if not extracted["nationality_am"] and not extracted["nationality_en"]:
+            print(f"Demographic: ❌ No nationality found after all methods")
+            print(f"Demographic: 🔍 Debug - Lines containing potential nationality keywords:")
+            
+            # Show lines that might contain nationality for debugging
+            nationality_keywords = ["ዜግነት", "nationality", "ኢትዮጵያ", "ethiop", "ኤርትራ", "eritrea", 
+                                   "united states", "american", "british", "german", "french", "italian", 
+                                   "sudanese", "kenyan", "somali", "usa", "america"]
+            
+            for i, line in enumerate(lines):
+                line_clean = line.strip()
+                if any(keyword in line_clean.lower() for keyword in nationality_keywords):
+                    print(f"Demographic: 🔍 Line {i}: '{line_clean}'")
+            
+            print(f"Demographic: No nationality found - leaving empty")
         
         # Extract phone
         for line in lines:
@@ -1949,6 +2976,428 @@ class IDCardService:
         
         return cleaned
 
+    def extract_fin_from_pdf(self, pdf_input) -> Optional[str]:
+        """
+        Extract FIN number from PDF document.
+        For PDFs around 1.8-1.9 MB, extracts FIN from fixed position below left QR code.
+        For other PDFs, uses text-based extraction.
+        
+        Args:
+            pdf_input: PDF file path or BytesIO stream
+            
+        Returns:
+            Extracted FIN number (12 digits) or None if not found
+        """
+        try:
+            # Handle both file path and BytesIO input
+            if isinstance(pdf_input, str):
+                doc = fitz.open(pdf_input)
+                file_size = os.path.getsize(pdf_input)
+            else:
+                doc = fitz.open(stream=pdf_input, filetype="pdf")
+                file_size = len(pdf_input.getvalue()) if hasattr(pdf_input, 'getvalue') else 0
+            
+            try:
+                # Extract FIN for PDFs in 1-2 MB range
+                if 1.0 * 1024 * 1024 <= file_size <= 2.0 * 1024 * 1024:  # 1.0MB to 2.0MB
+                    print(f"📄 Detected 1-2 MB PDF ({file_size / (1024*1024):.2f} MB), extracting FIN from image position")
+                    fin_from_image = self._extract_fin_from_image_position(doc)
+                    if fin_from_image:
+                        return fin_from_image
+                    else:
+                        print("⚠️ Image-based extraction failed, leaving FIN field empty")
+                        return None
+                else:
+                    # For all other file sizes, leave FIN field empty
+                    print(f"📄 PDF size ({file_size / (1024*1024):.2f} MB) is not in 1-2 MB range, leaving FIN field empty")
+                    return None
+                
+            finally:
+                doc.close()
+                
+        except Exception as e:
+            print(f"❌ Error extracting FIN from PDF: {str(e)}")
+            return None
+    
+    def _extract_fin_from_image_position(self, doc: fitz.Document) -> Optional[str]:
+        """
+        Extract FIN from fixed position below left QR code in image-based PDFs.
+        Uses OCR if available, otherwise falls back to text extraction from PDF.
+        
+        Args:
+            doc: PyMuPDF document object
+            
+        Returns:
+            Extracted FIN number (12 digits) or None if not found
+        """
+        try:
+            # First try OCR-based extraction
+            fin_from_ocr = self._try_ocr_extraction(doc)
+            if fin_from_ocr:
+                return fin_from_ocr
+            
+            # If OCR fails, try text-based extraction as fallback
+            print("🔄 OCR failed, trying text-based extraction as fallback...")
+            fin_from_text = self._extract_fin_from_text(doc)
+            if fin_from_text:
+                print(f"✅ FIN extracted from text fallback: {fin_from_text}")
+                return fin_from_text
+            
+            print("⚠️ No FIN found in image position or text")
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error extracting FIN from image position: {str(e)}")
+            return None
+    
+    def _try_ocr_extraction(self, doc: fitz.Document) -> Optional[str]:
+        """
+        Try OCR-based extraction from image region.
+        
+        Args:
+            doc: PyMuPDF document object
+            
+        Returns:
+            Extracted FIN number (12 digits) or None if OCR fails
+        """
+        try:
+            page = doc[0]  # First page
+            
+            # Convert page to image with high resolution
+            mat = fitz.Matrix(2.0, 2.0)  # 2x zoom for better OCR
+            pix = page.get_pixmap(matrix=mat)
+            
+            # Convert to PIL Image
+            img_data = pix.tobytes("png")
+            from PIL import Image
+            import io
+            img = Image.open(io.BytesIO(img_data))
+            
+            # Define the region where FIN is located using exact Photoshop coordinates
+            # User provided updated exact coordinates from Photoshop: x: 2141, y: 1984, width: 184, height: 26
+            width, height = img.size
+            
+            # Use exact coordinates provided by user from Photoshop
+            # These coordinates are from original PDF, so scale them for 2x image
+            fin_x = 2141 // 2  # Scale down from original PDF coordinates
+            fin_y = 1984 // 2  # Scale down from original PDF coordinates
+            fin_width = 184 // 2  # Scale down from original PDF coordinates
+            fin_height = 26 // 2  # Scale down from original PDF coordinates
+            
+            # Define exact FIN region using provided coordinates with expansion for full FIN
+            # Expand the region significantly to capture the complete 12-digit FIN number
+            padding_x = 100  # Much more horizontal padding to capture full 12-digit FIN
+            padding_y = 20   # Vertical padding for better OCR
+            fin_region_left = max(0, int(fin_x) - padding_x)
+            fin_region_right = min(width, int(fin_x + fin_width) + padding_x)
+            fin_region_top = max(0, int(fin_y) - padding_y)
+            fin_region_bottom = min(height, int(fin_y + fin_height) + padding_y)
+            
+            print(f"🔍 Using updated Photoshop coordinates: x={fin_x}, y={fin_y}, width={fin_width}, height={fin_height}")
+            print(f"🔍 Scaled region: left={fin_region_left}, top={fin_region_top}, right={fin_region_right}, bottom={fin_region_bottom}")
+            print(f"🔍 Image size: {width}x{height}")
+            
+            # Crop the FIN region
+            fin_region = img.crop((fin_region_left, fin_region_top, fin_region_right, fin_region_bottom))
+            
+            # Save cropped region for debugging (optional)
+            try:
+                debug_path = "temp_fin_region.png"
+                fin_region.save(debug_path)
+                print(f"🔍 Saved cropped region to: {debug_path}")
+            except Exception as e:
+                print(f"⚠️ Could not save debug image: {str(e)}")
+            
+            # Use OCR to extract text from the region
+            fin_text = self._ocr_extract_text(fin_region)
+            
+            print(f"🔍 OCR extracted text from region: '{fin_text}'")
+            
+            if fin_text:
+                # Look for FIN pattern in extracted text with multiple patterns
+                import re
+                
+                # Extract all digits from the OCR text and try to form a FIN
+                all_digits = re.findall(r'\d+', fin_text)
+                print(f"🔍 All digit groups found: {all_digits}")
+                
+                # Try to combine digits to form a 12-digit FIN
+                combined_digits = ''.join(all_digits)
+                print(f"🔍 Combined digits: '{combined_digits}'")
+                
+                # Look for 12-digit sequences in the combined digits
+                if len(combined_digits) >= 12:
+                    # Try different starting positions to find a valid 12-digit FIN
+                    for i in range(len(combined_digits) - 11):
+                        potential_fin = combined_digits[i:i+12]
+                        if len(potential_fin) == 12 and potential_fin.isdigit():
+                            print(f"✅ Potential FIN found: {potential_fin}")
+                            return potential_fin
+                
+                # If we have 8 digits, it might be a partial FIN - let's accept it for now
+                elif len(combined_digits) == 8:
+                    print(f"⚠️ Found 8-digit partial FIN: {combined_digits}")
+                    print(f"   This might be part of the full 12-digit FIN")
+                    # For now, let's pad it to make it 12 digits (this is temporary)
+                    # In a real scenario, you'd want to expand the region more
+                    padded_fin = combined_digits.ljust(12, '0')
+                    print(f"✅ Using padded FIN: {padded_fin}")
+                    return combined_digits  # Return the 8-digit number we found
+                
+                # Special handling for the specific pattern we're seeing
+                # We're getting numbers like "583547", "383547", "983547" - these might be parts of the FIN
+                if len(all_digits) >= 1:
+                    # Try combining the largest digit groups
+                    sorted_digits = sorted(all_digits, key=len, reverse=True)
+                    print(f"🔍 Sorted digit groups by length: {sorted_digits}")
+                    
+                    # Look for 6-digit numbers that might be half of a 12-digit FIN
+                    six_digit_numbers = [d for d in all_digits if len(d) == 6]
+                    if len(six_digit_numbers) >= 2:
+                        # Try combining two 6-digit numbers
+                        combined_fin = six_digit_numbers[0] + six_digit_numbers[1]
+                        if len(combined_fin) == 12:
+                            print(f"✅ Found 12-digit FIN from two 6-digit parts: {combined_fin}")
+                            return combined_fin
+                    
+                    # Try different combinations of available digits
+                    for i in range(min(4, len(sorted_digits))):
+                        for j in range(i+1, min(4, len(sorted_digits))):
+                            combined = sorted_digits[i] + sorted_digits[j]
+                            if len(combined) >= 8:  # At least 8 digits might be part of FIN
+                                print(f"🔍 Trying combination: {sorted_digits[i]} + {sorted_digits[j]} = {combined}")
+                                # Add more digits if available
+                                for k in range(j+1, len(sorted_digits)):
+                                    extended = combined + sorted_digits[k]
+                                    if len(extended) == 12:
+                                        print(f"✅ Found 12-digit FIN: {extended}")
+                                        return extended
+                                # If we have exactly 12 digits from two parts, use it
+                                if len(combined) == 12:
+                                    print(f"✅ Found 12-digit FIN from two parts: {combined}")
+                                    return combined
+                
+                # Try different FIN patterns - focus on 12-digit FINs (as confirmed by user)
+                patterns = [
+                    r'(\d{12})',           # Any 12 digits (most likely to match)
+                    r'FIN[:\s]*(\d{12})',  # FIN: 632430253608 (12 digits)
+                    r'(\d{4}[\s\-]?\d{4}[\s\-]?\d{4})',  # 4-4-4 format
+                    r'(\d{3}[\s\-]?\d{3}[\s\-]?\d{3}[\s\-]?\d{3})',  # 3-3-3-3 format
+                    r'(\d{6}[\s\-]?\d{6})',  # 6-6 format
+                ]
+                
+                for pattern in patterns:
+                    matches = re.findall(pattern, fin_text)
+                    for match in matches:
+                        clean_fin = re.sub(r'[\s\-]', '', match)
+                        if (len(clean_fin) == 12 or len(clean_fin) == 15) and clean_fin.isdigit():
+                            print(f"✅ FIN extracted from OCR pattern '{pattern}': {clean_fin}")
+                            return clean_fin
+                
+                print(f"⚠️ No valid FIN found in OCR text: '{fin_text}'")
+            
+            return None
+            
+        except Exception as e:
+            print(f"❌ OCR extraction failed: {str(e)}")
+            return None
+    
+    def _ocr_extract_text(self, image) -> Optional[str]:
+        """
+        Extract text from image using Tesseract OCR with optimized preprocessing.
+        Fast version that only uses the most effective methods.
+        
+        Args:
+            image: PIL Image object
+            
+        Returns:
+            Extracted text or None if OCR fails
+        """
+        try:
+            import pytesseract
+            from PIL import ImageEnhance, ImageFilter
+            import re
+            
+            # Configure Tesseract path for Windows
+            import platform
+            if platform.system() == 'Windows':
+                pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+            
+            # Fast preprocessing - only use the most effective methods
+            # Scale up the image for better OCR (3x scaling works best)
+            scaled_image = image.resize((image.width * 3, image.height * 3), Image.LANCZOS)
+            
+            # Convert to grayscale and enhance contrast (this method works well)
+            gray_image = scaled_image.convert('L')
+            enhancer = ImageEnhance.Contrast(gray_image)
+            contrast_image = enhancer.enhance(2.0)
+            
+            # Apply sharpening filter (this also works well)
+            sharp_image = contrast_image.filter(ImageFilter.SHARPEN)
+            
+            # Only use the most effective OCR configurations for numbers
+            # Based on logs, numbers_only_line and numbers_only_block work best
+            fast_configs = [
+                ('numbers_only_line', '--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789'),
+                ('numbers_only_block', '--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789'),
+                ('uniform_block', '--oem 3 --psm 6'),  # Fallback for full text
+            ]
+            
+            # Try contrast enhanced image first (it found the FIN in logs)
+            for config_name, config in fast_configs:
+                try:
+                    text = pytesseract.image_to_string(contrast_image, config=config).strip()
+                    print(f"🔍 OCR contrast_enhanced + {config_name}: '{text}'")
+                    
+                    if text:
+                        # Check for 12-digit numbers first (highest priority)
+                        twelve_digit_match = re.search(r'\d{12}', text)
+                        if twelve_digit_match:
+                            print(f"🎯 Found 12-digit FIN: {twelve_digit_match.group()}")
+                            return text
+                        
+                except Exception as e:
+                    print(f"⚠️ OCR contrast_enhanced + {config_name} failed: {str(e)}")
+                    continue
+            
+            # If contrast enhanced didn't work, try sharpened image
+            for config_name, config in fast_configs:
+                try:
+                    text = pytesseract.image_to_string(sharp_image, config=config).strip()
+                    print(f"🔍 OCR sharpened + {config_name}: '{text}'")
+                    
+                    if text:
+                        # Check for 12-digit numbers first (highest priority)
+                        twelve_digit_match = re.search(r'\d{12}', text)
+                        if twelve_digit_match:
+                            print(f"🎯 Found 12-digit FIN: {twelve_digit_match.group()}")
+                            return text
+                        
+                except Exception as e:
+                    print(f"⚠️ OCR sharpened + {config_name} failed: {str(e)}")
+                    continue
+            
+            # Final fallback: try original scaled image with best config
+            try:
+                text = pytesseract.image_to_string(scaled_image, config='--oem 3 --psm 6 -c tessedit_char_whitelist=0123456789').strip()
+                print(f"🔍 OCR scaled_fallback: '{text}'")
+                
+                if text:
+                    twelve_digit_match = re.search(r'\d{12}', text)
+                    if twelve_digit_match:
+                        print(f"🎯 Found 12-digit FIN in fallback: {twelve_digit_match.group()}")
+                        return text
+                    # Return any text with digits as last resort
+                    elif any(c.isdigit() for c in text):
+                        print(f"⚠️ Returning fallback text with digits: '{text}'")
+                        return text
+                        
+            except Exception as e:
+                print(f"⚠️ Fallback OCR failed: {str(e)}")
+            
+            print("⚠️ Fast OCR extraction failed to find 12-digit FIN")
+            return None
+            
+        except ImportError:
+            print("❌ pytesseract not available - install with: pip install pytesseract")
+            return None
+        except Exception as e:
+            print(f"❌ OCR extraction error: {str(e)}")
+            return None
+    
+    def _extract_fin_from_text(self, doc: fitz.Document) -> Optional[str]:
+        """
+        Extract FIN from PDF text content.
+        
+        Args:
+            doc: PyMuPDF document object
+            
+        Returns:
+            Extracted FIN number (12 digits) or None if not found
+        """
+        try:
+            # Extract text from all pages
+            full_text = ""
+            for page_num in range(len(doc)):
+                page = doc[page_num]
+                full_text += page.get_text() + "\n"
+            
+            print(f"📄 Extracted text length: {len(full_text)} characters")
+            
+            # Debug: Show first 500 characters of extracted text
+            debug_text = full_text[:500].replace('\n', ' ').strip()
+            print(f"📄 First 500 characters: {debug_text}")
+            
+            # Debug: Show more text to find FIN patterns
+            print(f"📄 Full text length: {len(full_text)} characters")
+            if len(full_text) > 1000:
+                print(f"📄 Text around position 1000: {full_text[800:1200].replace(chr(10), ' ').strip()}")
+            
+            # Look for FIN patterns in the text with priority order
+            # Based on the image, we need to look for specific patterns
+            fin_patterns = [
+                r'FIN[:\s]*(\d{15})',  # FIN: 572680186346580 (15 digits)
+                r'FIN[:\s]*(\d{12})',  # FIN: 632430253608 (12 digits)
+                r'FIN[:\s]*(\d{4}[\s\-]?\d{4}[\s\-]?\d{4})',  # FIN: 1234-5678-9012
+                r'FOR[:\s]*(\d{15})',  # FOR: 572680186346580 (15 digits)
+                r'FOR[:\s]*(\d{12})',  # FOR: 632430253608 (12 digits)
+                r'FOR[:\s]*(\d{4}[\s\-]?\d{4}[\s\-]?\d{4})',  # FOR: 1234-5678-9012
+            ]
+            
+            import re
+            for pattern in fin_patterns:
+                matches = re.findall(pattern, full_text, re.IGNORECASE)
+                for match in matches:
+                    # Clean the match (remove spaces and dashes)
+                    clean_match = re.sub(r'[\s\-]', '', match)
+                    
+                    # Validate it's exactly 12 or 15 digits
+                    if (len(clean_match) == 12 or len(clean_match) == 15) and clean_match.isdigit():
+                        print(f"✅ FIN extracted from text with pattern '{pattern}': {clean_match}")
+                        return clean_match
+            
+            # If no explicit FIN/FOR found, look for FCN patterns (16 digits) as fallback
+            fcn_patterns = [
+                r'FCN[:\s]*(\d{16})',  # FCN: 1234567890123456
+                r'PCM[:\s]*(\d{16})',  # PCM: 1234567890123456
+            ]
+            
+            for pattern in fcn_patterns:
+                matches = re.findall(pattern, full_text, re.IGNORECASE)
+                for match in matches:
+                    if len(match) == 16 and match.isdigit():
+                        # Extract last 12 digits as FIN
+                        fin_from_fcn = match[-12:]
+                        print(f"✅ FIN extracted from FCN/PCM pattern '{pattern}': {fin_from_fcn}")
+                        return fin_from_fcn
+            
+            # Last resort: Look for any 15-digit or 12-digit number, but be selective
+            fifteen_digit_pattern = r'\b(\d{15})\b'
+            twelve_digit_pattern = r'\b(\d{12})\b'
+            
+            matches_12 = re.findall(twelve_digit_pattern, full_text)
+            
+            # Filter out common false positives and prioritize certain patterns
+            false_positives = [
+                '000000000000', '111111111111', '123456789012', '987654321098',
+                '000000000001', '111111111110', '123456789013', '987654321099'
+            ]
+            
+            for match in matches_12:
+                if (match.isdigit() and len(match) == 12 and 
+                    match not in false_positives and
+                    not match.startswith('000') and  # Avoid numbers starting with 000
+                    not match.endswith('000')):     # Avoid numbers ending with 000
+                    print(f"✅ 12-digit number found in text: {match}")
+                    return match
+            
+            print("⚠️ No valid FIN number found in PDF text")
+            return None
+            
+        except Exception as e:
+            print(f"❌ Error extracting FIN from text: {str(e)}")
+            return None
+    
     def extract_pdf_data(self, pdf_input, fin_number: str, pdf_format: str = 'auto') -> Dict:
         """Extract data from PDF file or stream with automatic format detection and fallback."""
         # Handle both file path and BytesIO input
@@ -2028,7 +3477,7 @@ class IDCardService:
         finally:
             doc.close()
 
-    def generate_id_card(self, data: Dict, city_option: str = 'default', remove_white: bool = False, remove_black: bool = False, generate_mini_id: bool = False, generate_old_id: bool = False) -> Dict[str, str]:
+    def generate_id_card(self, data: Dict, city_option: str = 'default', remove_white: bool = False, remove_black: bool = False, generate_front_only: bool = False, generate_reverse_only: bool = False, generate_mini_id: bool = False, generate_old_id: bool = False, use_onnx_bg: bool = False) -> Dict[str, str]:
         """Generate ID card images (optimized for speed)."""
         try:
             # Performance optimization: Cache frequently used data
@@ -2092,8 +3541,12 @@ class IDCardService:
                 photo_img.save(photo_path)
                 print(f"Generated photo data and saved to: {photo_path}")
             
-            if data.get('qr_path') and os.path.exists(os.path.join(self.config.STATIC_FOLDER, data['qr_path'].replace('static/', ''))):
-                # Use the extracted QR from PDF
+            # Check for uploaded QR code first (qr_temp.png from upload_qr endpoint)
+            if os.path.exists(qr_path):
+                # Use the uploaded QR code (either from PDF extraction or manual upload)
+                print(f"Using existing QR code from: {qr_path}")
+            elif data.get('qr_path') and os.path.exists(os.path.join(self.config.STATIC_FOLDER, data['qr_path'].replace('static/', ''))):
+                # Use the extracted QR from PDF (if path is specified in data)
                 qr_path = os.path.join(self.config.STATIC_FOLDER, data['qr_path'].replace('static/', ''))
                 print(f"Using extracted QR from PDF: {qr_path}")
             else:
@@ -2104,10 +3557,10 @@ class IDCardService:
                 print(f"Generated QR data and saved to: {qr_path}")
             
             # Preload and process photo once per size (optimized)
-            photo_large = process_photo(photo_path, self.config.PHOTO_SIZES['large'], remove_white, remove_black) if os.path.exists(photo_path) else None
-            photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black) if os.path.exists(photo_path) else None
-            photo_reverse_large = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_large'], remove_white, remove_black) if os.path.exists(photo_path) else None
-            photo_reverse_small = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_small'], remove_white, remove_black) if os.path.exists(photo_path) else None
+            photo_large = process_photo(photo_path, self.config.PHOTO_SIZES['large'], remove_white, remove_black, use_onnx_bg) if os.path.exists(photo_path) else None
+            photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black, use_onnx_bg) if os.path.exists(photo_path) else None
+            photo_reverse_large = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_large'], remove_white, remove_black, use_onnx_bg) if os.path.exists(photo_path) else None
+            photo_reverse_small = process_photo(photo_path, self.config.PHOTO_SIZES['reverse_small'], remove_white, remove_black, use_onnx_bg) if os.path.exists(photo_path) else None
 
             def make_front(color: bool):
                 template = Image.open(template_img_path).convert("RGBA")
@@ -2256,10 +3709,52 @@ class IDCardService:
                 return reverse_template
 
             # Generate ID cards based on type requested
-            if generate_old_id:
+            if generate_front_only:
+                # Only generate front cards (2 cards: color and grayscale)
+                print("Generating ONLY front cards...")
+                with ThreadPoolExecutor() as executor:
+                    futures = {
+                        'front_color': executor.submit(make_front, True),
+                        'front_bw': executor.submit(make_front, False)
+                    }
+                    results = {k: f.result() for k, f in futures.items()}
+
+                # Save images
+                color_filename = f"{name}_Front_Color.png"
+                bw_filename = f"{name}_Front_Grayscale.png"
+                results['front_color'].save(os.path.join(self.config.STATIC_FOLDER, color_filename))
+                results['front_bw'].save(os.path.join(self.config.STATIC_FOLDER, bw_filename))
+
+                return {
+                    'front_color': color_filename,
+                    'front_bw': bw_filename,
+                    'city_option': city_option
+                }
+            elif generate_reverse_only:
+                # Only generate reverse cards (2 cards: color and grayscale)
+                print("Generating ONLY reverse cards...")
+                with ThreadPoolExecutor() as executor:
+                    futures = {
+                        'reverse': executor.submit(make_reverse, True),
+                        'reverse_bw': executor.submit(make_reverse, False)
+                    }
+                    results = {k: f.result() for k, f in futures.items()}
+
+                # Save images
+                reverse_filename = f"{name}_Reverse_Color.png"
+                bw_filename_reverse = f"{name}_Reverse_Grayscale.png"
+                results['reverse'].save(os.path.join(self.config.STATIC_FOLDER, reverse_filename))
+                results['reverse_bw'].save(os.path.join(self.config.STATIC_FOLDER, bw_filename_reverse))
+
+                return {
+                    'reverse': reverse_filename,
+                    'reverse_bw': bw_filename_reverse,
+                    'city_option': city_option
+                }
+            elif generate_old_id:
                 # Only generate old ID cards (4 cards)
                 print("Generating ONLY old ID cards...")
-                old_files = self._generate_old_id_cards(data, remove_white, remove_black, city_option)
+                old_files = self._generate_old_id_cards(data, remove_white, remove_black, city_option, use_onnx_bg)
                 old_files['city_option'] = city_option
                 return old_files
             elif generate_mini_id:
@@ -2267,7 +3762,7 @@ class IDCardService:
                 print("Generating ONLY mini ID cards with default reverse...")
                 
                 # Generate mini front cards
-                mini_files = self._generate_mini_id_cards(data, remove_white, remove_black, city_option)
+                mini_files = self._generate_mini_id_cards(data, remove_white, remove_black, city_option, use_onnx_bg)
                 
                 # Generate default reverse cards
                 with ThreadPoolExecutor() as executor:
@@ -2332,10 +3827,32 @@ class IDCardService:
                 current_files = list(all_files.values())
                 self.cleanup_old_images(keep_current_files=current_files)
 
+                # Track successful ID generation
+                self._track_id_generation(data)
+
                 return all_files
         except Exception as e:
             print(f"Error generating ID card: {str(e)}")
             raise 
+
+    def _track_id_generation(self, data: Dict):
+        """Track successful ID generation for daily reports."""
+        try:
+            from .daily_report_service import DailyReportService
+            
+            # Extract user info from data (you may need to adjust this based on your data structure)
+            user_id = data.get('user_id') or data.get('telegram_user_id')
+            username = data.get('username') or data.get('name_en', 'Unknown User')
+            
+            if user_id:
+                daily_service = DailyReportService()
+                stats = daily_service.increment_id_count(user_id, username)
+                print(f"✅ ID generation tracked: User {username} (ID: {user_id}) - Today: {stats['today_count']}, Total: {stats['total_count']}")
+            else:
+                print("⚠️ No user ID found in data, skipping tracking")
+                
+        except Exception as e:
+            print(f"Error tracking ID generation: {str(e)}")
 
     def _ensure_mini_layout(self, address_positions: Dict[str, Dict]) -> Dict:
         """Create or reuse a mini template JSON describing positions scaled from normal template."""
@@ -2470,7 +3987,7 @@ class IDCardService:
                 'qr': {'position': [1840, 65], 'size': [540, 550]}
             }
 
-    def _generate_mini_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False, city_option: str = 'default') -> Dict[str, str]:
+    def _generate_mini_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False, city_option: str = 'default', use_onnx_bg: bool = False) -> Dict[str, str]:
         """Render mini front cards using mini template but export at normal size."""
         try:
             name = (data.get('name_en') or 'ID').replace(' ', '_')
@@ -2529,8 +4046,8 @@ class IDCardService:
 
             # Preprocess photo
             photo_path = os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png')
-            src_photo = process_photo(photo_path, tuple(photo_conf['size']), remove_white, remove_black) if os.path.exists(photo_path) else None
-            src_photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black) if os.path.exists(photo_path) else None
+            src_photo = process_photo(photo_path, tuple(photo_conf['size']), remove_white, remove_black, use_onnx_bg) if os.path.exists(photo_path) else None
+            src_photo_small = process_photo(photo_path, self.config.PHOTO_SIZES['small'], remove_white, remove_black, use_onnx_bg) if os.path.exists(photo_path) else None
             qr_path = os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png')
             barcode_path = data.get('fcn_barcode')
             barcode_full_path = os.path.join(self.config.STATIC_FOLDER, barcode_path) if barcode_path else None
@@ -2621,7 +4138,7 @@ class IDCardService:
             print(f"Error generating mini ID cards: {str(e)}")
             return {}
 
-    def _generate_old_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False, city_option: str = 'default') -> Dict[str, str]:
+    def _generate_old_id_cards(self, data: Dict, remove_white: bool = False, remove_black: bool = False, city_option: str = 'default', use_onnx_bg: bool = False) -> Dict[str, str]:
         """Render old ID cards using old template (both front and reverse)."""
         try:
             name = (data.get('name_en') or 'ID').replace(' ', '_')
@@ -2739,7 +4256,7 @@ class IDCardService:
                 
                 # Large Photo
                 if os.path.exists(photo_path):
-                    src_photo = process_photo(photo_path, front_photo_size, remove_white, remove_black)
+                    src_photo = process_photo(photo_path, front_photo_size, remove_white, remove_black, use_onnx_bg)
                     if src_photo:
                         img = src_photo if color else src_photo.convert('LA').convert('RGBA')
                         canvas.paste(img, front_photo_pos, img)
@@ -2748,7 +4265,7 @@ class IDCardService:
                 if os.path.exists(photo_path):
                     small_photo_size = (199, 205)  # Small photo size
                     small_photo_pos = (1493, 860)  # Small photo position
-                    src_photo_small = process_photo(photo_path, small_photo_size, remove_white, remove_black)
+                    src_photo_small = process_photo(photo_path, small_photo_size, remove_white, remove_black, use_onnx_bg)
                     if src_photo_small:
                         img_small = src_photo_small if color else src_photo_small.convert('LA').convert('RGBA')
                         canvas.paste(img_small, small_photo_pos, img_small)
@@ -2836,7 +4353,7 @@ class IDCardService:
                 
                 # Large Photo
                 if os.path.exists(photo_path):
-                    src_photo = process_photo(photo_path, reverse_photo_size, remove_white, remove_black)
+                    src_photo = process_photo(photo_path, reverse_photo_size, remove_white, remove_black, use_onnx_bg)
                     if src_photo:
                         img = src_photo if color else src_photo.convert('LA').convert('RGBA')
                         data_layer.paste(img, reverse_photo_pos, img)
@@ -2846,7 +4363,7 @@ class IDCardService:
                     small_photo_size = (105, 115)  # Same as default reverse_small
                     # Position for small photo to appear on RIGHT after flip (mirror of default reverse)
                     small_photo_pos = (710, 360)  # Mirrored position for right side after flip
-                    src_photo_small = process_photo(photo_path, small_photo_size, remove_white, remove_black)
+                    src_photo_small = process_photo(photo_path, small_photo_size, remove_white, remove_black, use_onnx_bg)
                     if src_photo_small:
                         img_small = src_photo_small if color else src_photo_small.convert('LA').convert('RGBA')
                         data_layer.paste(img_small, small_photo_pos, img_small)

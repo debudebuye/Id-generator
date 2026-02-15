@@ -3,26 +3,56 @@ from typing import Tuple, List, Optional
 import os
 from ..config.settings import Config
 
-def process_photo(photo_path: str, size: Tuple[int, int], remove_white: bool = False, remove_black: bool = False) -> Image.Image:
-    """Process a photo with optional background removal."""
+def process_photo(photo_path: str, size: Tuple[int, int], remove_white: bool = False, remove_black: bool = False, use_onnx: bool = False) -> Image.Image:
+    """Process a photo with optional background removal.
+    
+    Args:
+        photo_path: Path to the photo file
+        size: Target size for the photo
+        remove_white: Whether to remove white backgrounds
+        remove_black: Whether to remove black backgrounds
+        use_onnx: Whether to use ONNX-based background removal
+    """
     img = Image.open(photo_path).convert("RGBA")
     img = img.resize(size, Image.Resampling.LANCZOS)
 
-    if remove_white or remove_black:
-        data = img.getdata()
-        new_data = []
-
-        for pixel in data:
-            r, g, b, a = pixel
-            if remove_white and r > 200 and g > 200 and b > 200:
-                new_data.append((255, 255, 255, 0))
-            elif remove_black and r < 50 and g < 50 and b < 50:
-                new_data.append((255, 255, 255, 0))
+    if use_onnx:
+        # Use offline rembg-based background removal
+        try:
+            from ..services.offline_bg_removal import remove_background_offline
+            result_img = remove_background_offline(photo_path)
+            if result_img is not None:
+                img = result_img.resize(size, Image.Resampling.LANCZOS)
+                print("✅ Offline background removal completed successfully")
             else:
-                new_data.append(pixel)
+                print("⚠️ Offline background removal failed, using simple method")
+                if remove_white or remove_black:
+                    img = _simple_background_removal(img, remove_white, remove_black)
+        except Exception as e:
+            print(f"❌ Offline background removal failed: {str(e)}, using simple method")
+            if remove_white or remove_black:
+                img = _simple_background_removal(img, remove_white, remove_black)
+    elif remove_white or remove_black:
+        # Use simple color-based background removal
+        img = _simple_background_removal(img, remove_white, remove_black)
 
-        img.putdata(new_data)
+    return img
 
+def _simple_background_removal(img: Image.Image, remove_white: bool, remove_black: bool) -> Image.Image:
+    """Simple color-based background removal."""
+    data = img.getdata()
+    new_data = []
+
+    for pixel in data:
+        r, g, b, a = pixel
+        if remove_white and r > 200 and g > 200 and b > 200:
+            new_data.append((255, 255, 255, 0))
+        elif remove_black and r < 50 and g < 50 and b < 50:
+            new_data.append((255, 255, 255, 0))
+        else:
+            new_data.append(pixel)
+
+    img.putdata(new_data)
     return img
 
 def wrap_text(draw: ImageDraw.ImageDraw, text: str, font: ImageFont.FreeTypeFont, max_width: int) -> List[str]:

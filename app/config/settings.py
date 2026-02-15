@@ -31,7 +31,7 @@ class Config:
     OLD_REVERSE_TEMPLATE_JSON = os.path.join(BASE_DIR.parent, 'templates', 'old_reverse_template.json')
     
     # Allowed file extensions
-    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf'}
+    ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'pdf', 'doc', 'docx'}
     
     # Image processing settings
     PHOTO_SIZES = {
@@ -97,7 +97,7 @@ class Config:
 
     # Old ID specific address font sizes
     OLD_ADDRESS_FONT_SIZES = {
-        'front': {'am': 48, 'en': 50},
+        'front': {'am': 46, 'en': 50},
         'reverse': {'am': 21, 'en': 21}
     }
     
@@ -194,12 +194,12 @@ class Config:
     OLD_ADDRESS_POSITIONS = {
         'default': {
             'front': {
-                'region_am': [2035, 450],
-                'region_en': [2035, 510],
-                'subcity_am': [2035, 610],
-                'subcity_en': [2035, 660],
-                'woreda_am': [2035, 760],
-                'woreda_en': [2035, 810]
+                'region_am': [2050, 450],
+                'region_en': [2050, 510],
+                'subcity_am': [2050, 610],
+                'subcity_en': [2050, 660],
+                'woreda_am': [2050, 760],
+                'woreda_en': [2050, 810]
             },
             'reverse': {
                 'region_am': [970, 200],

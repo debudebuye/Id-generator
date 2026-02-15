@@ -1,0 +1,20 @@
+{
+  "1929170431": {
+    "mode": "default",
+    "output_variant": "front_color",
+    "city_type": "default",
+    "language": "en",
+    "remove_black_bg": false,
+    "id_type": "normal",
+    "remove_white_bg": false
+  },
+  "349225322": {
+    "language": "am",
+    "id_type": "normal",
+    "output_variant": "front_color",
+    "city_type": "default",
+    "mode": "default",
+    "remove_white_bg": false,
+    "remove_black_bg": false
+  }
+}
