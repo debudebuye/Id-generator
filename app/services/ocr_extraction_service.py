@@ -68,35 +68,29 @@ class OCRExtractionService:
             print(f"📐 Image dimensions: {width}x{height}")
             
             # Define regions based on EXACT pixel coordinates from Ethiopian Digital ID Card
-            # Coordinates based on 591x1280px reference image from Adobe
-            # NAME_AM: X:107, Y:660, W:379, H:28 → (107,660)-(486,688)
-            # NAME_EN: X:103, Y:683, W:379, H:26 → (103,683)-(482,709)
-            # DOB_ETHIOPIAN: X:105, Y:734, W:104, H:23 → (105,734)-(209,757)
-            # DOB_GREGORIAN: X:213, Y:734, W:147, H:22 → (213,734)-(360,756)
-            # SEX_AM: X:108, Y:773, W:45, H:20 → (108,773)-(153,793)
-            # SEX_EN: X:162, Y:769, W:91, H:24 → (162,769)-(253,793)
-            # EXPIRY_ETHIOPIAN: X:105, Y:820, W:101, H:18 → (105,820)-(206,838)
-            # EXPIRY_GREGORIAN: X:210, Y:819, W:155, H:23 → (210,819)-(365,842)
-            # FAN_NUMBER: X:180, Y:862, W:212, H:17 → (180,862)-(392,879)
+            # NEW Reference dimensions: 900x1441px
+            # Coordinates provided by user for new reference image
+            # NAME_AM: X:89, Y:834, W:703, H:51 → (89,834)-(792,885)
             
-            # Reference dimensions (from Adobe measurements)
-            ref_width = 591
-            ref_height = 1280
+            # Reference dimensions (NEW - 900x1441px)
+            ref_width = 900
+            ref_height = 1441
             
             # Calculate percentage-based regions (will scale to actual image size)
-            # EXACT coordinates from Adobe measurements
+            # EXACT coordinates from new 900x1441px reference
+            # OPTIMIZATION: Only extract Ethiopian dates and Amharic sex, calculate English from them
             regions = {
-                'full_name_am': (85/ref_width, 664/ref_height, 490/ref_width, 686/ref_height),                    # Full name Amharic (85,664)-(490,686) - Extended left and right
-                'full_name_en': (103/ref_width, 683/ref_height, 482/ref_width, 709/ref_height),                    # Full name English (103,683)-(482,709)
-                'dob_ethiopian': (105/ref_width, 734/ref_height, 209/ref_width, 757/ref_height),                   # DOB Ethiopian (105,734)-(209,757)
-                'dob_gregorian': (213/ref_width, 734/ref_height, 360/ref_width, 756/ref_height),                   # DOB Gregorian (213,734)-(360,756)
-                'sex_am': (108/ref_width, 773/ref_height, 153/ref_width, 793/ref_height),                          # Sex Amharic (108,773)-(153,793)
-                'sex_en': (162/ref_width, 769/ref_height, 253/ref_width, 793/ref_height),                          # Sex English (162,769)-(253,793)
-                'expiry_ethiopian': (105/ref_width, 820/ref_height, 206/ref_width, 838/ref_height),                # Expiry Ethiopian (105,820)-(206,838)
-                'expiry_gregorian': (210/ref_width, 819/ref_height, 365/ref_width, 842/ref_height),                # Expiry Gregorian (210,819)-(365,842)
-                'fan_number': (180/ref_width, 862/ref_height, 392/ref_width, 879/ref_height),                      # FAN Number (180,862)-(392,879)
-                'issue_gregorian': (892/900, 576/1650, (892+45)/900, (576+278)/1650),                              # Issue date Gregorian VERTICAL - TODO: get exact coordinates
-                'issue_ethiopian': (895/900, 861/1650, (895+45)/900, (861+231)/1650),                              # Issue date Ethiopian VERTICAL - TODO: get exact coordinates
+                'full_name_am': (89/ref_width, 834/ref_height, 792/ref_width, 885/ref_height),                    # Full name Amharic (89,834)-(792,885)
+                'full_name_en': (95/ref_width, 882/ref_height, 792/ref_width, 927/ref_height),                    # Full name English (95,882)-(792,927)
+                'dob_ethiopian': (93/ref_width, 964/ref_height, 292/ref_width, 1017/ref_height),                   # DOB Ethiopian (93,964)-(292,1017) - Extract only Ethiopian
+                # 'dob_gregorian': REMOVED - Will calculate from Ethiopian date
+                'sex_am': (103/ref_width, 1034/ref_height, 190/ref_width, 1075/ref_height),                        # Sex Amharic (103,1034)-(190,1075) - Extract only Amharic
+                # 'sex_en': REMOVED - Will translate from Amharic
+                'expiry_ethiopian': (99/ref_width, 1118/ref_height, 288/ref_width, 1169/ref_height),               # Expiry Ethiopian (99,1118)-(288,1169) - Extract only Ethiopian
+                # 'expiry_gregorian': REMOVED - Will calculate from Ethiopian date
+                'fan_number': (225/ref_width, 1198/ref_height, 648/ref_width, 1237/ref_height),                    # FAN Number (225,1198)-(648,1237)
+                # 'issue_gregorian': REMOVED - Will use today's date
+                # 'issue_ethiopian': REMOVED - Will calculate from today's date
             }
             
             print(f"📏 Using reference dimensions: {ref_width}x{ref_height}, actual: {width}x{height}")
@@ -593,6 +587,90 @@ class OCRExtractionService:
                             data['fan'] = fan_num[:16] if len(fan_num) >= 16 else fan_num[:15]
                             data['barcode'] = data['fan']
                             print(f"✓ Extracted FAN: {data['fan']}")
+                
+                # ========================================
+                # OPTIMIZATION: Convert Ethiopian dates to Gregorian and translate sex
+                # ========================================
+                from app.utils.date_utils import ethiopian_to_gregorian, parse_ethiopian_date, get_id_dates
+                from datetime import date
+                
+                # Translate sex from Amharic to English
+                if data.get('sex_am') and not data.get('sex_en'):
+                    sex_am = data['sex_am'].strip()
+                    if 'ወንድ' in sex_am or 'ወ/ድ' in sex_am:
+                        data['sex'] = 'Male'
+                        data['sex_en'] = 'Male'
+                        print(f"✓ Translated sex: {sex_am} → Male")
+                    elif 'ሴት' in sex_am:
+                        data['sex'] = 'Female'
+                        data['sex_en'] = 'Female'
+                        print(f"✓ Translated sex: {sex_am} → Female")
+                
+                # Convert DOB from Ethiopian to Gregorian
+                if data.get('date_of_birth_am') and not data.get('date_of_birth_en'):
+                    try:
+                        dob_am = data['date_of_birth_am']
+                        # Check if format is DD/MM/YYYY and convert to YYYY/MM/DD
+                        if '/' in dob_am:
+                            parts = dob_am.split('/')
+                            if len(parts) == 3:
+                                # If first part is 2 digits and last part is 4 digits, it's DD/MM/YYYY
+                                if len(parts[0]) <= 2 and len(parts[2]) == 4:
+                                    # Convert DD/MM/YYYY to YYYY/MM/DD
+                                    dob_am = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                                    print(f"🔄 Converted DOB format: {data['date_of_birth_am']} → {dob_am}")
+                        
+                        parsed = parse_ethiopian_date(dob_am)
+                        if parsed:
+                            greg_date = ethiopian_to_gregorian(parsed[0], parsed[1], parsed[2])
+                            data['date_of_birth_en'] = greg_date.strftime("%Y/%b/%d")
+                            data['date_of_birth'] = data['date_of_birth_en']
+                            print(f"✓ Converted DOB: {data['date_of_birth_am']} → {data['date_of_birth_en']}")
+                        else:
+                            print(f"⚠️ Failed to parse DOB: {dob_am}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to convert DOB: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                # Convert Expiry from Ethiopian to Gregorian
+                if data.get('date_of_expiry_am') and not data.get('date_of_expiry_en'):
+                    try:
+                        expiry_am = data['date_of_expiry_am']
+                        # Check if format is DD/MM/YYYY and convert to YYYY/MM/DD
+                        if '/' in expiry_am:
+                            parts = expiry_am.split('/')
+                            if len(parts) == 3:
+                                # If first part is 2 digits and last part is 4 digits, it's DD/MM/YYYY
+                                if len(parts[0]) <= 2 and len(parts[2]) == 4:
+                                    # Convert DD/MM/YYYY to YYYY/MM/DD
+                                    expiry_am = f"{parts[2]}/{parts[1]}/{parts[0]}"
+                                    print(f"🔄 Converted Expiry format: {data['date_of_expiry_am']} → {expiry_am}")
+                        
+                        parsed = parse_ethiopian_date(expiry_am)
+                        if parsed:
+                            greg_date = ethiopian_to_gregorian(parsed[0], parsed[1], parsed[2])
+                            data['date_of_expiry_en'] = greg_date.strftime("%Y/%b/%d")
+                            data['date_of_expiry'] = data['date_of_expiry_en']
+                            print(f"✓ Converted Expiry: {data['date_of_expiry_am']} → {data['date_of_expiry_en']}")
+                        else:
+                            print(f"⚠️ Failed to parse Expiry: {expiry_am}")
+                    except Exception as e:
+                        print(f"⚠️ Failed to convert Expiry: {e}")
+                        import traceback
+                        traceback.print_exc()
+                
+                # Use today's date as issue date
+                if not data.get('date_of_issue'):
+                    id_dates = get_id_dates()
+                    data['date_of_issue'] = id_dates['issue_date_greg']
+                    data['date_of_issue_en'] = id_dates['issue_date_greg']
+                    data['date_of_issue_am'] = id_dates['issue_date_eth']
+                    print(f"✓ Using today as issue date: {data['date_of_issue_en']} (Ethiopian: {data['date_of_issue_am']})")
+                
+                # ========================================
+                # End of optimization
+                # ========================================
                 
                 # Extract date of issue from separate Gregorian and Ethiopian regions (vertical text)
                 if 'issue_gregorian' in regions and regions['issue_gregorian']:
@@ -1238,36 +1316,26 @@ class OCRExtractionService:
             print(f"📐 Image dimensions: {width}x{height}")
             
             # Define regions for back card based on EXACT pixel coordinates
-            # IMPORTANT: Coordinates are for reference card size ~900x1600
-            # We calculate percentages and apply to actual image dimensions
-            # Coordinates based on 591x1280px reference image from Adobe
-            # PHONE: X:94, Y:729, W:143, H:25 → (94,729)-(237,754)
-            # FIN: X:362, Y:713, W:144, H:29 → (362,713)-(506,742)
-            # NATIONALITY_AM: X:89, Y:782, W:72, H:29 → (89,782)-(161,811)
-            # NATIONALITY_EN: X:167, Y:785, W:127, H:27 → (167,785)-(294,812)
-            # REGION_AM: X:95, Y:829, W:370, H:25 → (95,829)-(465,854)
-            # REGION_EN: X:94, Y:850, W:416, H:25 → (94,850)-(510,875)
-            # SUBCITY_AM: X:93, Y:872, W:398, H:26 → (93,872)-(491,898)
-            # SUBCITY_EN: X:94, Y:893, W:382, H:26 → (94,893)-(476,919)
-            # WOREDA_AM: X:92, Y:916, W:427, H:30 → (92,916)-(519,946)
-            # WOREDA_EN: X:89, Y:938, W:411, H:28 → (89,938)-(500,966)
+            # NEW Reference dimensions: 900x1441px (same as front card)
+            # Coordinates provided by user for new reference image
+            # PHONE: X:69, Y:960, W:285, H:45 → (69,960)-(354,1005)
             
-            # Reference dimensions (from Adobe measurements)
-            ref_width = 591
-            ref_height = 1280
+            # Reference dimensions (NEW - 900x1441px)
+            ref_width = 900
+            ref_height = 1441
             
             # Calculate percentage-based regions (will scale to actual image size)
             regions = {
-                'phone_number': (94/ref_width, 729/ref_height, 237/ref_width, 754/ref_height),           # Phone number (94,729)-(237,754)
-                'fin_number': (362/ref_width, 713/ref_height, 506/ref_width, 742/ref_height),            # FIN number (362,713)-(506,742)
-                'nationality_am': (89/ref_width, 782/ref_height, 161/ref_width, 811/ref_height),         # Nationality Amharic (89,782)-(161,811)
-                'nationality_en': (167/ref_width, 785/ref_height, 294/ref_width, 812/ref_height),        # Nationality English (167,785)-(294,812)
-                'region_am': (95/ref_width, 829/ref_height, 465/ref_width, 854/ref_height),              # Address Region Amharic (95,829)-(465,854)
-                'region_en': (94/ref_width, 850/ref_height, 510/ref_width, 875/ref_height),              # Address Region English (94,850)-(510,875)
-                'subcity_am': (93/ref_width, 872/ref_height, 491/ref_width, 898/ref_height),             # Sub City/Zone Amharic (93,872)-(491,898)
-                'subcity_en': (94/ref_width, 893/ref_height, 476/ref_width, 919/ref_height),             # Sub City/Zone English (94,893)-(476,919)
-                'woreda_am': (92/ref_width, 916/ref_height, 519/ref_width, 946/ref_height),              # Woreda Amharic (92,916)-(519,946)
-                'woreda_en': (89/ref_width, 938/ref_height, 500/ref_width, 966/ref_height),              # Woreda English (89,938)-(500,966)
+                'phone_number': (69/ref_width, 960/ref_height, 354/ref_width, 1005/ref_height),           # Phone number (69,960)-(354,1005)
+                'fin_number': (567/ref_width, 934/ref_height, 846/ref_width, 989/ref_height),             # FIN number (567,934)-(846,989)
+                'nationality_am': (69/ref_width, 1060/ref_height, 206/ref_width, 1107/ref_height),        # Nationality Amharic (69,1060)-(206,1107)
+                'nationality_en': (217/ref_width, 1060/ref_height, 498/ref_width, 1113/ref_height),       # Nationality English (217,1060)-(498,1113)
+                'region_am': (63/ref_width, 1144/ref_height, 810/ref_width, 1185/ref_height),             # Address Region Amharic (63,1144)-(810,1185)
+                'region_en': (63/ref_width, 1186/ref_height, 810/ref_width, 1227/ref_height),             # Address Region English (63,1186)-(810,1227)
+                'subcity_am': (63/ref_width, 1228/ref_height, 810/ref_width, 1269/ref_height),            # Sub City/Zone Amharic (63,1228)-(810,1269)
+                'subcity_en': (63/ref_width, 1266/ref_height, 810/ref_width, 1307/ref_height),            # Sub City/Zone English (63,1266)-(810,1307)
+                'woreda_am': (63/ref_width, 1310/ref_height, 810/ref_width, 1351/ref_height),             # Woreda Amharic (63,1310)-(810,1351)
+                'woreda_en': (63/ref_width, 1350/ref_height, 810/ref_width, 1391/ref_height),             # Woreda English (63,1350)-(810,1391)
             }
             
             print(f"📏 Using reference dimensions: {ref_width}x{ref_height}, actual: {width}x{height}")
@@ -1287,8 +1355,11 @@ class OCRExtractionService:
                 # Convert to grayscale
                 gray = cv2.cvtColor(region_img, cv2.COLOR_BGR2GRAY)
                 
-                # Resize for better OCR (reduced scale for speed)
-                scale = 2.0  # Reduced from 3.0 to 2.0 for faster processing
+                # Resize for better OCR - use higher scale for Amharic text
+                if '_am' in region_name:
+                    scale = 3.0  # Higher scale for Amharic to improve character recognition
+                else:
+                    scale = 2.0
                 gray = cv2.resize(gray, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC)
                 
                 # Apply preprocessing
@@ -1301,17 +1372,36 @@ class OCRExtractionService:
                     # Extract only numbers
                     config = '--oem 3 --psm 7 -c tessedit_char_whitelist=0123456789'
                     text = pytesseract.image_to_string(thresh, lang='eng', config=config)
-                else:
-                    # For text fields
+                elif '_am' in region_name:
+                    # For Amharic text fields - use bilateral filter for better quality
                     bilateral = cv2.bilateralFilter(gray, 9, 75, 75)
+                    # Use Otsu thresholding
                     _, thresh = cv2.threshold(bilateral, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
                     
-                    if region_name == 'address':
-                        config = '--oem 3 --psm 6'  # Block of text
+                    # Save debug image to see what OCR is processing
+                    debug_path = f'app/static/debug_regions/back_{region_name}.png'
+                    cv2.imwrite(debug_path, thresh)
+                    
+                    # Use PSM 6 for address-related fields to capture full text
+                    if region_name in ['address', 'region_am', 'subcity_am', 'woreda_am']:
+                        config = '--oem 3 --psm 6'  # Block of text - better for multi-word fields
                     else:
                         config = '--oem 3 --psm 7'  # Single line
                     
+                    # Use eng+amh for better recognition (amh alone can be problematic)
                     text = pytesseract.image_to_string(thresh, lang='eng+amh', config=config)
+                else:
+                    # For English text fields
+                    bilateral = cv2.bilateralFilter(gray, 9, 75, 75)
+                    _, thresh = cv2.threshold(bilateral, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+                    
+                    # Use PSM 6 for address-related fields to capture full text
+                    if region_name in ['address', 'region_en', 'subcity_en', 'woreda_en']:
+                        config = '--oem 3 --psm 6'  # Block of text - better for multi-word fields
+                    else:
+                        config = '--oem 3 --psm 7'  # Single line
+                    
+                    text = pytesseract.image_to_string(thresh, lang='eng', config=config)
                 
                 extracted_regions[region_name] = text.strip()
                 print(f"✓ {region_name}: {text.strip()[:80]}")
@@ -1372,11 +1462,29 @@ class OCRExtractionService:
                 # Extract nationality (now separate Amharic and English regions)
                 if 'nationality_am' in regions and regions['nationality_am']:
                     nat_am_text = regions['nationality_am'].strip()
+                    print(f"🔍 Raw nationality_am OCR: '{nat_am_text}'")
+                    
+                    # Common OCR corrections for Amharic nationality
+                    ocr_corrections = {
+                        'ATP RE': 'ኢትዮጵያ',
+                        'ATPRE': 'ኢትዮጵያ',
+                        'ETHIOP': 'ኢትዮጵያ',
+                    }
+                    
+                    # Apply corrections
+                    for wrong, correct in ocr_corrections.items():
+                        if wrong in nat_am_text:
+                            nat_am_text = nat_am_text.replace(wrong, correct)
+                            print(f"🔧 Applied OCR correction: '{wrong}' → '{correct}'")
+                    
                     # Clean up and extract Amharic nationality
                     nat_am_text = nat_am_text.replace('ዜግነት', '').replace('|', '').strip()
+                    print(f"🧹 Cleaned nationality_am: '{nat_am_text}'")
                     if 'ኢትዮጵያ' in nat_am_text or 'አትዮጵያ' in nat_am_text:
                         data['nationality_am'] = 'ኢትዮጵያዊ'
                         print(f"✓ Extracted nationality (AM): {data['nationality_am']}")
+                    else:
+                        print(f"⚠️ Could not identify Ethiopian nationality in Amharic text")
                 
                 if 'nationality_en' in regions and regions['nationality_en']:
                     nat_en_text = regions['nationality_en'].strip()
@@ -1389,12 +1497,33 @@ class OCRExtractionService:
                 # Extract address region (separate Amharic and English)
                 if 'region_am' in regions and regions['region_am']:
                     region_am_text = regions['region_am'].strip()
-                    # Clean Amharic text
-                    region_am_text = ''.join(c for c in region_am_text if '\u1200' <= c <= '\u137F' or c.isspace())
-                    region_am_text = ' '.join(region_am_text.split())
-                    if len(region_am_text) >= 2:
-                        data['region_am'] = region_am_text
+                    print(f"🔍 Raw region_am OCR: '{region_am_text}'")
+                    
+                    # Common OCR corrections for Amharic text misread as Latin
+                    # "አበባ" is often misread as "ANA" or "ABA"
+                    ocr_corrections = {
+                        'አዲስ ANA': 'አዲስ አበባ',
+                        'አዲስ ABA': 'አዲስ አበባ',
+                        'አዲስ ABABA': 'አዲስ አበባ',
+                        'አዲስ Ababa': 'አዲስ አበባ',
+                    }
+                    
+                    # Apply corrections
+                    for wrong, correct in ocr_corrections.items():
+                        if wrong in region_am_text:
+                            region_am_text = region_am_text.replace(wrong, correct)
+                            print(f"🔧 Applied OCR correction: '{wrong}' → '{correct}'")
+                    
+                    # Clean Amharic text - keep only Amharic characters and spaces
+                    region_am_clean = ''.join(c for c in region_am_text if '\u1200' <= c <= '\u137F' or c.isspace())
+                    region_am_clean = ' '.join(region_am_clean.split())
+                    print(f"🧹 Cleaned region_am: '{region_am_clean}'")
+                    # Only accept if we have valid Amharic text (at least 2 characters)
+                    if len(region_am_clean) >= 2:
+                        data['region_am'] = region_am_clean
                         print(f"✓ Extracted region (AM): {data['region_am']}")
+                    else:
+                        print(f"⚠️ Rejected region_am - too short or invalid after cleaning")
                 
                 if 'region_en' in regions and regions['region_en']:
                     region_en_text = regions['region_en'].strip()
@@ -1408,12 +1537,16 @@ class OCRExtractionService:
                 # Extract subcity/zone (separate Amharic and English)
                 if 'subcity_am' in regions and regions['subcity_am']:
                     subcity_am_text = regions['subcity_am'].strip()
+                    print(f"🔍 Raw subcity_am OCR: '{subcity_am_text}'")
                     # Clean Amharic text
-                    subcity_am_text = ''.join(c for c in subcity_am_text if '\u1200' <= c <= '\u137F' or c.isspace())
-                    subcity_am_text = ' '.join(subcity_am_text.split())
-                    if len(subcity_am_text) >= 2:
-                        data['subcity_am'] = subcity_am_text
+                    subcity_am_clean = ''.join(c for c in subcity_am_text if '\u1200' <= c <= '\u137F' or c.isspace())
+                    subcity_am_clean = ' '.join(subcity_am_clean.split())
+                    print(f"🧹 Cleaned subcity_am: '{subcity_am_clean}'")
+                    if len(subcity_am_clean) >= 2:
+                        data['subcity_am'] = subcity_am_clean
                         print(f"✓ Extracted subcity (AM): {data['subcity_am']}")
+                    else:
+                        print(f"⚠️ Rejected subcity_am - too short or invalid after cleaning")
                 
                 if 'subcity_en' in regions and regions['subcity_en']:
                     subcity_en_text = regions['subcity_en'].strip()
@@ -1427,12 +1560,16 @@ class OCRExtractionService:
                 # Extract woreda (separate Amharic and English)
                 if 'woreda_am' in regions and regions['woreda_am']:
                     woreda_am_text = regions['woreda_am'].strip()
-                    # Clean Amharic text
-                    woreda_am_text = ''.join(c for c in woreda_am_text if '\u1200' <= c <= '\u137F' or c.isspace() or c.isdigit())
-                    woreda_am_text = ' '.join(woreda_am_text.split())
-                    if len(woreda_am_text) >= 2:
-                        data['woreda_am'] = woreda_am_text
+                    print(f"🔍 Raw woreda_am OCR: '{woreda_am_text}'")
+                    # Clean Amharic text - keep Amharic characters, spaces, and digits
+                    woreda_am_clean = ''.join(c for c in woreda_am_text if '\u1200' <= c <= '\u137F' or c.isspace() or c.isdigit())
+                    woreda_am_clean = ' '.join(woreda_am_clean.split())
+                    print(f"🧹 Cleaned woreda_am: '{woreda_am_clean}'")
+                    if len(woreda_am_clean) >= 2:
+                        data['woreda_am'] = woreda_am_clean
                         print(f"✓ Extracted woreda (AM): {data['woreda_am']}")
+                    else:
+                        print(f"⚠️ Rejected woreda_am - too short or invalid after cleaning")
                 
                 if 'woreda_en' in regions and regions['woreda_en']:
                     woreda_en_text = regions['woreda_en'].strip()

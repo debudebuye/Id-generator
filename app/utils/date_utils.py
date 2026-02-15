@@ -32,6 +32,46 @@ def format_ethiopian_date(eth_date: Tuple[int, int, int]) -> str:
     """Format Ethiopian date as YYYY/MM/DD."""
     return f"{eth_date[0]}/{eth_date[1]:02d}/{eth_date[2]:02d}"
 
+def ethiopian_to_gregorian(eth_year: int, eth_month: int, eth_day: int) -> date:
+    """Convert Ethiopian date to Gregorian date."""
+    # Determine the Gregorian year
+    # Ethiopian months 1-4 fall in the second half of the Gregorian year
+    # Ethiopian months 5-13 fall in the first half of the next Gregorian year
+    if eth_month <= 4:
+        greg_year = eth_year + 7
+    else:
+        greg_year = eth_year + 8
+    
+    # Calculate the Gregorian date of Ethiopian New Year (Meskerem 1)
+    # Ethiopian New Year is September 11, except when the previous Gregorian year was a leap year,
+    # in which case it's September 12
+    prev_greg_year = greg_year - 1
+    is_prev_greg_leap = (prev_greg_year % 4 == 0 and prev_greg_year % 100 != 0) or (prev_greg_year % 400 == 0)
+    new_year_day = 12 if is_prev_greg_leap else 11
+    new_year = date(prev_greg_year, 9, new_year_day)
+    
+    # Calculate days from Ethiopian New Year
+    # Meskerem 1 (Ethiopian New Year) = new_year date (0 days offset)
+    # Meskerem 2 = new_year + 1 day, etc.
+    if eth_month <= 12:
+        days_from_new_year = (eth_month - 1) * 30 + (eth_day - 1)
+    else:  # Pagume (13th month)
+        days_from_new_year = 12 * 30 + (eth_day - 1)
+    
+    # Add days to get Gregorian date
+    from datetime import timedelta
+    gregorian_date = new_year + timedelta(days=days_from_new_year)
+    
+    return gregorian_date
+
+def parse_ethiopian_date(date_str: str) -> Tuple[int, int, int]:
+    """Parse Ethiopian date string in format YYYY/MM/DD."""
+    import re
+    match = re.match(r'(\d{4})/(\d{1,2})/(\d{1,2})', date_str)
+    if match:
+        return (int(match.group(1)), int(match.group(2)), int(match.group(3)))
+    return None
+
 def get_id_dates() -> dict:
     """Get issue and expiry dates for ID card."""
     today_gregorian = date.today()
