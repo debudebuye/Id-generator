@@ -792,6 +792,35 @@ def generate_id():
                 # Combine data
                 combined_data = {**front_data, **back_data}
                 
+                print(f"✓ Combined OCR data:")
+                print(f"  - date_of_birth: {combined_data.get('date_of_birth', 'NOT SET')}")
+                print(f"  - date_of_birth_am: {combined_data.get('date_of_birth_am', 'NOT SET')}")
+                print(f"  - date_of_birth_en: {combined_data.get('date_of_birth_en', 'NOT SET')}")
+                print(f"  - date_of_expiry: {combined_data.get('date_of_expiry', 'NOT SET')}")
+                print(f"  - date_of_expiry_am: {combined_data.get('date_of_expiry_am', 'NOT SET')}")
+                print(f"  - date_of_expiry_en: {combined_data.get('date_of_expiry_en', 'NOT SET')}")
+                
+                # Ensure DOB fields are properly mapped
+                if combined_data.get('date_of_birth_en') and not combined_data.get('dob_en'):
+                    combined_data['dob_en'] = combined_data['date_of_birth_en']
+                    combined_data['birth_date_en'] = combined_data['date_of_birth_en']
+                    print(f"  - Copied date_of_birth_en to dob_en: {combined_data['dob_en']}")
+                
+                if combined_data.get('date_of_birth_am') and not combined_data.get('dob_am'):
+                    combined_data['dob_am'] = combined_data['date_of_birth_am']
+                    combined_data['birth_date_am'] = combined_data['date_of_birth_am']
+                    print(f"  - Copied date_of_birth_am to dob_am: {combined_data['dob_am']}")
+                
+                # Ensure expiry_date_en is set if date_of_expiry_en is available
+                if combined_data.get('date_of_expiry_en') and not combined_data.get('expiry_date_en'):
+                    combined_data['expiry_date_en'] = combined_data['date_of_expiry_en']
+                    print(f"  - Copied date_of_expiry_en to expiry_date_en: {combined_data['expiry_date_en']}")
+                
+                # Ensure expiry_date_am is set if date_of_expiry_am is available
+                if combined_data.get('date_of_expiry_am') and not combined_data.get('expiry_date_am'):
+                    combined_data['expiry_date_am'] = combined_data['date_of_expiry_am']
+                    print(f"  - Copied date_of_expiry_am to expiry_date_am: {combined_data['expiry_date_am']}")
+                
                 print(f"✓ Combined data keys: {list(combined_data.keys())}")
                 print(f"✓ Combined data values:")
                 for key, value in combined_data.items():
@@ -840,9 +869,11 @@ def generate_id():
                     'dob_am': combined_data.get('date_of_birth_am', combined_data.get('dob_am', '')),
                     'dob_en': combined_data.get('date_of_birth_en', combined_data.get('dob_en', combined_data.get('date_of_birth', ''))),
                     'birth_date': combined_data.get('date_of_birth', ''),  # Legacy
-                    'birth_date_am': combined_data.get('date_of_birth_am', ''),
-                    'birth_date_en': combined_data.get('date_of_birth_en', ''),
+                    'birth_date_am': combined_data.get('date_of_birth_am', combined_data.get('birth_date_am', '')),
+                    'birth_date_en': combined_data.get('date_of_birth_en', combined_data.get('birth_date_en', '')),
                     'date_of_birth': combined_data.get('date_of_birth', ''),  # Legacy single field
+                    'date_of_birth_en': combined_data.get('date_of_birth_en', combined_data.get('dob_en', '')),  # Ensure this is set
+                    'date_of_birth_am': combined_data.get('date_of_birth_am', combined_data.get('dob_am', '')),  # Ensure this is set
                     # Map sex/gender (both languages when available)
                     'gender_am': combined_data.get('sex_am', combined_data.get('gender_am', '')),
                     'gender_en': combined_data.get('sex_en', combined_data.get('gender_en', combined_data.get('sex', ''))),
@@ -859,6 +890,8 @@ def generate_id():
                     'expiry_date_am': combined_data.get('date_of_expiry_am', combined_data.get('expiry_date_am', '')),
                     'expiry_date_en': combined_data.get('date_of_expiry_en', combined_data.get('expiry_date_en', combined_data.get('date_of_expiry', ''))),
                     'date_of_expiry': combined_data.get('date_of_expiry', ''),  # Legacy
+                    'date_of_expiry_en': combined_data.get('date_of_expiry_en', combined_data.get('expiry_date_en', '')),  # Ensure this is set
+                    'date_of_expiry_am': combined_data.get('date_of_expiry_am', combined_data.get('expiry_date_am', '')),  # Ensure this is set
                     # Map phone_number to phone for template compatibility
                     'phone': combined_data.get('phone_number', ''),  # Template uses phone
                     'phone_number': combined_data.get('phone_number', ''),  # Keep for compatibility

@@ -216,25 +216,6 @@
       "align": "left"
     },
     {
-      "key": "issue_date",
-      "position": [
-       836,
-        600
-      ],
-      "font": {
-        "family": "en",
-        "weight": 800,
-        "size": 20
-      },
-      "color": [
-        0,
-        0,
-        0
-      ],
-      "align": "left",
-      "rotate": 90
-    },
-    {
       "key": "issue_date_am",
       "position": [32, 710],
       "font": { 

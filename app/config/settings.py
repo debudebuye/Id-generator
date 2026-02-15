@@ -7,6 +7,7 @@ class Config:
     
     # Flask configuration
     SECRET_KEY = os.environ.get('SECRET_KEY', 'your-secret-key-here')
+    MAX_CONTENT_LENGTH = 50 * 1024 * 1024  # 50MB max request size
     
     # File paths - Updated for new folder structure
     STATIC_FOLDER = os.path.join(BASE_DIR, 'static')

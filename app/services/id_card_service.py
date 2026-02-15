@@ -742,8 +742,8 @@ class IDCardService:
                 return photo_bytes
             
             # 3) File path
-            if data.get('photo'):
-                photo_path = data['photo']
+            if data.get('photo') or data.get('photo_path'):
+                photo_path = data.get('photo') or data.get('photo_path')
                 if not os.path.isabs(photo_path):
                     photo_path = os.path.join(self.config.STATIC_FOLDER, photo_path)
                 if os.path.exists(photo_path):
@@ -3529,31 +3529,80 @@ class IDCardService:
             barcode_path = data.get('fcn_barcode')
             barcode_full_path = os.path.join(self.config.STATIC_FOLDER, barcode_path) if barcode_path else None
 
-            # Check if we have extracted photo and QR data from PDF
-            if data.get('photo') and os.path.exists(os.path.join(self.config.STATIC_FOLDER, data['photo'].replace('static/', ''))):
-                # Use the extracted photo from PDF
-                photo_path = os.path.join(self.config.STATIC_FOLDER, data['photo'].replace('static/', ''))
-                print(f"Using extracted photo from PDF: {photo_path}")
+            # Check if we have uploaded/extracted photo
+            if data.get('photo') or data.get('photo_path'):
+                uploaded_photo = data.get('photo') or data.get('photo_path')
+                if not os.path.isabs(uploaded_photo):
+                    uploaded_photo = os.path.join(self.config.STATIC_FOLDER, uploaded_photo.replace('static/', ''))
+                
+                if os.path.exists(uploaded_photo):
+                    # Check if source and destination are the same file
+                    if os.path.abspath(uploaded_photo) == os.path.abspath(photo_path):
+                        print(f"Photo already at destination: {photo_path}")
+                    else:
+                        # Copy to photo_temp.png for consistent usage
+                        # Use PIL to avoid file locking issues on Windows
+                        try:
+                            img = Image.open(uploaded_photo)
+                            img_copy = img.copy()
+                            img.close()
+                            img_copy.save(photo_path, 'PNG')
+                            img_copy.close()
+                            print(f"Using uploaded/extracted photo: {uploaded_photo} -> {photo_path}")
+                        except Exception as copy_error:
+                            print(f"⚠️ Error copying photo: {copy_error}")
+                            # If copy fails, use source directly
+                            photo_path = uploaded_photo
+                            print(f"Using photo directly: {photo_path}")
+                else:
+                    print(f"⚠️ Photo path specified but file not found: {uploaded_photo}")
+                    # Generate photo data if file not found
+                    photo_bytes = self.get_photo_data(data, remove_white, remove_black)
+                    photo_img = Image.open(BytesIO(photo_bytes)).convert("RGBA")
+                    photo_img.save(photo_path)
+                    photo_img.close()
+                    print(f"Generated photo data and saved to: {photo_path}")
             else:
                 # Generate photo data if not available
                 photo_bytes = self.get_photo_data(data, remove_white, remove_black)
                 photo_img = Image.open(BytesIO(photo_bytes)).convert("RGBA")
                 photo_img.save(photo_path)
+                photo_img.close()
                 print(f"Generated photo data and saved to: {photo_path}")
             
-            # Check for uploaded QR code first (qr_temp.png from upload_qr endpoint)
-            if os.path.exists(qr_path):
-                # Use the uploaded QR code (either from PDF extraction or manual upload)
+            # Check for uploaded/extracted QR code first
+            if data.get('qr_path'):
+                # Use the uploaded or extracted QR from data
+                uploaded_qr = data['qr_path']
+                if not os.path.isabs(uploaded_qr):
+                    uploaded_qr = os.path.join(self.config.STATIC_FOLDER, uploaded_qr.replace('static/', ''))
+                
+                if os.path.exists(uploaded_qr):
+                    # Check if source and destination are the same file
+                    if os.path.abspath(uploaded_qr) == os.path.abspath(qr_path):
+                        print(f"QR already at destination: {qr_path}")
+                    else:
+                        # Copy to qr_temp.png for consistent usage
+                        try:
+                            import shutil
+                            shutil.copy2(uploaded_qr, qr_path)
+                            print(f"Using uploaded/extracted QR code: {uploaded_qr} -> {qr_path}")
+                        except Exception as copy_error:
+                            print(f"⚠️ Error copying QR: {copy_error}")
+                            # If copy fails, use source directly
+                            qr_path = uploaded_qr
+                            print(f"Using QR directly: {qr_path}")
+                else:
+                    print(f"⚠️ QR path specified but file not found: {uploaded_qr}")
+            elif os.path.exists(qr_path):
+                # Use existing qr_temp.png (from previous generation)
                 print(f"Using existing QR code from: {qr_path}")
-            elif data.get('qr_path') and os.path.exists(os.path.join(self.config.STATIC_FOLDER, data['qr_path'].replace('static/', ''))):
-                # Use the extracted QR from PDF (if path is specified in data)
-                qr_path = os.path.join(self.config.STATIC_FOLDER, data['qr_path'].replace('static/', ''))
-                print(f"Using extracted QR from PDF: {qr_path}")
             else:
                 # Generate QR data if not available
                 qr_bytes = self.generate_qr_code(data, include_nationality=False)
                 qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
                 qr_img.save(qr_path)
+                qr_img.close()
                 print(f"Generated QR data and saved to: {qr_path}")
             
             # Preload and process photo once per size (optimized)

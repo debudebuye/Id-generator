@@ -46,7 +46,7 @@
     {
       "label": ":ንቀ ድልውትየ",
       "key": "dob_am",
-      "position": [558, 335],
+      "position": [553, 335],
       "font": {
         "family": "am",
         "weight": 800,
@@ -139,18 +139,6 @@
       "align": "left"
     },
     {
-      "key": "issue_date",
-      "position": [1400, 20],
-      "font": {
-        "family": "en",
-        "weight": 800,
-        "size": 30
-      },
-      "color": [0, 0, 0],
-      "align": "left",
-      "rotate": 90
-    },
-    {
       "key": "issue_date_am",
       "position": [155, 396],
       "font": {
@@ -175,7 +163,7 @@
     {
       "label": ":s:seripxE",
       "key": "expiry_date_am",
-      "position": [559, 462],
+      "position": [548, 462],
       "font": {
         "family": "am",
         "weight": 800,
