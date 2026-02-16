@@ -42,6 +42,10 @@ app/
 ### `/docs` - Documentation
 ```
 docs/
+├── date_conversion/        # Date conversion documentation
+│   ├── ETHIOPIAN_DATE_CONVERSION_SUMMARY.md
+│   ├── ETHIOPIAN_DATE_CONVERSION_VERDICT.md
+│   └── DATE_CONVERSION_ANALYSIS.md
 ├── guides/                 # User guides and tutorials
 │   ├── OCR_EXTRACTION_GUIDE.md
 │   ├── QR_EXTRACTION_QUICK_START.md
@@ -54,6 +58,11 @@ docs/
 ### `/tests` - Tests and Debug Tools
 ```
 tests/
+├── date_conversion/        # Ethiopian date conversion tests
+│   ├── test_date_conversion.py      # Main test suite
+│   ├── debug_*.py                   # Debug scripts
+│   ├── verify_*.py                  # Verification scripts
+│   └── README.md                    # Test documentation
 ├── debug/                  # Debug scripts
 │   ├── images/            # Debug output images
 │   ├── debug_*.py         # Debug scripts
