@@ -482,16 +482,17 @@ class OCRExtractionService:
                         data['sex_am'] = 'ሴት'
                         print(f"✓ Extracted sex (AM): ሴት")
                 
-                if 'sex_en' in regions and regions['sex_en']:
-                    sex_en = regions['sex_en'].strip().lower()
-                    if 'male' in sex_en and 'female' not in sex_en:
-                        data['sex'] = 'Male'
-                        data['sex_en'] = 'Male'
-                        print(f"✓ Extracted sex (EN): Male")
-                    elif 'female' in sex_en:
-                        data['sex'] = 'Female'
-                        data['sex_en'] = 'Female'
-                        print(f"✓ Extracted sex (EN): Female")
+                # Don't extract sex_en - it will be translated from sex_am
+                # if 'sex_en' in regions and regions['sex_en']:
+                #     sex_en = regions['sex_en'].strip().lower()
+                #     if 'male' in sex_en and 'female' not in sex_en:
+                #         data['sex'] = 'Male'
+                #         data['sex_en'] = 'Male'
+                #         print(f"✓ Extracted sex (EN): Male")
+                #     elif 'female' in sex_en:
+                #         data['sex'] = 'Female'
+                #         data['sex_en'] = 'Female'
+                #         print(f"✓ Extracted sex (EN): Female")
                 
                 # Legacy fallback for old 'sex' region
                 if 'sex' in regions and regions['sex']:
@@ -531,32 +532,32 @@ class OCRExtractionService:
                             data['sex_am'] = 'ሴት'
                             print(f"✓ Extracted sex (AM): ሴት")
                 
-                # Extract expiry date from separate Gregorian and Ethiopian regions
-                if 'expiry_gregorian' in regions and regions['expiry_gregorian']:
-                    expiry_greg = regions['expiry_gregorian'].strip()
-                    # Look for date patterns - YYYY/Mon/DD format
-                    gregorian_match = re.search(r'(\d{4}/[A-Za-z]{3}/\d{2})', expiry_greg)
-                    if gregorian_match:
-                        data['date_of_expiry_en'] = gregorian_match.group(1)
-                        if not data['date_of_expiry']:
-                            data['date_of_expiry'] = gregorian_match.group(1)
-                        print(f"✓ Extracted expiry (Gregorian): {data['date_of_expiry_en']}")
-                    # Try YYYY/MM/DD format
-                    if not gregorian_match:
-                        yyyy_match = re.search(r'(\d{4}/\d{2}/\d{2})', expiry_greg)
-                        if yyyy_match:
-                            data['date_of_expiry_en'] = yyyy_match.group(1)
-                            if not data['date_of_expiry']:
-                                data['date_of_expiry'] = yyyy_match.group(1)
-                            print(f"✓ Extracted expiry (YYYY/MM/DD): {data['date_of_expiry_en']}")
+                # Don't extract expiry date - it will be calculated from issue date
+                # if 'expiry_gregorian' in regions and regions['expiry_gregorian']:
+                #     expiry_greg = regions['expiry_gregorian'].strip()
+                #     # Look for date patterns - YYYY/Mon/DD format
+                #     gregorian_match = re.search(r'(\d{4}/[A-Za-z]{3}/\d{2})', expiry_greg)
+                #     if gregorian_match:
+                #         data['date_of_expiry_en'] = gregorian_match.group(1)
+                #         if not data['date_of_expiry']:
+                #             data['date_of_expiry'] = gregorian_match.group(1)
+                #         print(f"✓ Extracted expiry (Gregorian): {data['date_of_expiry_en']}")
+                #     # Try YYYY/MM/DD format
+                #     if not gregorian_match:
+                #         yyyy_match = re.search(r'(\d{4}/\d{2}/\d{2})', expiry_greg)
+                #         if yyyy_match:
+                #             data['date_of_expiry_en'] = yyyy_match.group(1)
+                #             if not data['date_of_expiry']:
+                #                 data['date_of_expiry'] = yyyy_match.group(1)
+                #             print(f"✓ Extracted expiry (YYYY/MM/DD): {data['date_of_expiry_en']}")
                 
-                if 'expiry_ethiopian' in regions and regions['expiry_ethiopian']:
-                    expiry_eth = regions['expiry_ethiopian'].strip()
-                    # Look for Ethiopian date pattern - YYYY/MM/DD format
-                    ethiopian_match = re.search(r'(\d{4}/\d{2}/\d{2})', expiry_eth)
-                    if ethiopian_match:
-                        data['date_of_expiry_am'] = ethiopian_match.group(1)
-                        print(f"✓ Extracted expiry (Ethiopian): {data['date_of_expiry_am']}")
+                # if 'expiry_ethiopian' in regions and regions['expiry_ethiopian']:
+                #     expiry_eth = regions['expiry_ethiopian'].strip()
+                #     # Look for Ethiopian date pattern - YYYY/MM/DD format
+                #     ethiopian_match = re.search(r'(\d{4}/\d{2}/\d{2})', expiry_eth)
+                #     if ethiopian_match:
+                #         data['date_of_expiry_am'] = ethiopian_match.group(1)
+                #         print(f"✓ Extracted expiry (Ethiopian): {data['date_of_expiry_am']}")
                 
                 # Legacy fallback for old 'date_of_expiry' region
                 if 'date_of_expiry' in regions and regions['date_of_expiry']:
@@ -613,8 +614,8 @@ class OCRExtractionService:
                 from app.utils.date_utils import ethiopian_to_gregorian, parse_ethiopian_date, get_id_dates
                 from datetime import date
                 
-                # Translate sex from Amharic to English
-                if data.get('sex_am') and not data.get('sex_en'):
+                # Always translate sex from Amharic to English (don't extract English sex)
+                if data.get('sex_am'):
                     sex_am = data['sex_am'].strip()
                     if 'ወንድ' in sex_am or 'ወ/ድ' in sex_am:
                         data['sex'] = 'Male'
@@ -652,131 +653,24 @@ class OCRExtractionService:
                         import traceback
                         traceback.print_exc()
                 
-                # Convert Expiry from Ethiopian to Gregorian
-                if data.get('date_of_expiry_am') and not data.get('date_of_expiry_en'):
-                    try:
-                        expiry_am = data['date_of_expiry_am']
-                        # Check if format is DD/MM/YYYY and convert to YYYY/MM/DD
-                        if '/' in expiry_am:
-                            parts = expiry_am.split('/')
-                            if len(parts) == 3:
-                                # If first part is 2 digits and last part is 4 digits, it's DD/MM/YYYY
-                                if len(parts[0]) <= 2 and len(parts[2]) == 4:
-                                    # Convert DD/MM/YYYY to YYYY/MM/DD
-                                    expiry_am = f"{parts[2]}/{parts[1]}/{parts[0]}"
-                                    print(f"🔄 Converted Expiry format: {data['date_of_expiry_am']} → {expiry_am}")
-                        
-                        parsed = parse_ethiopian_date(expiry_am)
-                        if parsed:
-                            greg_date = ethiopian_to_gregorian(parsed[0], parsed[1], parsed[2])
-                            data['date_of_expiry_en'] = greg_date.strftime("%Y/%b/%d")
-                            data['date_of_expiry'] = data['date_of_expiry_en']
-                            print(f"✓ Converted Expiry: {data['date_of_expiry_am']} → {data['date_of_expiry_en']}")
-                        else:
-                            print(f"⚠️ Failed to parse Expiry: {expiry_am}")
-                    except Exception as e:
-                        print(f"⚠️ Failed to convert Expiry: {e}")
-                        import traceback
-                        traceback.print_exc()
+                # Always use today's date as issue date (don't extract from card)
+                id_dates = get_id_dates()
+                data['date_of_issue'] = id_dates['issue_date_greg']
+                data['date_of_issue_en'] = id_dates['issue_date_greg']
+                data['date_of_issue_am'] = id_dates['issue_date_eth']
+                print(f"✓ Using today as issue date: {data['date_of_issue_en']} (Ethiopian: {data['date_of_issue_am']})")
                 
-                # Use today's date as issue date
-                if not data.get('date_of_issue'):
-                    id_dates = get_id_dates()
-                    data['date_of_issue'] = id_dates['issue_date_greg']
-                    data['date_of_issue_en'] = id_dates['issue_date_greg']
-                    data['date_of_issue_am'] = id_dates['issue_date_eth']
-                    print(f"✓ Using today as issue date: {data['date_of_issue_en']} (Ethiopian: {data['date_of_issue_am']})")
+                # Always calculate expiry date from issue date (don't extract from card)
+                data['date_of_expiry'] = id_dates['expiry_date_greg']
+                data['date_of_expiry_en'] = id_dates['expiry_date_greg']
+                data['date_of_expiry_am'] = id_dates['expiry_date_eth']
+                print(f"✓ Calculated expiry date (8 years - 2 days from issue): {data['date_of_expiry_en']} (Ethiopian: {data['date_of_expiry_am']})")
                 
                 # ========================================
                 # End of optimization
                 # ========================================
                 
-                # Extract date of issue from separate Gregorian and Ethiopian regions (vertical text)
-                if 'issue_gregorian' in regions and regions['issue_gregorian']:
-                    issue_greg = regions['issue_gregorian'].strip()
-                    print(f"🔍 Raw issue date (Gregorian): {issue_greg}")
-                    
-                    # Clean up OCR errors
-                    issue_greg = issue_greg.replace('O', '0').replace('o', '0')
-                    issue_greg = issue_greg.replace('l', '1').replace('I', '1')
-                    issue_greg = issue_greg.replace('S', '5').replace('s', '5')
-                    issue_greg = issue_greg.replace('B', '8')
-                    
-                    # Try multiple date patterns
-                    date_patterns = [
-                        r'(\d{4}[/\-]\d{2}[/\-]\d{2})',
-                        r'(\d{2}[/\-]\d{2}[/\-]\d{4})',
-                        r'(\d{4}[/\-][A-Za-z]{3}[/\-]\d{2})',
-                        r'(\d{4}\s*/\s*\d{2}\s*/\s*\d{2})',
-                    ]
-                    
-                    for pattern in date_patterns:
-                        match = re.search(pattern, issue_greg)
-                        if match:
-                            extracted_date = re.sub(r'\s+', '', match.group(1)).replace('-', '/')
-                            data['date_of_issue_en'] = extracted_date
-                            if not data['date_of_issue']:
-                                data['date_of_issue'] = extracted_date
-                            print(f"✓ Extracted issue date (Gregorian): {data['date_of_issue_en']}")
-                            break
-                
-                if 'issue_ethiopian' in regions and regions['issue_ethiopian']:
-                    issue_eth = regions['issue_ethiopian'].strip()
-                    print(f"🔍 Raw issue date (Ethiopian): {issue_eth}")
-                    
-                    # Look for Ethiopian date pattern
-                    ethiopian_match = re.search(r'(\d{4}[/\-][A-Za-z]{3}[/\-]\d{2})', issue_eth)
-                    if ethiopian_match:
-                        extracted_eth = re.sub(r'\s+', '', ethiopian_match.group(1)).replace('-', '/')
-                        data['date_of_issue_am'] = extracted_eth
-                        print(f"✓ Extracted issue date (Ethiopian): {data['date_of_issue_am']}")
-                
-                # Legacy fallback for old 'date_of_issue' region
-                if 'date_of_issue' in regions and regions['date_of_issue']:
-                    issue_text = regions['date_of_issue']
-                    print(f"🔍 Raw issue date text: {issue_text}")
-                    
-                    # Clean up the text - remove common OCR errors
-                    issue_text = issue_text.replace('O', '0').replace('o', '0')  # O to 0
-                    issue_text = issue_text.replace('l', '1').replace('I', '1')  # l/I to 1
-                    issue_text = issue_text.replace('S', '5').replace('s', '5')  # S to 5
-                    issue_text = issue_text.replace('B', '8')  # B to 8
-                    
-                    # Try multiple date patterns with more flexibility
-                    date_patterns = [
-                        r'(\d{4}[/\-]\d{2}[/\-]\d{2})',          # YYYY/MM/DD or YYYY-MM-DD
-                        r'(\d{2}[/\-]\d{2}[/\-]\d{4})',          # DD/MM/YYYY or DD-MM-YYYY
-                        r'(\d{4}[/\-][A-Za-z]{3}[/\-]\d{2})',    # YYYY/Mon/DD
-                        r'(\d{2}[/\-][A-Za-z]{3}[/\-]\d{4})',    # DD/Mon/YYYY
-                        r'(\d{4}\s*/\s*\d{2}\s*/\s*\d{2})',      # YYYY / MM / DD (with spaces)
-                    ]
-                    
-                    # Find all dates in the text
-                    all_dates = []
-                    for pattern in date_patterns:
-                        matches = re.findall(pattern, issue_text)
-                        all_dates.extend(matches)
-                    
-                    if all_dates:
-                        # Separate numeric Gregorian vs Ethiopian (month-name) forms
-                        gregorian_candidates = [d for d in all_dates if re.search(r'\d{4}[/\-]\d{2}[/\-]\d{2}', d) or re.search(r'\d{2}[/\-]\d{2}[/\-]\d{4}', d)]
-                        ethiopian_candidates = [d for d in all_dates if re.search(r'[A-Za-z]{3}', d)]
-
-                        if gregorian_candidates:
-                            extracted_date = re.sub(r'\s+', '', gregorian_candidates[0]).replace('-', '/')
-                            data['date_of_issue_en'] = extracted_date
-                            if not data['date_of_issue']:
-                                data['date_of_issue'] = extracted_date
-                            print(f"✓ Extracted issue date (Gregorian): {data['date_of_issue_en']}")
-
-                        if ethiopian_candidates:
-                            extracted_eth = re.sub(r'\s+', '', ethiopian_candidates[0]).replace('-', '/')
-                            data['date_of_issue_am'] = extracted_eth
-                            print(f"✓ Extracted issue date (Ethiopian): {data['date_of_issue_am']}")
-                    else:
-                        print(f"⚠️ No date pattern found in issue text: {issue_text}")
-                
-                # If we got good data from regions, return it
+                # If we got good data from regions, return it (skip fallback)
                 extracted_count = sum(1 for v in data.values() if v)
                 if extracted_count >= 3:
                     print(f"✅ Region-based extraction successful: {extracted_count}/{len(data)} fields")
@@ -784,6 +678,11 @@ class OCRExtractionService:
                 else:
                     print(f"⚠️ Region-based extraction incomplete: {extracted_count}/{len(data)} fields")
                     print("   Falling back to full-page OCR...")
+        
+        # Skip fallback if no text provided (optimization)
+        if not text or len(text.strip()) == 0:
+            print("⚠️ No text provided for fallback parsing, returning region-based data")
+            return data
         
         # Fall back to full-page text parsing
         print(f"🔍 Parsing full text ({len(text)} chars)")
@@ -1739,6 +1638,11 @@ class OCRExtractionService:
                 else:
                     print(f"⚠️ Region-based extraction incomplete: {extracted_count}/8 fields")
                     print("   Falling back to full-page OCR...")
+        
+        # Skip fallback if no text provided (optimization)
+        if not text or len(text.strip()) == 0:
+            print("⚠️ No text provided for fallback parsing, returning region-based data")
+            return data
         
         # Fall back to full-page text parsing
         print(f"🔍 Parsing back card full text ({len(text)} chars)")

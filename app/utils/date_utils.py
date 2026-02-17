@@ -77,8 +77,8 @@ def get_id_dates() -> dict:
     issue_date_eth = format_ethiopian_date(eth_issue)
     issue_date_greg = today_gregorian.strftime("%Y/%b/%d")
     
-    # Calculate expiry dates (8 years from issue)
-    expiry_gregorian = today_gregorian + relativedelta(years=8)
+    # Calculate expiry dates (8 years minus 2 days from issue)
+    expiry_gregorian = today_gregorian + relativedelta(years=8, days=-2)
     eth_expiry = gregorian_to_ethiopian(expiry_gregorian)
     expiry_date_eth = format_ethiopian_date(eth_expiry)
     expiry_date_greg = expiry_gregorian.strftime("%Y/%b/%d")

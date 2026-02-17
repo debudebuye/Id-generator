@@ -254,7 +254,7 @@ def detect_content_region(img_cv, margin_percent=0.05):
 def detect_and_extract_photo_qr(combined_image_path: str, output_dir: str) -> Tuple[Optional[str], Optional[str]]:
     """
     Extract profile photo and QR code from a combined mobile screenshot.
-    Uses exact coordinates based on 591x1280px reference image from Adobe.
+    Supports multiple dimension presets with auto-detection.
     
     Args:
         combined_image_path: Path to the combined image containing both photo and QR
@@ -265,26 +265,57 @@ def detect_and_extract_photo_qr(combined_image_path: str, output_dir: str) -> Tu
     """
     print("🔍 Starting photo + QR extraction with exact coordinates...")
     
+    # Define dimension presets
+    DIMENSION_PRESETS = {
+        '591x1280': {
+            'ref_width': 591,
+            'ref_height': 1280,
+            'photo': {'x': 158, 'y': 254, 'w': 279, 'h': 370},
+            'qr': {'x': 110, 'y': 672, 'w': 372, 'h': 374}
+        },
+        '720x1600': {
+            'ref_width': 720,
+            'ref_height': 1600,
+            'photo': {'x': 187, 'y': 287, 'w': 346, 'h': 458},
+            'qr': {'x': 134, 'y': 805, 'w': 455, 'h': 459}
+        }
+    }
+    
     try:
         pil_img = Image.open(combined_image_path)
         width, height = pil_img.size
         print(f"   📸 Image size: {width}x{height}")
         
-        # Reference dimensions from Adobe (591x1280px)
-        ref_width = 591
-        ref_height = 1280
+        # Auto-detect which preset to use based on aspect ratio
+        img_aspect = width / height
+        best_preset = None
+        min_diff = float('inf')
+        
+        for preset_name, preset_data in DIMENSION_PRESETS.items():
+            preset_aspect = preset_data['ref_width'] / preset_data['ref_height']
+            aspect_diff = abs(img_aspect - preset_aspect)
+            
+            if aspect_diff < min_diff:
+                min_diff = aspect_diff
+                best_preset = preset_name
+        
+        preset = DIMENSION_PRESETS[best_preset]
+        print(f"   🎯 Using preset: {best_preset} (aspect ratio match)")
         
         # Calculate scaling factors
+        ref_width = preset['ref_width']
+        ref_height = preset['ref_height']
         scale_x = width / ref_width
         scale_y = height / ref_height
         
         print(f"   📐 Scale factors: x={scale_x:.3f}, y={scale_y:.3f}")
         
-        # Photo coordinates from Adobe (X:158, Y:254, W:279, H:370)
-        photo_x = int(158 * scale_x)
-        photo_y = int(254 * scale_y)
-        photo_w = int(279 * scale_x)
-        photo_h = int(370 * scale_y)
+        # Photo coordinates
+        photo_coords = preset['photo']
+        photo_x = int(photo_coords['x'] * scale_x)
+        photo_y = int(photo_coords['y'] * scale_y)
+        photo_w = int(photo_coords['w'] * scale_x)
+        photo_h = int(photo_coords['h'] * scale_y)
         
         print(f"   📷 Photo region: x={photo_x}, y={photo_y}, w={photo_w}, h={photo_h}")
         
@@ -301,11 +332,12 @@ def detect_and_extract_photo_qr(combined_image_path: str, output_dir: str) -> Tu
         photo_img.save(photo_path, 'PNG')
         print(f"   ✓ Extracted photo: {photo_img.size}")
         
-        # QR code coordinates from Adobe (X:110, Y:672, W:372, H:374)
-        qr_x = int(110 * scale_x)
-        qr_y = int(672 * scale_y)
-        qr_w = int(372 * scale_x)
-        qr_h = int(374 * scale_y)
+        # QR code coordinates
+        qr_coords = preset['qr']
+        qr_x = int(qr_coords['x'] * scale_x)
+        qr_y = int(qr_coords['y'] * scale_y)
+        qr_w = int(qr_coords['w'] * scale_x)
+        qr_h = int(qr_coords['h'] * scale_y)
         
         print(f"   🔲 QR region: x={qr_x}, y={qr_y}, w={qr_w}, h={qr_h}")
         
