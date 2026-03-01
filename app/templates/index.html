@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,10 +9,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-      --primary: #07813a; /* Ethiopian green */
+      --primary: #07813a;
+      /* Ethiopian green */
       --primary-dark: #056830;
       --primary-light: #e6f4ea;
-      --accent: #f0b429; /* Ethiopian yellow */
+      --accent: #f0b429;
+      /* Ethiopian yellow */
       --danger: #e74c3c;
       --warning: #f39c12;
       --success: #2ecc71;
@@ -31,7 +34,7 @@
 
     body {
       font-family: 'Inter', sans-serif;
-      background-color: var(--bg-light);
+      background-color: white;
       color: var(--text);
       line-height: 1.6;
       min-height: 100vh;
@@ -44,6 +47,7 @@
       margin: auto;
       padding: 2rem;
       width: 100%;
+      background-color: transparent;
     }
 
     /* Header */
@@ -76,7 +80,7 @@
     .logo img {
       height: 40px;
       border-radius: 4px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
     }
 
     .logo-text {
@@ -258,7 +262,7 @@
       position: relative;
       overflow: hidden;
       background-color: #f5f5f5;
-      box-shadow: inset 0 1px 3px rgba(0,0,0,0.05);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.05);
       flex-grow: 1;
       cursor: zoom-in;
     }
@@ -504,6 +508,171 @@
       flex-shrink: 0;
     }
 
+    /* Skip Preview Options */
+    .skip-preview-options {
+      margin-bottom: 2rem;
+    }
+
+    .skip-preview-container {
+      background: rgba(240, 180, 41, 0.12);
+      border: 2px solid rgba(240, 180, 41, 0.3);
+      border-radius: 10px;
+      padding: 1.25rem;
+      transition: var(--transition);
+    }
+
+    .skip-preview-container:hover {
+      background: rgba(240, 180, 41, 0.18);
+      border-color: rgba(240, 180, 41, 0.5);
+    }
+
+    .skip-preview-container:hover {
+      background: rgba(240, 180, 41, 0.12);
+      border-color: rgba(240, 180, 41, 0.3);
+    }
+
+    .skip-preview-label {
+      display: flex;
+      align-items: flex-start;
+      cursor: pointer;
+      gap: 1rem;
+      user-select: none;
+    }
+
+    .skip-preview-checkbox {
+      display: none;
+    }
+
+    .skip-preview-checkmark {
+      width: 28px;
+      height: 28px;
+      border: 4px solid #f0b429;
+      border-radius: 8px;
+      position: relative;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: var(--transition);
+      background-color: white;
+      box-shadow: 0 3px 6px rgba(240, 180, 41, 0.4);
+      cursor: pointer;
+    }
+
+    .skip-preview-checkbox:checked+.skip-preview-checkmark {
+      background-color: #f0b429;
+      border-color: #f0b429;
+      box-shadow: 0 4px 12px rgba(240, 180, 41, 0.6);
+    }
+
+    .skip-preview-checkbox:checked+.skip-preview-checkmark::after {
+      content: '';
+      position: absolute;
+      left: 8px;
+      top: 4px;
+      width: 8px;
+      height: 14px;
+      border: solid white;
+      border-width: 0 4px 4px 0;
+      transform: rotate(45deg);
+    }
+
+    .skip-preview-content {
+      flex: 1;
+    }
+
+    .skip-preview-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      font-size: 0.95rem;
+    }
+
+    .skip-preview-description {
+      color: var(--text-light);
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+
+    .skip-preview-label:hover .skip-preview-checkmark {
+      border-color: #f0b429;
+      box-shadow: 0 0 0 6px rgba(240, 180, 41, 0.3);
+      transform: scale(1.1);
+    }
+
+    .skip-preview-container:hover {
+      background: rgba(240, 180, 41, 0.12);
+      border-color: rgba(240, 180, 41, 0.3);
+    }
+
+    .skip-preview-label {
+      display: flex;
+      align-items: flex-start;
+      cursor: pointer;
+      gap: 1rem;
+      user-select: none;
+    }
+
+    .skip-preview-checkbox {
+      display: none;
+    }
+
+    .skip-preview-checkmark {
+      width: 22px;
+      height: 22px;
+      border: 3px solid var(--accent);
+      border-radius: 6px;
+      position: relative;
+      flex-shrink: 0;
+      margin-top: 2px;
+      transition: var(--transition);
+      background-color: white;
+      box-shadow: 0 2px 4px rgba(240, 180, 41, 0.2);
+    }
+
+    .skip-preview-checkbox:checked+.skip-preview-checkmark {
+      background-color: var(--accent);
+      border-color: var(--accent);
+      box-shadow: 0 2px 8px rgba(240, 180, 41, 0.4);
+    }
+
+    .skip-preview-checkbox:checked+.skip-preview-checkmark::after {
+      content: '';
+      position: absolute;
+      left: 7px;
+      top: 3px;
+      width: 6px;
+      height: 10px;
+      border: solid white;
+      border-width: 0 3px 3px 0;
+      transform: rotate(45deg);
+    }
+
+    .skip-preview-content {
+      flex: 1;
+    }
+
+    .skip-preview-title {
+      font-weight: 600;
+      color: var(--text);
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      font-size: 0.95rem;
+    }
+
+    .skip-preview-description {
+      color: var(--text-light);
+      font-size: 0.875rem;
+      line-height: 1.4;
+    }
+
+    .skip-preview-label:hover .skip-preview-checkmark {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 4px rgba(240, 180, 41, 0.15);
+      transform: scale(1.05);
+    }
+
     /* Buttons */
     .btn-container {
       display: flex;
@@ -585,7 +754,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
 
     /* Progress Bar */
@@ -761,15 +932,15 @@
       .container {
         padding: 1.5rem;
       }
-      
+
       .upload-card {
         padding: 1.75rem;
       }
-      
+
       .form-container {
         flex-direction: column;
       }
-      
+
       .preview-container {
         height: 350px;
       }
@@ -791,20 +962,20 @@
       .header-content {
         padding: 0 1rem;
       }
-      
+
       .logo-text {
         font-size: 1.25rem;
       }
-      
+
       .card-title {
         font-size: 1.5rem;
       }
-      
+
       .btn {
         width: 100%;
         padding: 1rem;
       }
-      
+
       .pdf-format-info {
         flex-direction: column;
         text-align: center;
@@ -862,8 +1033,15 @@
 
     /* Animations */
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .fade-in {
@@ -901,6 +1079,7 @@
     }
   </style>
 </head>
+
 <body>
   <header>
     <div class="header-content">
@@ -934,7 +1113,8 @@
 
         <div class="card-header">
           <h1 class="card-title">Upload Your Documents</h1>
-          <p class="card-subtitle">Upload your official PDF document to generate your Ethiopian Digital ID (Fyda)</p>
+          <p class="card-subtitle">Upload your official document (PDF, DOC, or DOCX) to generate your Ethiopian Digital
+            ID (Fyda)</p>
         </div>
 
         <form id="uploadForm" action="{{ url_for('main.generate_id') }}" method="post" enctype="multipart/form-data">
@@ -949,45 +1129,59 @@
                   </span>
                 </label>
                 <div class="input-with-paste">
-                  <input 
-                    type="text" 
-                    id="fin" 
-                    name="fin" 
-                    class="form-control" 
-                    placeholder="Enter 12-digit FIN number" 
-                    required
-                    pattern="\d{12}"
-                    maxlength="12"
-                    aria-describedby="finHelp"
-                  >
+                  <input type="text" id="fin" name="fin" class="form-control" placeholder="Enter 12-digit FIN number"
+                    required pattern="\d{12}" maxlength="12" aria-describedby="finHelp">
                   <button type="button" class="paste-btn" id="pasteBtn" title="Paste FIN number">
                     <i class="fas fa-paste"></i>
                   </button>
                 </div>
-                <span id="finHelp" class="form-hint">Must be exactly 12 digits (numbers only). Paste button automatically removes spaces and special characters.</span>
+                <span id="finHelp" class="form-hint">Must be exactly 12 digits (numbers only). FIN will be automatically
+                  extracted only from ~1.8-1.9 MB PDFs. For other PDF sizes, please enter manually. Paste button
+                  automatically removes spaces and special characters.</span>
               </div>
 
               <div class="pdf-format-options">
                 <div class="pdf-format-title">Document Processing:</div>
                 <div class="pdf-format-info">
                   <i class="fas fa-magic" style="color: var(--primary); margin-right: 0.5rem;"></i>
-                  <span>Automatic format detection - The system will automatically identify and process your document type</span>
+                  <span>Automatic format detection and FIN extraction for 1-2 MB PDFs only - DOC/DOCX files and other
+                    PDF sizes require manual FIN entry</span>
                 </div>
-                <input type="hidden" name="pdf_format" value="auto">
+                <input type="hidden" name="document_format" value="auto">
+              </div>
+
+              <div class="skip-preview-options">
+                <div class="skip-preview-container">
+                  <label class="skip-preview-label">
+                    <input type="checkbox" id="skipPreview" name="skip_preview" class="skip-preview-checkbox">
+                    <span class="skip-preview-checkmark"></span>
+                    <div class="skip-preview-content">
+                      <div class="skip-preview-title">
+                        <i class="fas fa-fast-forward" style="color: var(--accent); margin-right: 0.5rem;"></i>
+                        Skip Data Preview
+                      </div>
+                      <div class="skip-preview-description">
+                        Generate ID directly without reviewing extracted data
+                      </div>
+                    </div>
+                  </label>
+                </div>
               </div>
 
               <div class="drop-zone" id="dropZone">
                 <div class="drop-zone-icon">
                   <i class="fas fa-cloud-upload-alt"></i>
                 </div>
-                <div class="drop-zone-text">Drag & drop your PDF here</div>
-                <div class="drop-zone-hint">or click to browse files (max 10MB)</div>
-                <input type="file" id="fileInput" name="pdf" accept="application/pdf" required>
+                <div class="drop-zone-text">Drag & drop your PDF or DOC file here</div>
+                <div class="drop-zone-hint">or click to browse files (PDF, DOC, DOCX - max 10MB)</div>
+                <input type="file" id="fileInput" name="document"
+                  accept="application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,.pdf,.doc,.docx"
+                  required>
               </div>
 
               <div class="file-info hidden" id="fileInfo">
                 <div class="file-icon">
-                  <i class="fas fa-file-pdf"></i>
+                  <i class="fas fa-file-alt" id="fileIcon"></i>
                 </div>
                 <div class="file-details">
                   <div class="file-name" id="fileName"></div>
@@ -1009,12 +1203,12 @@
                 <iframe id="pdfPreview"></iframe>
                 <div class="preview-placeholder" id="previewPlaceholder">
                   <div class="preview-icon">
-                    <i class="far fa-file-pdf"></i>
+                    <i class="far fa-file-alt"></i>
                   </div>
                   <h3 class="preview-title">Document Preview</h3>
-                  <p>Your uploaded document will appear here</p>
+                  <p>Your uploaded document will appear here (PDF preview only)</p>
                 </div>
-                
+
                 <!-- Zoom Controls -->
                 <div class="zoom-controls">
                   <button type="button" class="zoom-btn" id="zoomInBtn" title="Zoom In (Ctrl + Plus)">
@@ -1027,7 +1221,7 @@
                     <i class="fas fa-undo"></i>
                   </button>
                 </div>
-                
+
                 <!-- Zoom Indicator -->
                 <div class="zoom-indicator" id="zoomIndicator">
                   Zoom: 100%
@@ -1052,9 +1246,12 @@
             </button>
           </div>
         </form>
-        <div id="resetSessionContainer" style="text-align:center; margin-top:2rem; padding:1rem; background:rgba(7, 129, 58, 0.05); border-radius:10px; border:1px solid rgba(7, 129, 58, 0.1);">
-          <div id="sessionMessage" style="display:none; margin-bottom:1rem; color:var(--primary-dark); font-weight:500;">
-            <i class="fas fa-info-circle"></i> Previous session data found. You can clear it to start fresh or continue with existing data.
+        <div id="resetSessionContainer"
+          style="text-align:center; margin-top:2rem; padding:1rem; background:rgba(7, 129, 58, 0.05); border-radius:10px; border:1px solid rgba(7, 129, 58, 0.1);">
+          <div id="sessionMessage"
+            style="display:none; margin-bottom:1rem; color:var(--primary-dark); font-weight:500;">
+            <i class="fas fa-info-circle"></i> Previous session data found. You can clear it to start fresh or continue
+            with existing data.
           </div>
         </div>
       </div>
@@ -1063,6 +1260,7 @@
 
   <footer>
     <div class="footer-links">
+      <a href="{{ url_for('main.index') }}"><i class="fas fa-code"></i> JSON Input (Main)</a>
       <a href="#"><i class="fas fa-shield-alt"></i> Privacy Policy</a>
       <a href="#"><i class="fas fa-file-alt"></i> Terms of Service</a>
       <a href="#"><i class="fas fa-question-circle"></i> Help Center</a>
@@ -1079,6 +1277,7 @@
     const fileName = document.getElementById("fileName");
     const fileSize = document.getElementById("fileSize");
     const fileRemove = document.getElementById("fileRemove");
+    const fileIcon = document.getElementById("fileIcon");
     const preview = document.getElementById("pdfPreview");
     const previewPlaceholder = document.getElementById("previewPlaceholder");
     const previewContainer = document.getElementById("previewContainer");
@@ -1092,12 +1291,57 @@
     const progressBar = document.getElementById("progressBar");
     const statusMessage = document.getElementById("statusMessage");
     const statusText = document.getElementById("statusText");
-    
+
     // Zoom elements
     const zoomInBtn = document.getElementById("zoomInBtn");
     const zoomOutBtn = document.getElementById("zoomOutBtn");
     const resetZoomBtn = document.getElementById("resetZoomBtn");
     const zoomIndicator = document.getElementById("zoomIndicator");
+
+    // Skip preview elements
+    const skipPreviewCheckbox = document.getElementById("skipPreview");
+
+    // Check if there's a decoded PDF from session
+    {% if session.get('decoded_pdf') %}
+    window.addEventListener("DOMContentLoaded", () => {
+      const decodedPdf = {{ session.get('decoded_pdf') | tojson }};
+      const decodedMetadata = {{ session.get('decoded_metadata') | tojson }};
+      
+      if (decodedPdf && decodedPdf.filepath) {
+        // Load the decoded PDF
+        loadDecodedPdf(decodedPdf, decodedMetadata);
+      }
+    });
+
+    function loadDecodedPdf(pdfInfo, metadata) {
+      // Create a File object from the decoded PDF
+      fetch('/static/temp/' + pdfInfo.filename)
+        .then(response => response.blob())
+        .then(blob => {
+          const file = new File([blob], pdfInfo.filename, { type: 'application/pdf' });
+          const dataTransfer = new DataTransfer();
+          dataTransfer.items.add(file);
+          fileInput.files = dataTransfer.files;
+          handleFileSelect();
+          
+          // Auto-fill FIN if provided
+          if (metadata && metadata.fin) {
+            finInput.value = metadata.fin.replace(/[^0-9]/g, '').slice(0, 12);
+            updateSubmitButton();
+          }
+          
+          let message = "Decoded PDF loaded successfully!";
+          if (metadata && metadata.fullname) {
+            message += ` Welcome, ${metadata.fullname}!`;
+          }
+          showStatus(message, "success");
+        })
+        .catch(error => {
+          console.error('Error loading decoded PDF:', error);
+          showStatus("Error loading decoded PDF. Please try again.", "error");
+        });
+    }
+    {% endif %}
 
     // Focus on FIN input when page loads
     window.addEventListener("DOMContentLoaded", () => {
@@ -1144,7 +1388,6 @@
     dropZone.addEventListener("drop", (e) => {
       e.preventDefault();
       dropZone.classList.remove("dragover");
-      
       if (e.dataTransfer.files.length) {
         fileInput.files = e.dataTransfer.files;
         handleFileSelect();
@@ -1157,19 +1400,41 @@
       resetFileInput();
     });
 
+    // Skip preview functionality
+    skipPreviewCheckbox.addEventListener("change", function () {
+      if (this.checked) {
+        showStatus("Skip Preview enabled - ID will be generated directly with default settings", "warning");
+        // Update submit button text
+        const submitText = submitBtn.querySelector('#submitIcon').previousSibling;
+        if (submitText && submitText.nodeType === Node.TEXT_NODE) {
+          submitText.textContent = "Generate ID Directly ";
+        }
+      } else {
+        hideStatus();
+        // Restore original submit button text
+        const submitText = submitBtn.querySelector('#submitIcon').previousSibling;
+        if (submitText && submitText.nodeType === Node.TEXT_NODE) {
+          submitText.textContent = "Generate Digital ID ";
+        }
+      }
+    });
+
     // Form submission
-    form.addEventListener("submit", function(e) {
+    form.addEventListener("submit", function (e) {
       // Only prevent default if validation fails
       if (!validateForm()) {
         e.preventDefault();
         return;
       }
+
       sessionStorage.setItem('pdfExtractStart', Date.now());
+
       // Show loading state
       submitBtn.disabled = true;
       spinner.style.display = "block";
       submitIcon.style.display = "none";
       progressContainer.style.display = "block";
+
       // Let the form submit normally (Enter key or button)
     });
 
@@ -1189,19 +1454,19 @@
         finInput.focus();
         return false;
       }
-      
+
       // Validate file
       if (!fileInput.files || !fileInput.files[0]) {
-        showStatus("Please select a PDF file to upload.", "error");
+        showStatus("Please select a document file to upload (PDF, DOC, or DOCX).", "error");
         return false;
       }
-      
+
       // Validate file size (30MB max)
       if (fileInput.files[0].size > 30 * 1024 * 1024) {
         showStatus("File size exceeds 30 MB limit. Please choose a smaller file.", "error");
         return false;
       }
-      
+
       return true;
     }
 
@@ -1210,39 +1475,80 @@
       statusText.textContent = message;
       statusMessage.className = `status-message status-${type}`;
       statusMessage.style.display = "flex";
-      
+
       // Hide after 5 seconds
       setTimeout(() => {
         statusMessage.style.display = "none";
       }, 5000);
     }
 
+    // Hide status message
+    function hideStatus() {
+      statusMessage.style.display = "none";
+    }
+
     // Handle file selection
     function handleFileSelect() {
       const file = fileInput.files[0];
-      
-      if (file && file.type === "application/pdf") {
+      const allowedTypes = [
+        "application/pdf",
+        "application/msword",
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+      ];
+
+      if (file && allowedTypes.includes(file.type)) {
         // Update file info
         fileName.textContent = file.name;
         fileSize.textContent = formatFileSize(file.size);
         fileInfo.classList.remove("hidden");
-        
-        // Show preview
-        const fileURL = URL.createObjectURL(file);
-        preview.src = fileURL;
-        preview.classList.add("show");
-        previewPlaceholder.style.display = "none";
-        
-        // Reset zoom when new file is loaded
-        resetZoom();
-        
+
+        // Set appropriate file icon based on file type
+        if (file.type === "application/pdf") {
+          fileIcon.className = "fas fa-file-pdf";
+          fileIcon.style.color = "#e74c3c"; // Red for PDF
+        } else if (file.type === "application/msword" || file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+          fileIcon.className = "fas fa-file-word";
+          fileIcon.style.color = "#2b579a"; // Blue for Word docs
+        } else {
+          fileIcon.className = "fas fa-file-alt";
+          fileIcon.style.color = "var(--primary)"; // Default color
+        }
+
+        // Show preview only for PDF files
+        if (file.type === "application/pdf") {
+          const fileURL = URL.createObjectURL(file);
+          preview.src = fileURL;
+          preview.classList.add("show");
+          previewPlaceholder.style.display = "none";
+
+          // Reset zoom when new file is loaded
+          resetZoom();
+        } else {
+          // For non-PDF files, show placeholder with message
+          preview.src = "";
+          preview.classList.remove("show");
+          previewPlaceholder.style.display = "block";
+          previewPlaceholder.innerHTML = `
+            <div class="preview-icon">
+              <i class="fas fa-file-word" style="color: #2b579a;"></i>
+            </div>
+            <h3 class="preview-title">Document Uploaded</h3>
+            <p>Preview not available for DOC/DOCX files<br>File: ${file.name}</p>
+          `;
+        }
+
+        // Extract FIN from document if not already filled (only works for PDFs)
+        if (!finInput.value || finInput.value.length !== 12) {
+          extractFinFromPdf(file);
+        }
+
         // Enable submit button if FIN is valid
         updateSubmitButton();
-        
+
         // Show success message
-        showStatus("Document successfully uploaded. Please review the preview.", "success");
+        showStatus("Document successfully uploaded. Please review the information.", "success");
       } else {
-        showStatus("Please select a valid PDF file (application/pdf).", "error");
+        showStatus("Please select a valid document file (PDF, DOC, or DOCX).", "error");
         resetFileInput();
       }
     }
@@ -1254,6 +1560,16 @@
       preview.src = "";
       preview.classList.remove("show");
       previewPlaceholder.style.display = "block";
+      previewPlaceholder.innerHTML = `
+        <div class="preview-icon">
+          <i class="far fa-file-alt"></i>
+        </div>
+        <h3 class="preview-title">Document Preview</h3>
+        <p>Your uploaded document will appear here (PDF preview only)</p>
+      `;
+      // Reset file icon
+      fileIcon.className = "fas fa-file-alt";
+      fileIcon.style.color = "var(--primary)";
       resetZoom();
       updateSubmitButton();
     }
@@ -1261,19 +1577,81 @@
     // Format file size
     function formatFileSize(bytes) {
       if (bytes === 0) return "0 Bytes";
-      
+
       const k = 1024;
       const sizes = ["Bytes", "KB", "MB", "GB"];
       const i = Math.floor(Math.log(bytes) / Math.log(k));
-      
+
       return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
+    }
+
+    // Extract FIN from document
+    function extractFinFromPdf(file) {
+      // Check file type and size to show appropriate message
+      const fileSizeMB = file.size / (1024 * 1024);
+      const fileType = file.type;
+      let statusMessage = "🔍 Checking document for automatic FIN extraction...";
+
+      if (fileType === "application/pdf") {
+        if (fileSizeMB >= 1.7 && fileSizeMB <= 2.0) {
+          statusMessage = "🔍 Detected ~1.8-1.9 MB PDF, extracting FIN from image position...";
+        } else {
+          statusMessage = `📄 PDF size (${fileSizeMB.toFixed(2)} MB) is not ~1.8-1.9 MB, FIN field will remain empty`;
+        }
+      } else if (fileType === "application/msword" || fileType === "application/vnd.openxmlformats-officedocument.wordprocessingml.document") {
+        statusMessage = `📄 DOC/DOCX files require manual FIN entry - automatic extraction not supported`;
+      } else {
+        statusMessage = `📄 Document type not supported for automatic FIN extraction - please enter manually`;
+      }
+
+      // Show loading state
+      showStatus(statusMessage, "warning");
+
+      const formData = new FormData();
+      formData.append('document', file);
+
+      fetch('/extract_fin', {
+        method: 'POST',
+        body: formData
+      })
+        .then(response => response.json())
+        .then(data => {
+          if (data.success && data.fin) {
+            // Clean and set the FIN value
+            const cleanedFin = cleanFinInput(data.fin);
+            finInput.value = cleanedFin;
+
+            // Trigger validation
+            finInput.dispatchEvent(new Event('input'));
+
+            // Update submit button
+            updateSubmitButton();
+
+            // Show success message
+            showStatus(`✅ FIN number extracted: ${cleanedFin} (from image position)`, "success");
+          } else {
+            // Show appropriate message based on file type and size
+            if (fileType === "application/pdf") {
+              if (fileSizeMB >= 1.7 && fileSizeMB <= 2.0) {
+                showStatus("⚠️ Could not extract FIN from image position. Please enter manually.", "warning");
+              } else {
+                showStatus(`ℹ️ PDF size (${fileSizeMB.toFixed(2)} MB) is not ~1.8-1.9 MB. Please enter FIN manually.`, "warning");
+              }
+            } else {
+              showStatus("ℹ️ DOC/DOCX files require manual FIN entry. Please enter FIN manually.", "warning");
+            }
+          }
+        })
+        .catch(error => {
+          console.error('Error extracting FIN:', error);
+          showStatus("Error processing document. Please enter FIN manually.", "error");
+        });
     }
 
     // Update submit button state
     function updateSubmitButton() {
       const isFileValid = fileInput.files && fileInput.files[0];
       const isFinValid = /^\d{12}$/.test(finInput.value.trim());
-      
       submitBtn.disabled = !(isFileValid && isFinValid);
     }
 
@@ -1284,9 +1662,9 @@
       if (cleanedValue !== finInput.value) {
         finInput.value = cleanedValue;
       }
-      
+
       updateSubmitButton();
-      
+
       // Visual feedback
       if (cleanedValue.length === 12) {
         finInput.classList.add("valid");
@@ -1305,80 +1683,18 @@
       // Get pasted text and clean it
       const pastedText = (e.clipboardData || window.clipboardData).getData('text');
       const cleanedText = cleanFinInput(pastedText);
+
       // Insert cleaned text at cursor position
       const start = finInput.selectionStart;
       const end = finInput.selectionEnd;
       const currentValue = finInput.value;
       const newValue = currentValue.slice(0, start) + cleanedText + currentValue.slice(end);
+
       finInput.value = cleanFinInput(newValue);
+
       // Trigger input event to update validation
       finInput.dispatchEvent(new Event('input'));
     });
-
-
-
-    // Add animation to elements as they come into view
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('fade-in');
-          observer.unobserve(entry.target);
-        }
-      });
-    }, { threshold: 0.1 });
-
-    document.querySelectorAll('.upload-card, .form-group, .pdf-format-options, .drop-zone').forEach(el => {
-      observer.observe(el);
-    });
-
-    // Check for existing session and show clear session button
-    function checkAndShowSessionButton() {
-      fetch('/check_session')
-        .then(res => res.json())
-        .then(data => {
-          if (data.has_session) {
-            // Show session message
-            const sessionMessage = document.getElementById('sessionMessage');
-            if (sessionMessage) {
-              sessionMessage.style.display = 'block';
-            }
-            
-            const container = document.getElementById('resetSessionContainer');
-            const btn = document.createElement('button');
-            btn.className = 'btn btn-outline';
-            btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Session Data';
-            btn.onclick = function() {
-              btn.disabled = true;
-              btn.innerHTML = '<span class="spinner"></span> Clearing...';
-              
-              fetch('/reset_session', {method: 'POST'})
-                .then(response => {
-                  if (response.status === 204) {
-                    btn.innerHTML = '<i class="fas fa-check"></i> Cleared!';
-                    setTimeout(() => { window.location.reload(); }, 800);
-                  } else {
-                    return response.json();
-                  }
-                })
-                .then(result => {
-                  if (result && result.success === false) {
-                    throw new Error(result.error || 'Failed');
-                  }
-                })
-                .catch(error => {
-                  console.error('Error clearing session:', error);
-                  alert('Error clearing session. Please try again.');
-                  btn.disabled = false;
-                  btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear Session Data';
-                });
-            };
-            container.appendChild(btn);
-          }
-        })
-        .catch(error => {
-          console.error('Error checking session:', error);
-        });
-    }
 
     // Zoom functionality
     let currentZoom = 1;
@@ -1388,18 +1704,18 @@
 
     function updateZoom(newZoom) {
       currentZoom = Math.max(minZoom, Math.min(maxZoom, newZoom));
-      
+
       // Apply zoom to PDF preview
       preview.style.transform = `scale(${currentZoom})`;
-      
+
       // Update zoom indicator
       zoomIndicator.textContent = `Zoom: ${Math.round(currentZoom * 100)}%`;
-      
+
       // Update button states
       zoomInBtn.disabled = currentZoom >= maxZoom;
       zoomOutBtn.disabled = currentZoom <= minZoom;
       resetZoomBtn.disabled = currentZoom === 1;
-      
+
       // Update container class for cursor
       if (currentZoom > 1) {
         previewContainer.classList.add('zoomed');
@@ -1408,7 +1724,7 @@
         previewContainer.classList.remove('zoomed');
         preview.classList.remove('zoomed');
       }
-      
+
       // Update button classes for disabled state
       zoomInBtn.classList.toggle('disabled', zoomInBtn.disabled);
       zoomOutBtn.classList.toggle('disabled', zoomOutBtn.disabled);
@@ -1444,40 +1760,6 @@
       }
     });
 
-    // Touch gesture support for mobile devices
-    let initialDistance = 0;
-    let initialZoom = 1;
-
-    previewContainer.addEventListener('touchstart', (e) => {
-      if (e.touches.length === 2) {
-        initialDistance = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        initialZoom = currentZoom;
-      }
-    });
-
-    previewContainer.addEventListener('touchmove', (e) => {
-      if (e.touches.length === 2) {
-        e.preventDefault();
-        const currentDistance = Math.hypot(
-          e.touches[0].clientX - e.touches[1].clientX,
-          e.touches[0].clientY - e.touches[1].clientY
-        );
-        
-        if (initialDistance > 0) {
-          const scale = currentDistance / initialDistance;
-          const newZoom = initialZoom * scale;
-          updateZoom(newZoom);
-        }
-      }
-    });
-
-    previewContainer.addEventListener('touchend', () => {
-      initialDistance = 0;
-    });
-
     // Keyboard shortcuts for zoom
     document.addEventListener('keydown', (e) => {
       if (e.ctrlKey || e.metaKey) {
@@ -1499,34 +1781,10 @@
       }
     });
 
-    // Check for existing session on page load
-    checkAndShowSessionButton();
-
-    // Clear session automatically on page refresh if there's existing data
-    if (performance.navigation.type === 1) { // Page refresh
-      fetch('/check_session')
-        .then(res => res.json())
-        .then(data => {
-          if (data.has_session) {
-            // Ask user if they want to clear the session
-            if (confirm('Previous session data found. Would you like to clear it and start fresh?')) {
-              fetch('/reset_session', {method: 'POST'})
-                .then(response => response.json())
-                .then(result => {
-                  if (result.success) {
-                    console.log('Session cleared automatically on refresh');
-                  }
-                })
-                .catch(error => {
-                  console.error('Error clearing session on refresh:', error);
-                });
-            }
-          }
-        })
-        .catch(error => {
-          console.error('Error checking session on refresh:', error);
-        });
-    }
+    // Initialize
+    updateSubmitButton();
+    updateZoom(1);
   </script>
 </body>
+
 </html>

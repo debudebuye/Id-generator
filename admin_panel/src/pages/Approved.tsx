@@ -20,18 +20,40 @@ export default function Approved() {
       try {
         setLoading(true);
         const baseUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
-        console.log('Fetching approved users from:', `${baseUrl}/api/approved-users`);
+        console.log('🔍 Fetching approved users from:', `${baseUrl}/api/approved-users`);
+        
         const response = await fetch(`${baseUrl}/api/approved-users`);
-        console.log('Response status:', response.status);
+        console.log('📡 Response status:', response.status);
+        console.log('📡 Response headers:', Object.fromEntries(response.headers.entries()));
+        
         if (!response.ok) {
-          throw new Error('Failed to fetch approved users');
+          const errorText = await response.text();
+          console.error('❌ API Error Response:', errorText);
+          throw new Error(`Failed to fetch approved users: ${response.status} ${errorText}`);
         }
+        
         const users = await response.json();
-        console.log('Fetched approved users:', users);
-        setApprovedUsers(users);
+        console.log('✅ Fetched approved users from API:', users);
+        console.log('📊 Number of users from API:', users.length);
+        console.log('📍 Data source: Flask API → Firebase Service → Local JSON file');
+        
+        if (Array.isArray(users)) {
+          setApprovedUsers(users);
+        } else {
+          console.error('❌ Invalid data format - expected array, got:', typeof users);
+          setApprovedUsers([]);
+        }
       } catch (error) {
-        console.error('Error fetching approved users:', error);
-        setApprovedUsers([]);
+        console.error('❌ Error fetching approved users:', error);
+        console.error('❌ Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        
+        // Fallback: Try to load from local data
+        console.log('🔄 Attempting fallback data loading...');
+        await loadFromLocalData();
       } finally {
         setLoading(false);
       }
@@ -67,6 +89,82 @@ export default function Approved() {
     }
   };
 
+  const syncFromFirebase = async () => {
+    try {
+      const baseUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+      console.log('🔄 Attempting to sync from Firebase...');
+      
+      const response = await fetch(`${baseUrl}/api/sync-approved-users`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        console.log('✅ Firebase sync successful:', result);
+        alert(`Successfully synced ${result.count} users from Firebase`);
+        // Refresh the list
+        window.location.reload();
+      } else {
+        const errorText = await response.text();
+        console.error('❌ Firebase sync failed:', errorText);
+        alert(`Failed to sync from Firebase: ${response.status} ${errorText}`);
+      }
+    } catch (error) {
+      console.error('❌ Error syncing from Firebase:', error);
+      alert(`Error syncing from Firebase: ${error.message}`);
+    }
+  };
+
+  const loadFromLocalData = async () => {
+    try {
+      console.log('🔄 Attempting to load from local data...');
+      
+      // Try to fetch from the API first
+      const baseUrl = (import.meta.env.VITE_API_URL as string) || 'http://localhost:5000';
+      const response = await fetch(`${baseUrl}/api/approved-users`);
+      
+      if (response.ok) {
+        const users = await response.json();
+        console.log('✅ Loaded from API:', users);
+        console.log('📍 Data source: Flask API → Firebase Service → Local JSON file');
+        setApprovedUsers(users);
+        return;
+      }
+    } catch (error) {
+      console.log('⚠️ API not available, using fallback data');
+    }
+    
+    // Fallback to static data that matches the local JSON file
+    const localData = [
+      {
+        id: "1929170431",
+        telegramId: "1929170431",
+        username: "Crypto_seller_man",
+        firstName: "Debians",
+        lastName: "",
+        approved_at: "2025-10-12T04:34:46.785299Z",
+        status: "approved"
+      },
+      {
+        id: "7083945790",
+        telegramId: "7083945790",
+        username: "Unknown",
+        firstName: "Unknown",
+        lastName: "",
+        approved_at: "2025-10-12T04:34:46.785299Z",
+        status: "approved"
+      }
+    ];
+    
+    console.log('🔄 Using local data fallback:', localData);
+    console.log('📍 Data source: Hardcoded fallback data (matches telegram_bot/data/approved_users.json)');
+    console.log('⚠️ Note: This is NOT real-time data. Start Flask server for live data.');
+    setApprovedUsers(localData);
+  };
+
   const formatDate = (dateString: string) => {
     try {
       const date = new Date(dateString);
@@ -96,6 +194,34 @@ export default function Approved() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
         <h2 style={{ margin: 0, color: '#0f172a' }}>Approved Users</h2>
         <div style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+          <button
+            onClick={loadFromLocalData}
+            style={{
+              background: '#f59e0b',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
+          >
+            Load Local Data
+          </button>
+          <button
+            onClick={syncFromFirebase}
+            style={{
+              background: '#10b981',
+              color: 'white',
+              border: 'none',
+              borderRadius: '6px',
+              padding: '6px 12px',
+              fontSize: '12px',
+              cursor: 'pointer'
+            }}
+          >
+            Sync from Firebase
+          </button>
           <button
             onClick={() => window.location.reload()}
             style={{

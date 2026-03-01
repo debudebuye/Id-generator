@@ -1,0 +1,31 @@
+{
+  "7083945790": {
+    "username": "Fayda | ፋይዳ",
+    "total_generated": 1,
+    "daily_counts": {
+      "2025-10-11": 1
+    }
+  },
+  "1929170431": {
+    "username": "Debians",
+    "total_generated": 1,
+    "daily_counts": {
+      "2025-10-12": 1
+    }
+  },
+  "349225322": {
+    "username": "Sis",
+    "total_generated": 2,
+    "total_paid": 0,
+    "total_unpaid": 2,
+    "daily_counts": {
+      "2025-10-13": 2
+    },
+    "daily_payment_status": {
+      "2025-10-13": {
+        "paid": 0,
+        "unpaid": 2
+      }
+    }
+  }
+}

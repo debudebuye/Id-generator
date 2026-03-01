@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ethiopian Digital ID Generator - Fyda</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    :root {
+      --primary: #07813a;
+      --primary-dark: #056830;
+      --primary-light: #e6f4ea;
+      --accent: #f0b429;
+      --danger: #e74c3c;
+      --text: #2c3e50;
+      --text-light: #7f8c8d;
+      --border: #e0e0e0;
+      --bg-light: #f5f7fa;
+      --card-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+      --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: white;
+      color: var(--text);
+      line-height: 1.6;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: auto;
+      padding: 2rem;
+      width: 100%;
+    }
+
+    header {
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      color: white;
+      padding: 1rem 0;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+    }
+
+    .header-content {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 0 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: white;
+    }
+
+    .logo img {
+      height: 40px;
+      border-radius: 4px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .logo-text {
+      font-weight: 700;
+      font-size: 1.5rem;
+      letter-spacing: -0.5px;
+    }
+
+    .logo-subtext {
+      font-size: 0.8rem;
+      opacity: 0.9;
+      margin-top: 2px;
+    }
+
+    .decode-card {
+      background: white;
+      border-radius: 16px;
+      padding: 2.5rem;
+      box-shadow: var(--card-shadow);
+      margin-bottom: 2rem;
+      border: 1px solid var(--border);
+    }
+
+    .card-header {
+      text-align: center;
+      margin-bottom: 2.5rem;
+    }
+
+    .card-header::after {
+      content: '';
+      display: block;
+      width: 80px;
+      height: 4px;
+      background: var(--accent);
+      margin: 1.5rem auto 0;
+      border-radius: 2px;
+    }
+
+    .card-title {
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 0.75rem;
+      color: var(--primary);
+    }
+
+    .card-subtitle {
+      color: var(--text-light);
+      font-size: 1rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.75rem;
+    }
+
+    .form-label {
+      display: block;
+      margin-bottom: 0.75rem;
+      font-weight: 600;
+      color: var(--text);
+      font-size: 0.95rem;
+    }
+
+    .form-control {
+      width: 100%;
+      padding: 1rem 1.25rem;
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      font-family: inherit;
+      font-size: 1rem;
+      transition: var(--transition);
+      background-color: white;
+      resize: vertical;
+      min-height: 200px;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(7, 129, 58, 0.2);
+    }
+
+    .form-hint {
+      display: block;
+      margin-top: 0.5rem;
+      font-size: 0.85rem;
+      color: var(--text-light);
+    }
+
+    .btn-container {
+      display: flex;
+      gap: 1rem;
+      justify-content: center;
+      margin-top: 2rem;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.1rem 1.75rem;
+      border-radius: 10px;
+      font-weight: 600;
+      font-size: 1.05rem;
+      cursor: pointer;
+      transition: var(--transition);
+      border: none;
+      gap: 10px;
+      letter-spacing: 0.5px;
+    }
+
+    .btn-primary {
+      background-color: var(--primary);
+      color: white;
+      box-shadow: 0 4px 8px rgba(7, 129, 58, 0.2);
+    }
+
+    .btn-primary:hover {
+      background-color: var(--primary-dark);
+      transform: translateY(-3px);
+      box-shadow: 0 6px 12px rgba(7, 129, 58, 0.25);
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+
+    .btn-outline {
+      background-color: transparent;
+      color: var(--primary);
+      border: 2px solid var(--primary);
+    }
+
+    .btn-outline:hover {
+      background-color: var(--primary);
+      color: white;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(7, 129, 58, 0.2);
+    }
+
+    .btn-secondary {
+      background-color: var(--text-light);
+      color: white;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+
+    .btn-secondary:hover {
+      background-color: var(--text);
+      transform: translateY(-2px);
+      box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+    }
+
+    .input-actions {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .input-actions .btn {
+      padding: 0.75rem 1.25rem;
+      font-size: 0.95rem;
+      flex: 1;
+    }
+
+    .status-message {
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1.5rem;
+      display: none;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .status-message.show {
+      display: flex;
+    }
+
+    .status-success {
+      background-color: rgba(46, 204, 113, 0.1);
+      color: #2ecc71;
+      border: 1px solid rgba(46, 204, 113, 0.2);
+    }
+
+    .status-error {
+      background-color: rgba(231, 76, 60, 0.1);
+      color: var(--danger);
+      border: 1px solid rgba(231, 76, 60, 0.2);
+    }
+
+    .spinner {
+      display: none;
+      width: 20px;
+      height: 20px;
+      border: 3px solid rgba(255, 255, 255, 0.3);
+      border-radius: 50%;
+      border-top-color: white;
+      animation: spin 1s ease-in-out infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem 1.5rem;
+      color: var(--text-light);
+      font-size: 0.875rem;
+      margin-top: auto;
+      background-color: white;
+      border-top: 1px solid var(--border);
+    }
+
+    @media (max-width: 768px) {
+      .container {
+        padding: 1.5rem;
+      }
+
+      .decode-card {
+        padding: 1.75rem;
+      }
+
+      .btn-container {
+        flex-direction: column;
+      }
+
+      .btn {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="header-content">
+      <a href="#" class="logo">
+        <img src="https://upload.wikimedia.org/wikipedia/commons/7/71/Flag_of_Ethiopia.svg" alt="Ethiopia Flag">
+        <div>
+          <div class="logo-text">Ethiopian Digital ID</div>
+          <div class="logo-subtext">Fyda Identification System</div>
+        </div>
+      </a>
+    </div>
+  </header>
+
+  <main>
+    <div class="container">
+      <div class="decode-card">
+        <div class="card-header">
+          <h1 class="card-title">Ethiopian Digital ID Generator</h1>
+          <p class="card-subtitle">Paste your JSON data with base64-encoded PDF document to generate your Ethiopian Digital ID (Fyda)</p>
+        </div>
+
+        <div class="status-message" id="statusMessage">
+          <i class="fas fa-check-circle"></i>
+          <span id="statusText"></span>
+        </div>
+
+        <form id="decodeForm">
+          <div class="form-group">
+            <label for="jsonInput" class="form-label">
+              JSON Input
+              <i class="fas fa-info-circle" style="color: var(--text-light); font-size: 0.9rem;" title="Paste JSON with pdf field containing base64-encoded PDF"></i>
+            </label>
+            
+            <div class="input-actions">
+              <button type="button" class="btn btn-secondary" id="pasteBtn">
+                <i class="fas fa-paste"></i>
+                Paste from Clipboard
+              </button>
+              <button type="button" class="btn btn-secondary" id="clearBtn">
+                <i class="fas fa-times"></i>
+                Clear
+              </button>
+            </div>
+            
+            <textarea 
+              id="jsonInput" 
+              class="form-control" 
+              placeholder='{"pdf": "JVBERi0x..."}'
+              required
+            ></textarea>
+            <span class="form-hint">Required format: {"pdf": "base64string..."} - Press Enter or Ctrl+Enter to decode</span>
+          </div>
+
+          <div class="btn-container">
+            <button type="submit" class="btn btn-primary" id="decodeBtn">
+              <span class="spinner" id="spinner"></span>
+              <span id="btnText">Decode & Continue</span>
+              <i class="fas fa-arrow-right" id="btnIcon"></i>
+            </button>
+            <a href="{{ url_for('main.upload_page') }}" class="btn btn-outline">
+              <i class="fas fa-upload"></i>
+              Upload File Instead
+            </a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </main>
+
+  <footer>
+    <p>&copy; 2024 Ethiopian Digital ID System. All rights reserved.</p>
+  </footer>
+
+  <script>
+    console.log('Script loaded - JSON-only version');
+    
+    const form = document.getElementById('decodeForm');
+    const decodeBtn = document.getElementById('decodeBtn');
+    const spinner = document.getElementById('spinner');
+    const btnText = document.getElementById('btnText');
+    const btnIcon = document.getElementById('btnIcon');
+    const statusMessage = document.getElementById('statusMessage');
+    const statusText = document.getElementById('statusText');
+    const jsonInput = document.getElementById('jsonInput');
+    const pasteBtn = document.getElementById('pasteBtn');
+    const clearBtn = document.getElementById('clearBtn');
+
+    console.log('Form element:', form);
+
+    // Paste button functionality
+    pasteBtn.addEventListener('click', async function() {
+      try {
+        const text = await navigator.clipboard.readText();
+        if (text) {
+          jsonInput.value = text;
+          jsonInput.focus();
+          showStatus('JSON pasted from clipboard', 'success');
+          setTimeout(() => {
+            statusMessage.style.display = 'none';
+          }, 2000);
+        }
+      } catch (err) {
+        console.error('Clipboard error:', err);
+        showStatus('Could not access clipboard. Please paste manually (Ctrl+V)', 'error');
+      }
+    });
+
+    // Clear button functionality
+    clearBtn.addEventListener('click', function() {
+      jsonInput.value = '';
+      jsonInput.focus();
+      statusMessage.style.display = 'none';
+    });
+
+    // Enter key to submit (Ctrl+Enter or just Enter)
+    jsonInput.addEventListener('keydown', function(e) {
+      // Submit on Ctrl+Enter or Cmd+Enter
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
+        e.preventDefault();
+        form.dispatchEvent(new Event('submit'));
+      }
+      // Also submit on Enter if Shift is not pressed (to allow Shift+Enter for new line)
+      else if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        form.dispatchEvent(new Event('submit'));
+      }
+    });
+
+    form.addEventListener('submit', function(e) {
+      e.preventDefault();
+      console.log('Form submitted via JavaScript');
+      
+      const jsonData = jsonInput.value.trim();
+      
+      if (!jsonData) {
+        showStatus('Please paste JSON data', 'error');
+        return;
+      }
+
+      // Validate JSON
+      let parsed;
+      try {
+        parsed = JSON.parse(jsonData);
+        console.log('Parsed JSON:', parsed);
+        
+        if (!parsed.pdf) {
+          showStatus('JSON must contain "pdf" field with base64 data', 'error');
+          return;
+        }
+      } catch (err) {
+        showStatus('Invalid JSON format: ' + err.message, 'error');
+        return;
+      }
+
+      // Show loading state
+      decodeBtn.disabled = true;
+      pasteBtn.disabled = true;
+      clearBtn.disabled = true;
+      spinner.style.display = 'block';
+      btnIcon.style.display = 'none';
+      btnText.textContent = 'Decoding...';
+
+      console.log('Sending POST request with JSON');
+      
+      // Submit request
+      fetch('{{ url_for("main.decode_base64") }}', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(parsed)
+      })
+      .then(response => {
+        console.log('Response status:', response.status);
+        console.log('Response headers:', response.headers);
+        return response.json();
+      })
+      .then(data => {
+        console.log('Response data:', data);
+        
+        if (data.success) {
+          let message = 'Document decoded and data extracted successfully!';
+          if (data.extracted_data && data.extracted_data.name_en) {
+            message += ` Found: ${data.extracted_data.name_en}`;
+          }
+          showStatus(message + ' Redirecting to preview...', 'success');
+          setTimeout(() => {
+            // Redirect to preview page
+            window.location.href = data.redirect || '{{ url_for("main.preview") }}';
+          }, 1500);
+        } else {
+          showStatus(data.error || 'Failed to decode document', 'error');
+          resetButton();
+        }
+      })
+      .catch(error => {
+        console.error('Fetch error:', error);
+        showStatus('Error: ' + error.message, 'error');
+        resetButton();
+      });
+    });
+
+    function showStatus(message, type) {
+      statusText.textContent = message;
+      statusMessage.className = 'status-message show status-' + type;
+    }
+
+    function resetButton() {
+      decodeBtn.disabled = false;
+      pasteBtn.disabled = false;
+      clearBtn.disabled = false;
+      spinner.style.display = 'none';
+      btnIcon.style.display = 'inline';
+      btnText.textContent = 'Decode & Continue';
+    }
+
+    // Focus on textarea when page loads
+    window.addEventListener('DOMContentLoaded', function() {
+      jsonInput.focus();
+    });
+  </script>
+</body>
+</html>

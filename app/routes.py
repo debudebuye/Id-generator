@@ -2,6 +2,7 @@ from flask import Blueprint, request, render_template, redirect, url_for, sessio
 from werkzeug.utils import secure_filename
 import os
 import json
+import base64
 from typing import Dict, Optional, List
 from io import BytesIO
 from datetime import datetime
@@ -9,11 +10,63 @@ from datetime import datetime
 from .config.settings import Config
 from .services.id_card_service import IDCardService
 from .services.firebase_service import firebase_service
+from .services.daily_report_service import DailyReportService
 
 # Create blueprint
 bp = Blueprint('main', __name__)
 config = Config()
 id_service = IDCardService()
+
+def format_address_smart(region, subcity, woreda, language='en'):
+    """Format address based on subcity name length and content with improved logic"""
+    # Clean up empty or invalid values
+    region = region.strip() if region else ""
+    subcity = subcity.strip() if subcity else ""
+    woreda = woreda.strip() if woreda else ""
+    
+    # Remove generic labels that shouldn't be in the final address
+    generic_labels_en = ['region', 'subcity', 'sub-city', 'woreda', 'city admin', 'administration', 'zone', 'sub city']
+    generic_labels_am = ['ክልል', 'ክፍለ ከተማ', 'ወረዳ', 'ከተማ አስተዳደር', 'ዞን', 'አስተዳደር']
+    
+    # Clean subcity field if it contains generic labels
+    if language == 'en':
+        if any(label in subcity.lower() for label in generic_labels_en) and len(subcity) < 25:
+            print(f"Removing generic subcity label: '{subcity}'")
+            subcity = ""
+    else:
+        if any(label in subcity for label in generic_labels_am) and len(subcity) < 25:
+            print(f"Removing generic subcity label: '{subcity}'")
+            subcity = ""
+    
+    # Clean woreda field if it contains generic labels
+    if language == 'en':
+        if any(label in woreda.lower() for label in generic_labels_en) and len(woreda) < 20:
+            print(f"Removing generic woreda label: '{woreda}'")
+            woreda = ""
+    else:
+        if any(label in woreda for label in generic_labels_am) and len(woreda) < 20:
+            print(f"Removing generic woreda label: '{woreda}'")
+            woreda = ""
+    
+    # Build address components list
+    address_parts = []
+    if region:
+        address_parts.append(region)
+    if subcity:
+        address_parts.append(subcity)
+    if woreda:
+        address_parts.append(woreda)
+    
+    # Return formatted address
+    if address_parts:
+        formatted_address = ", ".join(address_parts)
+        print(f"Formatted address ({language}): '{formatted_address}'")
+        return formatted_address
+    else:
+        # Fallback if all parts are empty
+        fallback = f"{region or ''}, {subcity or ''}, {woreda or ''}"
+        print(f"Fallback address ({language}): '{fallback}'")
+        return fallback
 
 def sync_firebase_to_local_allowlist():
     """Sync Firebase approved users to local allowlist for bot access"""
@@ -49,12 +102,186 @@ def index():
     """
     ---
     get:
-      summary: Render the index page
+      summary: Render the decode page (main landing page)
       responses:
         200:
-          description: Index page
+          description: Decode page
     """
+    return render_template('decode.html')
+
+@bp.route('/upload')
+def upload_page():
+    """
+    ---
+    get:
+      summary: Render the file upload page
+      responses:
+        200:
+          description: Upload page
+    """
+    # Check if there's a decoded PDF in session
+    decoded_pdf = session.get('decoded_pdf')
+    if decoded_pdf:
+        # Clear it from session after retrieving
+        session.pop('decoded_pdf', None)
     return render_template('index.html')
+
+@bp.route('/decode')
+def decode_page():
+    """
+    ---
+    get:
+      summary: Redirect to main page (decode is now the index)
+      responses:
+        302:
+          description: Redirect to index
+    """
+    return redirect(url_for('main.index'))
+
+@bp.route('/decode_base64', methods=['POST'])
+def decode_base64():
+    """
+    ---
+    post:
+      summary: Decode base64 string to PDF, extract data, and redirect to preview
+      consumes:
+        - application/json
+      parameters:
+        - in: body
+          name: json_data
+          required: true
+          schema:
+            type: object
+            required:
+              - pdf
+            properties:
+              pdf:
+                type: string
+                description: Base64 encoded PDF data
+              fullname:
+                type: string
+                description: User's full name (optional)
+              fin:
+                type: string
+                description: FIN number (optional, will be extracted from PDF if not provided)
+      responses:
+        200:
+          description: PDF decoded and data extracted successfully
+        400:
+          description: Invalid request data
+    """
+    try:
+        # Only accept JSON format
+        if not request.is_json:
+            return jsonify({
+                'success': False, 
+                'error': 'Content-Type must be application/json'
+            }), 400
+        
+        json_data = request.get_json()
+        base64_data = json_data.get('pdf', '').strip()
+        fullname = json_data.get('fullname', '').strip()
+        fin = json_data.get('fin', '').strip()
+        
+        # Validate required fields
+        if not base64_data:
+            return jsonify({'success': False, 'error': 'Missing required field: "pdf"'}), 400
+        
+        # Remove data URI prefix if present (e.g., "data:application/pdf;base64,")
+        if ',' in base64_data and base64_data.startswith('data:'):
+            base64_data = base64_data.split(',', 1)[1]
+        
+        # Remove whitespace and newlines
+        base64_data = base64_data.replace('\n', '').replace('\r', '').replace(' ', '')
+        
+        # Decode base64 to bytes
+        try:
+            pdf_bytes = base64.b64decode(base64_data)
+        except Exception as e:
+            return jsonify({'success': False, 'error': f'Invalid base64 encoding: {str(e)}'}), 400
+        
+        # Verify it's a PDF by checking magic bytes
+        if not pdf_bytes.startswith(b'%PDF'):
+            return jsonify({'success': False, 'error': 'Decoded data is not a valid PDF file'}), 400
+        
+        # Create BytesIO object from PDF bytes for processing
+        pdf_stream = BytesIO(pdf_bytes)
+        
+        # Extract FIN from PDF if not provided
+        if not fin:
+            extracted_fin = id_service.extract_fin_from_pdf(pdf_stream)
+            if extracted_fin:
+                fin = extracted_fin
+            else:
+                return jsonify({
+                    'success': False, 
+                    'error': 'Could not extract FIN from PDF. Please ensure the PDF is 1-2 MB in size for automatic FIN extraction.'
+                }), 400
+        
+        # Clean and format FIN
+        clean_fin = fin.replace('-', '').replace(' ', '')
+        if len(clean_fin) != 12 or not clean_fin.isdigit():
+            return jsonify({
+                'success': False,
+                'error': 'Invalid FIN number. Must be exactly 12 digits.'
+            }), 400
+        fin_number = f"{clean_fin[:4]}-{clean_fin[4:8]}-{clean_fin[8:12]}"
+        
+        # Reset PDF stream position for extraction
+        pdf_stream.seek(0)
+        
+        # Extract data from PDF
+        try:
+            extracted = id_service.extract_pdf_data(pdf_stream, fin_number, 'auto')
+            
+            # Override with provided metadata if available
+            if fullname:
+                # Try to split fullname into parts
+                name_parts = fullname.strip().split()
+                if len(name_parts) >= 2:
+                    extracted['name_en'] = fullname
+            
+            # Store extracted data in session
+            session['extracted'] = extracted
+            
+            # Save the decoded PDF to a temporary file for reference
+            temp_filename = f'decoded_pdf_{datetime.now().strftime("%Y%m%d_%H%M%S")}.pdf'
+            temp_filepath = os.path.join(config.STATIC_FOLDER, 'temp', temp_filename)
+            
+            # Ensure temp directory exists
+            os.makedirs(os.path.join(config.STATIC_FOLDER, 'temp'), exist_ok=True)
+            
+            with open(temp_filepath, 'wb') as f:
+                f.write(pdf_bytes)
+            
+            # Store file info in session
+            session['decoded_pdf'] = {
+                'filename': temp_filename,
+                'filepath': temp_filepath,
+                'size': len(pdf_bytes)
+            }
+            
+            return jsonify({
+                'success': True,
+                'message': 'PDF decoded and data extracted successfully',
+                'redirect': url_for('main.preview'),
+                'extracted_data': {
+                    'fin': extracted.get('fin'),
+                    'name_en': extracted.get('name_en'),
+                    'name_am': extracted.get('name_am'),
+                    'birth_date': extracted.get('birth_date'),
+                    'sex': extracted.get('sex')
+                }
+            })
+            
+        except Exception as e:
+            return jsonify({
+                'success': False,
+                'error': f'Failed to extract data from PDF: {str(e)}'
+            }), 500
+        
+    except Exception as e:
+        return jsonify({'success': False, 'error': f'Failed to decode: {str(e)}'}), 500
 
 @bp.route('/health')
 def health_check():
@@ -172,6 +399,9 @@ def approve_user(user_id):
             # Add to Firebase (approved users collection)
             firebase_service.add_approved_user(user_data)
             
+            # Update the user's access_status in the users collection
+            firebase_service.update_user_access_status(str(telegram_id), 'approved')
+            
             # Sync Firebase approved users to local allowlist
             sync_firebase_to_local_allowlist()
             
@@ -188,12 +418,12 @@ def approve_user(user_id):
                     
                     # Send approval notification to user
                     message = (
-                        f"🎉 **Access Granted!**\n\n"
-                        f"Hello {user_name}!\n\n"
-                        f"Your access request has been **approved** by the administrator.\n"
-                        f"You can now use the bot to generate your digital ID card.\n\n"
-                        f"🔄 **To start:** Send /start or any message to the bot\n\n"
-                        f"Thank you for your patience!"
+                        f"🎉 **መዳረሻ ተፈቅዷል!**\n\n"
+                        f"ሰላም {user_name}!\n\n"
+                        f"የመዳረሻ ጥያቄዎ በአስተዳዳሪ **ተፈቅዷል**።\n"
+                        f"አሁን ዲጂታል መለያ ለመፍጠር ቦቱን መጠቀም ይችላሉ።\n\n"
+                        f"🔄 **ለመጀመር:** /start ወይም ማንኛውንም መልዕክት ወደ ቦቱ ይላኩ\n\n"
+                        f"ለትዕግስትዎ እናመሰግናለን!"
                     )
                     
                     url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -253,6 +483,34 @@ def sync_firebase_endpoint():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@bp.route('/api/sync-approved-users', methods=['POST'])
+def sync_approved_users():
+    """Sync approved users from Firebase to local storage."""
+    try:
+        # Get users from Firebase
+        users = firebase_service.get_approved_users()
+        
+        # Update local approved_users.json
+        local_file = 'telegram_bot/data/approved_users.json'
+        with open(local_file, 'w', encoding='utf-8') as f:
+            json.dump(users, f, ensure_ascii=False, indent=2)
+        
+        # Also update allowed_users.json
+        allowed_file = 'telegram_bot/data/allowed_users.json'
+        allowed_ids = [int(user.get('telegramId', user.get('id'))) for user in users]
+        
+        with open(allowed_file, 'w', encoding='utf-8') as f:
+            json.dump(allowed_ids, f, indent=2)
+        
+        return jsonify({
+            "success": True, 
+            "message": f"Synced {len(users)} approved users from Firebase",
+            "count": len(users)
+        })
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
 @bp.route('/api/users/<user_id>/revoke', methods=['POST'])
 def revoke_user_access(user_id):
     """
@@ -287,13 +545,13 @@ def revoke_user_access(user_id):
             print(f"🔍 Bot token found: {bool(bot_token)}")
             if bot_token:
                 message = (
-                    "🚫 **Access Revoked**\n\n"
-                    "Your access to the bot has been revoked by the administrator.\n"
-                    "You can no longer use the bot to generate ID cards.\n\n"
-                    "If you believe this is an error, please contact the administrator.\n"
-                    "Contact Administrator:\n\n"
+                    "🚫 **መዳረሻ ተመለሰ**\n\n"
+                    "የቦቱ መዳረሻዎ በአስተዳዳሪ ተመለሰ።\n"
+                    "ከአሁን በኋላ መለያ ለመፍጠር ቦቱን መጠቀም አይችሉም።\n\n"
+                    "ይህ ስህተት ነው ብለው ካሰቡ፣ እባክዎ ከአስተዳዳሪ ጋር ይገናኙ።\n"
+                    "ከአስተዳዳሪ ጋር ይገናኙ፡\n\n"
                     "@fayda\\_software\n\n"
-                    "Thank you for your understanding."
+                    "ለመረዳትዎ እናመሰግናለን።"
                 )
                 
                 url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
@@ -341,17 +599,90 @@ def reject_user(user_id):
     try:
         new_users_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', 'data', 'new_users.json')
         items = []
+        user_data = None
         if os.path.exists(new_users_path):
             with open(new_users_path, 'r', encoding='utf-8') as f:
                 items = json.load(f)
         for item in items:
             if str(item.get('id')) == str(user_id) or str(item.get('telegramId')) == str(user_id):
                 item['status'] = 'rejected'
+                user_data = item
+                break
         with open(new_users_path, 'w', encoding='utf-8') as f:
             json.dump(items, f, ensure_ascii=False, indent=2)
+        
+        # Update Firebase users collection
+        if user_data:
+            telegram_id = str(user_data.get('telegramId', user_id))
+            firebase_service.update_user_access_status(telegram_id, 'rejected')
+        
         return jsonify({"status": "rejected", "message": f"User {user_id} rejected"})
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+@bp.route('/extract_fin', methods=['POST'])
+def extract_fin():
+    """
+    ---
+    post:
+      summary: Extract FIN number from document
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: document
+          type: file
+          required: true
+          description: Document (PDF, DOC, DOCX) to extract FIN from
+      responses:
+        200:
+          description: FIN extracted successfully
+        400:
+          description: Invalid file or extraction failed
+    """
+    if 'document' not in request.files:
+        return jsonify({'error': 'No document uploaded'}), 400
+    
+    document = request.files['document']
+    if document.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    # Check if file type is allowed
+    if not allowed_file(document.filename):
+        return jsonify({'error': 'Invalid file type. Please upload a PDF, DOC, or DOCX file.'}), 400
+    
+    # Only PDFs support automatic FIN extraction
+    if not document.filename.lower().endswith('.pdf'):
+        return jsonify({
+            'success': False,
+            'message': 'Automatic FIN extraction is only supported for PDF files. Please enter FIN manually.'
+        })
+    
+    try:
+        # Read PDF into memory
+        pdf_bytes = document.read()
+        pdf_stream = BytesIO(pdf_bytes)
+        
+        # Extract FIN from PDF
+        extracted_fin = id_service.extract_fin_from_pdf(pdf_stream)
+        
+        if extracted_fin:
+            return jsonify({
+                'success': True,
+                'fin': extracted_fin,
+                'message': 'FIN number extracted successfully from PDF'
+            })
+        else:
+            return jsonify({
+                'success': False,
+                'message': 'Could not find a valid FIN number in the PDF. Please enter it manually.'
+            })
+            
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': f'Failed to extract FIN: {str(e)}'
+        }), 500
 
 @bp.route('/upload_photo', methods=['POST'])
 def upload_photo():
@@ -388,43 +719,123 @@ def upload_photo():
     
     return jsonify({'error': 'Invalid file type'}), 400
 
+@bp.route('/upload_qr', methods=['POST'])
+def upload_qr():
+    """
+    ---
+    post:
+      summary: Upload a QR code image for the ID
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: qr
+          type: file
+          required: true
+          description: QR code image to upload
+      responses:
+        200:
+          description: QR code uploaded successfully
+        400:
+          description: Invalid file or no QR code uploaded
+    """
+    if 'qr' not in request.files:
+        return jsonify({'error': 'No QR code uploaded'}), 400
+    
+    qr = request.files['qr']
+    if qr.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if qr and allowed_file(qr.filename):
+        filename = 'qr_temp.png'
+        filepath = os.path.join(config.STATIC_FOLDER, filename)
+        qr.save(filepath)
+        return jsonify({'success': True, 'qr_url': url_for('static', filename=filename)})
+    
+    return jsonify({'error': 'Invalid file type'}), 400
+
+@bp.route('/upload_barcode', methods=['POST'])
+def upload_barcode():
+    """
+    ---
+    post:
+      summary: Upload a barcode image for the ID
+      consumes:
+        - multipart/form-data
+      parameters:
+        - in: formData
+          name: barcode
+          type: file
+          required: true
+          description: Barcode image to upload
+      responses:
+        200:
+          description: Barcode uploaded successfully
+        400:
+          description: Invalid file or no barcode uploaded
+    """
+    if 'barcode' not in request.files:
+        return jsonify({'error': 'No barcode uploaded'}), 400
+    
+    barcode = request.files['barcode']
+    if barcode.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if barcode and allowed_file(barcode.filename):
+        filename = 'barcode_temp.png'
+        filepath = os.path.join(config.STATIC_FOLDER, filename)
+        barcode.save(filepath)
+        return jsonify({'success': True, 'barcode_url': url_for('static', filename=filename)})
+    
+    return jsonify({'error': 'Invalid file type'}), 400
+
 @bp.route('/generate_id', methods=['POST'])
 def generate_id():
     """
     ---
     post:
-      summary: Generate ID from PDF
+      summary: Generate ID from document
       consumes:
         - multipart/form-data
       parameters:
         - in: formData
-          name: pdf
+          name: document
           type: file
           required: true
-          description: PDF document to extract data from
+          description: Document (PDF, DOC, DOCX) to extract data from
         - in: formData
           name: fin
           type: string
           required: true
           description: 12-digit FIN number
         - in: formData
-          name: pdf_format
+          name: document_format
           type: string
           required: false
           enum: [default, residential_sheger]
-          description: PDF format type
+          description: Document format type (only applies to PDF files)
+        - in: formData
+          name: skip_preview
+          type: string
+          required: false
+          description: Skip data preview and generate ID directly
       responses:
         302:
-          description: Redirects to preview page
+          description: Redirects to preview page or results page
         400:
           description: Invalid input
     """
-    if 'pdf' not in request.files:
+    if 'document' not in request.files:
         return redirect(request.url)
 
-    pdf = request.files['pdf']
+    document = request.files['document']
     raw_fin = request.form.get('fin', '').strip()
-    pdf_format = request.form.get('pdf_format', 'auto')
+    document_format = request.form.get('document_format', 'auto')
+    skip_preview = request.form.get('skip_preview') == 'on'
+    
+    # Check if file type is allowed
+    if not allowed_file(document.filename):
+        return "Invalid file type. Please upload a PDF, DOC, or DOCX file."
 
     # Validate FIN number
     clean_fin = raw_fin.replace('-', '')
@@ -433,20 +844,90 @@ def generate_id():
     fin_number = f"{clean_fin[:4]}-{clean_fin[4:8]}-{clean_fin[8:12]}"
 
     try:
-        # Read PDF into memory
-        pdf_bytes = pdf.read()
-        pdf_stream = BytesIO(pdf_bytes)
+        # Read document into memory
+        document_bytes = document.read()
+        document_stream = BytesIO(document_bytes)
         
-        # Extract data from PDF in memory
-        extracted = id_service.extract_pdf_data(pdf_stream, fin_number, pdf_format)
+        # Check if it's a PDF for data extraction
+        if document.filename.lower().endswith('.pdf'):
+            # Extract data from PDF in memory
+            extracted = id_service.extract_pdf_data(document_stream, fin_number, document_format)
+        else:
+            # For DOC/DOCX files, create basic extracted data structure
+            extracted = {
+                'fin': fin_number,
+                'name_en': '',
+                'name_am': '',
+                'nationality_en': 'Ethiopian',
+                'nationality_am': 'ኢትዮጵያዊ',
+                'region_en': '',
+                'region_am': '',
+                'subcity_en': '',
+                'subcity_am': '',
+                'woreda_en': '',
+                'woreda_am': '',
+                'address_en': '',
+                'address_am': '',
+                'birth_date': '',
+                'sex': '',
+                'issue_date': '',
+                'expiry_date': '',
+                'document_type': document.filename.split('.')[-1].upper()
+            }
         
-        # Add address fields
-        extracted["address_am"] = f"{extracted['region_am']}, {extracted['subcity_am']}, {extracted['woreda_am']}"
-        extracted["address_en"] = f"{extracted['region_en']}, {extracted['subcity_en']}, {extracted['woreda_en']}"
-
         # Store in session
         session['extracted'] = extracted
-        return redirect(url_for('main.preview'))
+        
+        # Check if user wants to skip preview
+        if skip_preview:
+            # Generate ID directly with optimized default settings
+            try:
+                # Apply smart formatting to address fields
+                if all(key in extracted for key in ['region_am', 'subcity_am', 'woreda_am']):
+                    extracted["address_am"] = format_address_smart(
+                        extracted['region_am'], 
+                        extracted['subcity_am'], 
+                        extracted['woreda_am'], 
+                        'am'
+                    )
+                
+                if all(key in extracted for key in ['region_en', 'subcity_en', 'woreda_en']):
+                    extracted["address_en"] = format_address_smart(
+                        extracted['region_en'], 
+                        extracted['subcity_en'], 
+                        extracted['woreda_en'], 
+                        'en'
+                    )
+                
+                # Add user tracking information for direct generation
+                extracted['user_id'] = session.get('user_id', 0)
+                extracted['username'] = session.get('username', extracted.get('name_en', 'Unknown User'))
+                extracted['telegram_user_id'] = session.get('telegram_user_id', 0)
+                
+                # Generate ID card with optimized default settings
+                generated_files = id_service.generate_id_card(
+                    data=extracted,
+                    city_option='default',
+                    remove_white=True,  # Enable white background removal
+                    remove_black=True,  # Enable black background removal
+                    generate_mini_id=False,
+                    generate_old_id=False,
+                    use_onnx_bg=True    # Enable AI background removal for better results
+                )
+                
+                # Store results in session
+                session['generated_files'] = generated_files
+                session['extracted'] = extracted  # Ensure data is still in session
+                
+                return redirect(url_for('main.result'))
+                
+            except Exception as e:
+                # If direct generation fails, fall back to preview
+                session['generation_error'] = f"Direct generation failed: {str(e)}"
+                return redirect(url_for('main.preview'))
+        else:
+            # Normal flow - show preview
+            return redirect(url_for('main.preview'))
 
     except Exception as e:
         return f"Failed to extract data: {str(e)}"
@@ -484,6 +965,10 @@ def confirm_generate():
           type: boolean
           required: false
         - in: formData
+          name: use_onnx_bg
+          type: boolean
+          required: false
+        - in: formData
           name: city_type
           type: string
           required: false
@@ -501,7 +986,10 @@ def confirm_generate():
         # Get form values
         remove_white = request.form.get('remove_white_bg') == '1'
         remove_black = request.form.get('remove_black_bg') == '1'
+        use_onnx_bg = request.form.get('use_onnx_bg') == '1'
         city_option = request.form.get('city_type', 'default')
+        generate_front_only = request.form.get('generate_front_only') == '1'
+        generate_reverse_only = request.form.get('generate_reverse_only') == '1'
         generate_mini_id = request.form.get('generate_mini_id') == '1'
         generate_old_id = request.form.get('generate_old_id') == '1'
         
@@ -520,11 +1008,27 @@ def confirm_generate():
             extracted['nationality_en'] = session['nationality_en']
             print("DEBUG: Updated nationality from legacy session fields")
         
-        # Ensure address fields are properly formatted
+        # Apply smart formatting to address fields
         if all(key in extracted for key in ['region_am', 'subcity_am', 'woreda_am']):
-            extracted["address_am"] = f"{extracted['region_am']}, {extracted['subcity_am']}, {extracted['woreda_am']}"
+            extracted["address_am"] = format_address_smart(
+                extracted['region_am'], 
+                extracted['subcity_am'], 
+                extracted['woreda_am'], 
+                'am'
+            )
+        
         if all(key in extracted for key in ['region_en', 'subcity_en', 'woreda_en']):
-            extracted["address_en"] = f"{extracted['region_en']}, {extracted['subcity_en']}, {extracted['woreda_en']}"
+            extracted["address_en"] = format_address_smart(
+                extracted['region_en'], 
+                extracted['subcity_en'], 
+                extracted['woreda_en'], 
+                'en'
+            )
+        
+        # Add user tracking information
+        extracted['user_id'] = session.get('user_id', 0)  # Default to 0 if no user ID
+        extracted['username'] = session.get('username', extracted.get('name_en', 'Unknown User'))
+        extracted['telegram_user_id'] = session.get('telegram_user_id', 0)
         
         # Explicitly save the updated data back to session to ensure it's current
         session['extracted'] = extracted
@@ -539,8 +1043,11 @@ def confirm_generate():
             city_option=city_option,
             remove_white=remove_white,
             remove_black=remove_black,
+            generate_front_only=generate_front_only,
+            generate_reverse_only=generate_reverse_only,
             generate_mini_id=generate_mini_id,
-            generate_old_id=generate_old_id
+            generate_old_id=generate_old_id,
+            use_onnx_bg=use_onnx_bg
         )
         
         # Store in session
@@ -556,6 +1063,18 @@ def confirm_generate():
     except Exception as e:
         print("Error in confirm_generate:", str(e))  # Debug print for errors
         return f"Failed to generate ID: {str(e)}"
+
+@bp.route('/results')
+def results():
+    """
+    ---
+    get:
+      summary: Show generated ID card results (alternative route)
+      responses:
+        200:
+          description: Result page with generated ID cards
+    """
+    return result()
 
 @bp.route('/result')
 def result():
@@ -878,4 +1397,183 @@ def check_session():
         200:
           description: Session status
     """
-    return jsonify({"session_valid": True}) 
+    return jsonify({"session_valid": True})
+
+
+@bp.route('/api/daily-reports', methods=['GET'])
+def get_daily_reports():
+    """Get all daily reports."""
+    try:
+        daily_service = DailyReportService()
+        reports = daily_service.get_all_daily_reports()
+        return jsonify({"success": True, "reports": reports})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/daily-reports/<date>', methods=['GET'])
+def get_daily_report(date):
+    """Get daily report for a specific date."""
+    try:
+        daily_service = DailyReportService()
+        report = daily_service.get_daily_report(date)
+        return jsonify({"success": True, "report": report})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/user-stats/<int:user_id>', methods=['GET'])
+def get_user_stats(user_id):
+    """Get stats for a specific user."""
+    try:
+        daily_service = DailyReportService()
+        stats = daily_service.get_user_stats(user_id)
+        return jsonify({"success": True, "stats": stats})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/generate-daily-report', methods=['POST'])
+def generate_daily_report():
+    """Generate daily report for today or specified date."""
+    try:
+        data = request.get_json() or {}
+        date = data.get('date')  # Optional date parameter
+        
+        daily_service = DailyReportService()
+        report = daily_service.generate_daily_report(date)
+        return jsonify({"success": True, "report": report})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/users/<int:user_id>/pause', methods=['POST'])
+def pause_user(user_id):
+    """Pause a user."""
+    try:
+        data = request.get_json() or {}
+        paused_by = data.get('paused_by', 'admin')
+        
+        daily_service = DailyReportService()
+        success = daily_service.pause_user(user_id, paused_by)
+        
+        if success:
+            return jsonify({"success": True, "message": f"User {user_id} paused successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to pause user"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/users/<int:user_id>/resume', methods=['POST'])
+def resume_user(user_id):
+    """Resume a user."""
+    try:
+        data = request.get_json() or {}
+        resumed_by = data.get('resumed_by', 'admin')
+        
+        daily_service = DailyReportService()
+        success = daily_service.resume_user(user_id, resumed_by)
+        
+        if success:
+            return jsonify({"success": True, "message": f"User {user_id} resumed successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to resume user"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/users/<user_id>/status', methods=['GET'])
+def get_user_status(user_id):
+    """Get user status."""
+    try:
+        daily_service = DailyReportService()
+        status = daily_service.get_user_status(int(user_id))
+        return jsonify({"success": True, "status": status})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+@bp.route('/api/users/<user_id>/status', methods=['PUT', 'PATCH'])
+def update_user_status(user_id):
+    """Update user access status in Firebase."""
+    try:
+        data = request.get_json()
+        status = data.get('status')
+        
+        if not status:
+            return jsonify({"success": False, "error": "Status is required"}), 400
+        
+        # Validate status
+        valid_statuses = ['approved', 'not approved', 'pending', 'paused', 'rejected']
+        if status not in valid_statuses:
+            return jsonify({"success": False, "error": f"Invalid status. Must be one of: {', '.join(valid_statuses)}"}), 400
+        
+        # Update Firebase users collection
+        telegram_id = str(user_id)
+        success = firebase_service.update_user_access_status(telegram_id, status)
+        
+        if success:
+            return jsonify({"success": True, "message": f"User {user_id} status updated to {status}"})
+        else:
+            return jsonify({"success": False, "error": "Failed to update user status"}), 500
+            
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/user-statuses', methods=['GET'])
+def get_all_user_statuses():
+    """Get all user statuses."""
+    try:
+        daily_service = DailyReportService()
+        statuses = daily_service.get_all_user_statuses()
+        return jsonify({"success": True, "statuses": statuses})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/bot/pause', methods=['POST'])
+def pause_bot():
+    """Pause the bot."""
+    try:
+        data = request.get_json() or {}
+        paused_by = data.get('paused_by', 'admin')
+        
+        daily_service = DailyReportService()
+        success = daily_service.pause_bot(paused_by)
+        
+        if success:
+            return jsonify({"success": True, "message": "Bot paused successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to pause bot"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/bot/resume', methods=['POST'])
+def resume_bot():
+    """Resume the bot."""
+    try:
+        data = request.get_json() or {}
+        resumed_by = data.get('resumed_by', 'admin')
+        
+        daily_service = DailyReportService()
+        success = daily_service.resume_bot(resumed_by)
+        
+        if success:
+            return jsonify({"success": True, "message": "Bot resumed successfully"})
+        else:
+            return jsonify({"success": False, "error": "Failed to resume bot"}), 500
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500
+
+
+@bp.route('/api/bot/status', methods=['GET'])
+def get_bot_status():
+    """Get bot status."""
+    try:
+        daily_service = DailyReportService()
+        status = daily_service.get_bot_status()
+        return jsonify({"success": True, "status": status})
+    except Exception as e:
+        return jsonify({"success": False, "error": str(e)}), 500 

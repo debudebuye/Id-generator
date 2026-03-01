@@ -1,4 +1,4 @@
-from flask import Flask
+from flask import Flask, make_response, request
 from .config.settings import Config
 from .config.production import ProductionConfig
 import os
@@ -28,6 +28,17 @@ def create_app(config_name=None):
     os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
     os.makedirs(app.config['STATIC_FOLDER'], exist_ok=True)
     
+    # Configure Tesseract OCR path for Windows
+    try:
+        import pytesseract
+        import platform
+        if platform.system() == 'Windows':
+            # Set the path to tesseract executable
+            pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+            print("✅ Tesseract OCR configured for Windows")
+    except ImportError:
+        print("⚠️ pytesseract not available")
+    
     # Initialize Swagger
     from flasgger import Swagger
     Swagger(app)
@@ -47,9 +58,19 @@ def create_app(config_name=None):
         cors_origin = origin or (allowed_origins[0] if allowed_origins else '*')
         response.headers['Access-Control-Allow-Origin'] = cors_origin
         response.headers['Access-Control-Allow-Credentials'] = 'true'
-        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization'
+        response.headers['Access-Control-Allow-Headers'] = 'Content-Type, Authorization, X-Requested-With'
         response.headers['Access-Control-Allow-Methods'] = 'GET, POST, PUT, PATCH, DELETE, OPTIONS'
+        response.headers['Access-Control-Max-Age'] = '86400'
         return response
+    
+    @app.before_request
+    def handle_preflight():
+        if request.method == "OPTIONS":
+            response = make_response()
+            response.headers.add("Access-Control-Allow-Origin", "*")
+            response.headers.add('Access-Control-Allow-Headers', "Content-Type, Authorization, X-Requested-With")
+            response.headers.add('Access-Control-Allow-Methods', "GET, POST, PUT, PATCH, DELETE, OPTIONS")
+            return response
     
     return app
 
