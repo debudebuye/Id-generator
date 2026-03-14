@@ -16,22 +16,48 @@ class OCRExtractionService:
         """Initialize OCR service"""
         # Configure Tesseract for Amharic and English
         self.tesseract_config = '--oem 3 --psm 6'
+        # Cache for preprocessed images to avoid reprocessing
+        self._preprocess_cache = {}
+    
+    def clear_cache(self):
+        """Clear the preprocessing cache to free memory"""
+        cache_size = len(self._preprocess_cache)
+        self._preprocess_cache.clear()
+        print(f"✓ Cleared preprocessing cache ({cache_size} items)")
+    
+    def get_cache_stats(self):
+        """Get cache statistics for monitoring"""
+        return {
+            'size': len(self._preprocess_cache),
+            'max_size': 10,
+            'items': list(self._preprocess_cache.keys())
+        }
         
     def preprocess_image(self, image_path: str) -> np.ndarray:
-        """Preprocess image for better OCR results"""
+        """Preprocess image for better OCR results with caching"""
+        # Check cache first
+        if image_path in self._preprocess_cache:
+            print(f"✓ Using cached preprocessed image for {image_path}")
+            return self._preprocess_cache[image_path]
+        
         # Read image
         img = cv2.imread(image_path)
         
         # Convert to grayscale
         gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
         
+        # OPTIMIZED: Use CLAHE instead of denoising (faster and often better)
+        clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
+        enhanced = clahe.apply(gray)
+        
         # Apply thresholding
-        _, thresh = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
+        _, thresh = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
         
-        # Denoise
-        denoised = cv2.fastNlMeansDenoising(thresh, None, 10, 7, 21)
+        # Cache the result (limit cache size to prevent memory issues)
+        if len(self._preprocess_cache) < 10:
+            self._preprocess_cache[image_path] = thresh
         
-        return denoised
+        return thresh
     
     def extract_photo_from_front(self, image_path: str, output_path: str) -> Optional[str]:
         """Extract profile photo from front ID card"""
@@ -68,36 +94,61 @@ class OCRExtractionService:
             print(f"📐 Image dimensions: {width}x{height}")
             
             # Define regions based on EXACT pixel coordinates from Ethiopian Digital ID Card
-            # NEW Reference dimensions: 900x1441px
-            # Coordinates provided by user for new reference image
-            # NAME_AM: X:89, Y:834, W:703, H:51 → (89,834)-(792,885)
+            # Default Reference dimensions: 900x1441px
             
-            # Reference dimensions (NEW - 900x1441px)
+            # Detect if this is a 599x963 dimension (or close to it)
+            aspect_ratio = width / height
+            is_599x963_dimension = False
+            
+            # Check if dimensions are close to 599x963 (aspect ratio ~0.622)
+            # Allow 10% tolerance for similar dimensions
+            if 0.55 < aspect_ratio < 0.68 and 550 < width < 650 and 900 < height < 1050:
+                is_599x963_dimension = True
+                print(f"✓ Detected 599x963-like dimension, using special coordinates for sex_am")
+            
+            # Always use 900x1441 as reference for coordinate scaling
             ref_width = 900
             ref_height = 1441
             
             # Calculate percentage-based regions (will scale to actual image size)
-            # EXACT coordinates from new 900x1441px reference
+            # Default coordinates from 900x1441px reference
             # OPTIMIZATION: Only extract Ethiopian dates and Amharic sex, calculate English from them
             regions = {
-                'full_name_am': (89/ref_width, 834/ref_height, 792/ref_width, 885/ref_height),                    # Full name Amharic (89,834)-(792,885)
-                'full_name_en': (95/ref_width, 882/ref_height, 792/ref_width, 927/ref_height),                    # Full name English (95,882)-(792,927)
-                'dob_ethiopian': (93/ref_width, 964/ref_height, 292/ref_width, 1017/ref_height),                   # DOB Ethiopian (93,964)-(292,1017) - Extract only Ethiopian
-                # 'dob_gregorian': REMOVED - Will calculate from Ethiopian date
-                'sex_am': (103/ref_width, 1034/ref_height, 190/ref_width, 1075/ref_height),                        # Sex Amharic (103,1034)-(190,1075) - Extract only Amharic
-                # 'sex_en': REMOVED - Will translate from Amharic
-                'expiry_ethiopian': (99/ref_width, 1118/ref_height, 288/ref_width, 1169/ref_height),               # Expiry Ethiopian (99,1118)-(288,1169) - Extract only Ethiopian
-                # 'expiry_gregorian': REMOVED - Will calculate from Ethiopian date
-                'fan_number': (225/ref_width, 1198/ref_height, 648/ref_width, 1237/ref_height),                    # FAN Number (225,1198)-(648,1237)
-                # 'issue_gregorian': REMOVED - Will use today's date
-                # 'issue_ethiopian': REMOVED - Will calculate from today's date
+                'full_name_am': (89/ref_width, 834/ref_height, 792/ref_width, 885/ref_height),
+                'full_name_en': (95/ref_width, 882/ref_height, 792/ref_width, 927/ref_height),
+                'dob_ethiopian': (93/ref_width, 964/ref_height, 292/ref_width, 1017/ref_height),
+                'sex_am': (103/ref_width, 1034/ref_height, 190/ref_width, 1075/ref_height),  # Default
+                'expiry_ethiopian': (99/ref_width, 1118/ref_height, 288/ref_width, 1169/ref_height),
+                'fan_number': (225/ref_width, 1198/ref_height, 648/ref_width, 1237/ref_height),
             }
+            
+            # Override sex_am coordinates ONLY for 599x963 dimension
+            if is_599x963_dimension:
+                # Special coordinates for sex_am in 599x963 dimension
+                # X:68, Y:697, W:43, H:26 → (68,697)-(111,723)
+                # Scale these coordinates relative to 599x963, then convert to percentages
+                sex_ref_width = 599
+                sex_ref_height = 963
+                regions['sex_am'] = (68/sex_ref_width, 697/sex_ref_height, 111/sex_ref_width, 723/sex_ref_height)
+                print(f"   Using 599x963 coordinates - sex_am: X:68, Y:697, W:43, H:26")
+            else:
+                print(f"   Using default 900x1441 coordinates - sex_am: X:103, Y:1034, W:87, H:41")
             
             print(f"📏 Using reference dimensions: {ref_width}x{ref_height}, actual: {width}x{height}")
             
             extracted_regions = {}
             
-            for region_name, (x1, y1, x2, y2) in regions.items():
+            # OPTIMIZED: Process regions in order of importance for early success detection
+            # Prioritize key fields: names, dates, FAN
+            priority_order = ['full_name_am', 'full_name_en', 'dob_ethiopian', 'fan_number', 'sex_am', 'expiry_ethiopian']
+            other_regions = [r for r in regions.keys() if r not in priority_order]
+            ordered_regions = priority_order + other_regions
+            
+            for region_name in ordered_regions:
+                if region_name not in regions:
+                    continue
+                x1, y1, x2, y2 = regions[region_name]
+                
                 # Convert percentages to pixels
                 x1_px = int(x1 * width)
                 y1_px = int(y1 * height)
@@ -188,7 +239,7 @@ class OCRExtractionService:
             return {}
     
     def extract_text_from_image(self, image_path: str, lang: str = 'eng+amh') -> str:
-        """Extract text from image using OCR with improved preprocessing for ID cards"""
+        """Extract text from image using OCR with optimized single-pass preprocessing"""
         try:
             # Read image
             img = cv2.imread(image_path)
@@ -205,70 +256,23 @@ class OCRExtractionService:
             height = int(gray.shape[0] * scale_factor)
             gray = cv2.resize(gray, (width, height), interpolation=cv2.INTER_CUBIC)
             
-            # Apply multiple preprocessing techniques and try OCR on each
-            texts = []
-            
-            # Method 1: Bilateral filter + OTSU (good for noisy images)
-            bilateral = cv2.bilateralFilter(gray, 9, 75, 75)
-            _, thresh1 = cv2.threshold(bilateral, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            # Try with different PSM modes
-            text1a = pytesseract.image_to_string(thresh1, lang=lang, config='--oem 3 --psm 3')  # Fully automatic
-            text1b = pytesseract.image_to_string(thresh1, lang=lang, config='--oem 3 --psm 6')  # Uniform block
-            text1c = pytesseract.image_to_string(thresh1, lang=lang, config='--oem 3 --psm 11') # Sparse text
-            texts.extend([text1a, text1b, text1c])
-            print(f"📝 Method 1 (Bilateral+OTSU): PSM3={len(text1a)}, PSM6={len(text1b)}, PSM11={len(text1c)} chars")
-            
-            # Method 2: Contrast enhancement + threshold
+            # OPTIMIZED: Single-pass preprocessing with best method
+            # Use CLAHE + OTSU which works well for most ID cards
             clahe = cv2.createCLAHE(clipLimit=2.0, tileGridSize=(8,8))
             enhanced = clahe.apply(gray)
-            _, thresh2 = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            text2 = pytesseract.image_to_string(thresh2, lang=lang, config='--oem 3 --psm 6')
-            texts.append(text2)
-            print(f"📝 Method 2 (CLAHE): {len(text2)} chars")
+            _, thresh = cv2.threshold(enhanced, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
             
-            # Method 3: Denoise + threshold (good for scanned documents)
-            denoised = cv2.fastNlMeansDenoising(gray, None, h=10, templateWindowSize=7, searchWindowSize=21)
-            _, thresh3 = cv2.threshold(denoised, 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)
-            text3 = pytesseract.image_to_string(thresh3, lang=lang, config='--oem 3 --psm 6')
-            texts.append(text3)
-            print(f"📝 Method 3 (Denoise): {len(text3)} chars")
+            # Single OCR call with optimal config
+            text = pytesseract.image_to_string(thresh, lang=lang, config='--oem 3 --psm 6')
             
-            # Method 4: Simple threshold with different values
-            _, thresh4a = cv2.threshold(gray, 127, 255, cv2.THRESH_BINARY)
-            _, thresh4b = cv2.threshold(gray, 150, 255, cv2.THRESH_BINARY)
-            text4a = pytesseract.image_to_string(thresh4a, lang=lang, config='--oem 3 --psm 6')
-            text4b = pytesseract.image_to_string(thresh4b, lang=lang, config='--oem 3 --psm 6')
-            texts.extend([text4a, text4b])
-            print(f"📝 Method 4 (Fixed thresh): 127={len(text4a)}, 150={len(text4b)} chars")
-            
-            # Filter out texts that are mostly garbage (high ratio of special chars)
-            def is_valid_text(text):
-                if len(text) < 20:
-                    return False
-                # Count alphanumeric vs special characters
-                alnum_count = sum(c.isalnum() or c.isspace() for c in text)
-                total_count = len(text)
-                ratio = alnum_count / total_count if total_count > 0 else 0
-                return ratio > 0.3  # At least 30% should be alphanumeric or spaces
-            
-            valid_texts = [t for t in texts if is_valid_text(t)]
-            
-            if not valid_texts:
-                print("⚠️ No valid text extracted from any method")
-                # Return the longest text anyway
-                combined_text = max(texts, key=len) if texts else ""
-            else:
-                # Use the longest valid text
-                combined_text = max(valid_texts, key=len)
-            
-            print(f"✓ Best extraction: {len(combined_text)} characters from {image_path}")
-            if len(combined_text) < 50:
-                print(f"⚠️ Warning: Very little text extracted. Sample: {combined_text[:200]}")
+            print(f"✓ Optimized extraction: {len(text)} characters from {image_path}")
+            if len(text) < 50:
+                print(f"⚠️ Warning: Very little text extracted. Sample: {text[:200]}")
             else:
                 # Show first 300 chars to see actual content
-                print(f"📄 Sample text: {combined_text[:300]}...")
+                print(f"📄 Sample text: {text[:300]}...")
             
-            return combined_text.strip()
+            return text.strip()
             
         except Exception as e:
             print(f"❌ Error extracting text: {e}")
@@ -670,10 +674,11 @@ class OCRExtractionService:
                 # End of optimization
                 # ========================================
                 
-                # If we got good data from regions, return it (skip fallback)
+                # OPTIMIZED: If we got good data from regions, return it (skip expensive fallback)
                 extracted_count = sum(1 for v in data.values() if v)
-                if extracted_count >= 3:
-                    print(f"✅ Region-based extraction successful: {extracted_count}/{len(data)} fields")
+                # Require at least 5 key fields for region extraction to be considered successful
+                if extracted_count >= 5:
+                    print(f"✅ Region-based extraction successful: {extracted_count}/{len(data)} fields - skipping full-page OCR")
                     return data
                 else:
                     print(f"⚠️ Region-based extraction incomplete: {extracted_count}/{len(data)} fields")
@@ -1260,7 +1265,17 @@ class OCRExtractionService:
             
             extracted_regions = {}
             
-            for region_name, (x1, y1, x2, y2) in regions.items():
+            # OPTIMIZED: Process regions in order of importance for early success detection
+            # Prioritize key fields: phone, nationality, address components
+            priority_order = ['phone_number', 'nationality_am', 'nationality_en', 'region_am', 'region_en', 'subcity_am', 'subcity_en']
+            other_regions = [r for r in regions.keys() if r not in priority_order]
+            ordered_regions = priority_order + other_regions
+            
+            for region_name in ordered_regions:
+                if region_name not in regions:
+                    continue
+                x1, y1, x2, y2 = regions[region_name]
+                
                 # Convert percentages to pixels
                 x1_px = int(x1 * width)
                 y1_px = int(y1 * height)

@@ -111,8 +111,26 @@ def index():
         200:
           description: Index page
     """
+    print("🔄 User returned to index page - clearing all cached and session data")
+    
     # Clear session data when loading index page for fresh start
     session.clear()
+    print("✓ Session data cleared")
+    
+    # Clear OCR service preprocessing cache
+    try:
+        ocr_service.clear_cache()
+        print("✓ OCR preprocessing cache cleared")
+    except Exception as e:
+        print(f"⚠️ Could not clear OCR cache: {e}")
+    
+    # Clear ID card service cache if it exists
+    try:
+        if hasattr(id_service, 'clear_cache'):
+            id_service.clear_cache()
+            print("✓ ID card service cache cleared")
+    except Exception as e:
+        print(f"⚠️ Could not clear ID service cache: {e}")
     
     # Clean up temporary files from previous sessions
     temp_files = [
@@ -122,17 +140,49 @@ def index():
         'qr_cropped.png',
         'front_cropped.png',
         'back_cropped.png',
-        'fcn_barcode.png'
+        'fcn_barcode.png',
+        'photo_extracted.png',
+        'qr_extracted.png',
+        'photo_qr_combined_cropped.png',
+        'barcode_temp.png'
     ]
     
+    cleaned_count = 0
     for temp_file in temp_files:
         temp_path = os.path.join(config.STATIC_FOLDER, temp_file)
         if os.path.exists(temp_path):
             try:
                 os.remove(temp_path)
-                print(f"🗑️ Cleaned up temp file: {temp_file}")
+                cleaned_count += 1
+                print(f"  🗑️ Deleted: {temp_file}")
             except Exception as e:
-                print(f"⚠️ Could not delete {temp_file}: {e}")
+                print(f"  ⚠️ Could not delete {temp_file}: {e}")
+    
+    if cleaned_count > 0:
+        print(f"✓ Cleaned up {cleaned_count} temporary files")
+    else:
+        print("ℹ️ No temporary files to clean up")
+    
+    # Clean up debug regions folder
+    debug_regions_path = os.path.join(config.STATIC_FOLDER, 'debug_regions')
+    if os.path.exists(debug_regions_path):
+        try:
+            import glob
+            debug_files = glob.glob(os.path.join(debug_regions_path, '*.png'))
+            debug_cleaned = 0
+            for debug_file in debug_files:
+                try:
+                    os.remove(debug_file)
+                    debug_cleaned += 1
+                except Exception as e:
+                    print(f"  ⚠️ Could not delete debug file: {e}")
+            
+            if debug_cleaned > 0:
+                print(f"✓ Cleaned up {debug_cleaned} debug region files")
+        except Exception as e:
+            print(f"⚠️ Could not clean debug regions: {e}")
+    
+    print("✅ Index page ready - all caches and session data cleared")
     
     return render_template('index.html')
 
@@ -649,10 +699,21 @@ def generate_id():
     No PDF/DOC required - extracts data from front and back ID images
     Can also accept JSON data directly to skip OCR
     """
+    import time
+    
+    # Start timing
+    extraction_start_time = time.time()
+    print(f"⏱️  Extraction started at {extraction_start_time}")
+    
     try:
         # Handle cropped images from form
         uploaded_images = handle_cropped_images_in_generate_id()
         print(f"✓ Processed uploaded images: {uploaded_images}")
+        
+        # Get manual FAN from form
+        manual_fan = request.form.get('manual_fan', '').strip()
+        if manual_fan:
+            print(f"📝 Manual FAN provided: {manual_fan}")
         
         # Check for unified JSON data from form
         card_json_str = request.form.get('card_json_data', '').strip()
@@ -831,10 +892,19 @@ def generate_id():
                 fan_number = combined_data.get('fan', '')
                 fin_number = combined_data.get('fin', '')  # FIN from back card
                 
-                # Use FAN if available, otherwise use FIN from back card
-                if not fan_number and fin_number:
+                # Prioritize manual FAN input, then extracted FAN, then FIN from back card
+                extraction_method = 'OCR'
+                if manual_fan:
+                    fan_number = manual_fan
+                    extraction_method = 'Manual'  # Mark as manual when using manual FAN
+                    print(f"✓ Using manual FAN (priority): {manual_fan}")
+                elif fan_number:
+                    print(f"✓ Using extracted FAN from OCR: {fan_number}")
+                elif fin_number:
                     fan_number = fin_number
-                    print(f"ℹ️ Using FIN from back card as FAN: {fin_number}")
+                    print(f"ℹ️ Using FIN from back card as FAN fallback: {fin_number}")
+                else:
+                    print("⚠️ No FAN found in OCR extraction and no manual FAN provided")
                 
                 # Generate serial number (7-8 digit number)
                 serial_number = id_service.generate_serial_number()
@@ -897,7 +967,7 @@ def generate_id():
                     'phone_number': combined_data.get('phone_number', ''),  # Keep for compatibility
                     'photo_path': photo_path,  # Keep using uploaded profile photo
                     'qr_path': qr_extracted_path if qr_extracted_path else (qr_path if qr_path else None),  # Use uploaded QR or extracted QR
-                    'extraction_method': 'OCR'
+                    'extraction_method': extraction_method
                 })
                 
             except Exception as ocr_error:
@@ -908,6 +978,13 @@ def generate_id():
         else:
             print("ℹ️ Not enough images for OCR extraction (need front and back)")
             print("   User will need to enter data manually in preview page")
+            
+            # Use manual FAN if provided even without OCR
+            if manual_fan:
+                extracted['fan'] = manual_fan
+                extracted['fcn_full'] = manual_fan
+                extracted['extraction_method'] = 'Manual'
+                print(f"ℹ️ Using manual FAN without OCR: {manual_fan}")
         
         # Always generate serial number if not already set
         if not extracted.get('serial_number'):
@@ -1052,6 +1129,13 @@ def generate_id():
         session['extracted'] = extracted
         session['uploaded_images'] = uploaded_images
         
+        # Calculate and store extraction time
+        extraction_end_time = time.time()
+        extraction_time = extraction_end_time - extraction_start_time
+        session['extraction_time'] = round(extraction_time, 2)
+        
+        print("=" * 80)
+        print(f"⏱️  EXTRACTION COMPLETED IN {extraction_time:.2f} SECONDS")
         print("=" * 80)
         print("✓ Data stored in session, redirecting to preview")
         print(f"   Photo path: {photo_path}")
@@ -1090,29 +1174,50 @@ def preview():
     
     # Generate barcode from FAN number if available
     fan_number = data.get('fan') or data.get('fcn_full') or data.get('fin')
-    if fan_number and len(fan_number) >= 15:
-        # Ensure we have exactly 16 digits for barcode generation
-        if len(fan_number) == 15:
-            fan_number = fan_number + '0'  # Pad to 16 digits
-        elif len(fan_number) > 16:
-            fan_number = fan_number[:16]  # Truncate to 16 digits
+    if fan_number:
+        # Clean the FAN number (remove any spaces or non-digits)
+        clean_fan = ''.join(c for c in str(fan_number) if c.isdigit())
         
-        print(f"🔢 Generating barcode from FAN: {fan_number}")
-        barcode_filename, formatted_fcn = id_service.generate_barcode(fan_number)
-        
-        if barcode_filename:
-            data['fcn_barcode'] = barcode_filename
-            data['fcn_formatted'] = formatted_fcn
-            data['fcn_full'] = fan_number
-            print(f"✓ Barcode generated: {barcode_filename}")
-            print(f"✓ Formatted FCN: {formatted_fcn}")
+        if len(clean_fan) == 16:
+            print(f"🔢 Generating barcode from valid 16-digit FAN: {clean_fan}")
+            barcode_filename, formatted_fcn = id_service.generate_barcode(clean_fan)
+            
+            if barcode_filename:
+                data['fcn_barcode'] = barcode_filename
+                data['fcn_formatted'] = formatted_fcn
+                data['fcn_full'] = clean_fan
+                print(f"✓ Barcode generated: {barcode_filename}")
+                print(f"✓ Formatted FCN: {formatted_fcn}")
+            else:
+                print("⚠️ Barcode generation failed")
+                data['fcn_barcode'] = None
+                data['fcn_formatted'] = clean_fan
+        elif len(clean_fan) == 15:
+            # Pad to 16 digits
+            padded_fan = clean_fan + '0'
+            print(f"🔢 Padding 15-digit FAN to 16 digits: {clean_fan} → {padded_fan}")
+            barcode_filename, formatted_fcn = id_service.generate_barcode(padded_fan)
+            
+            if barcode_filename:
+                data['fcn_barcode'] = barcode_filename
+                data['fcn_formatted'] = formatted_fcn
+                data['fcn_full'] = padded_fan
+                print(f"✓ Barcode generated: {barcode_filename}")
+                print(f"✓ Formatted FCN: {formatted_fcn}")
+            else:
+                print("⚠️ Barcode generation failed")
+                data['fcn_barcode'] = None
+                data['fcn_formatted'] = padded_fan
         else:
-            print("⚠️ Barcode generation failed")
+            print(f"⚠️ Invalid FAN length for barcode generation: {len(clean_fan)} digits (need 15-16). FAN: {clean_fan}")
+            print("💡 Please manually enter a valid 16-digit FAN number in the preview page")
             data['fcn_barcode'] = None
-            data['fcn_formatted'] = fan_number
+            data['fcn_formatted'] = clean_fan
     else:
-        print(f"⚠️ No valid FAN number for barcode generation (FAN: {fan_number})")
+        print("⚠️ No FAN number available for barcode generation")
         data['fcn_barcode'] = None
+        data['fcn_barcode'] = None
+        data['fan_validation_error'] = f"FAN must be 15-16 digits (current: {len(fan_number) if fan_number else 0} digits)"
     
     # Update session with barcode info
     session['extracted'] = data
@@ -1147,12 +1252,16 @@ def preview():
     else:
         print("ℹ️ No QR code extracted yet")
     
+    # Get extraction time from session
+    extraction_time = session.get('extraction_time', 0)
+    
     return render_template('preview.html', 
                          data=data, 
                          photo=photo_filename,
                          qr=qr_filename,
                          front_image=front_filename,
                          back_image=back_filename,
+                         extraction_time=extraction_time,
                          timestamp=datetime.now().timestamp())
 
 @bp.route('/confirm_generate', methods=['POST'])
@@ -1536,6 +1645,35 @@ def update_field():
         # Update the specific field
         extracted[field_name] = value
         print(f"DEBUG: Updated {field_name} to '{value}'")
+        
+        # Special handling for FAN field - also update related fields and regenerate barcode
+        if field_name == 'fan':
+            # Clean the FAN value (remove non-digits)
+            clean_fan = ''.join(c for c in str(value) if c.isdigit())
+            extracted['fan'] = clean_fan
+            extracted['fcn_full'] = clean_fan
+            print(f"DEBUG: Cleaned FAN to '{clean_fan}'")
+            
+            # Regenerate barcode if FAN is valid (16 digits)
+            if len(clean_fan) == 16:
+                try:
+                    from app.services.id_card_service import IDCardService
+                    id_service = IDCardService()
+                    barcode_filename, formatted_fcn = id_service.generate_barcode(clean_fan)
+                    
+                    if barcode_filename:
+                        extracted['fcn_barcode'] = barcode_filename
+                        extracted['fcn_formatted'] = formatted_fcn
+                        print(f"DEBUG: Regenerated barcode: {barcode_filename}")
+                    else:
+                        print("DEBUG: Barcode generation failed")
+                        extracted['fcn_barcode'] = None
+                except Exception as barcode_error:
+                    print(f"DEBUG: Barcode generation error: {barcode_error}")
+                    extracted['fcn_barcode'] = None
+            else:
+                print(f"DEBUG: FAN length invalid for barcode: {len(clean_fan)} digits")
+                extracted['fcn_barcode'] = None
         
         # Update combined address fields if address components were changed
         if field_name in ['region_am', 'region_en', 'subcity_am', 'subcity_en', 'woreda_am', 'woreda_en']:

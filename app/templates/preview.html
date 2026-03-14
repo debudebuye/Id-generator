@@ -869,6 +869,22 @@
           <h1 class="page-title">
             <i class="fas fa-id-card"></i> ID Card Preview
           </h1>
+          {% if extraction_time %}
+          <div style="margin-top: 0.5rem; display: flex; align-items: center; gap: 0.5rem;">
+            <span style="background: var(--success); color: white; padding: 0.25rem 0.75rem; border-radius: 20px; font-size: 0.875rem; font-weight: 600;">
+              <i class="fas fa-clock"></i> Extracted in {{ extraction_time }}s
+            </span>
+            {% if extraction_time < 3 %}
+            <span style="color: var(--success); font-size: 0.875rem;">
+              <i class="fas fa-bolt"></i> Lightning fast!
+            </span>
+            {% elif extraction_time < 5 %}
+            <span style="color: var(--success); font-size: 0.875rem;">
+              <i class="fas fa-check"></i> Excellent speed
+            </span>
+            {% endif %}
+          </div>
+          {% endif %}
         </div>
         <div class="btn-group">
           <form action="{{ url_for('main.index') }}">
@@ -887,7 +903,12 @@
       <div class="alert alert-warning fade-in">
         <i class="fas fa-exclamation-triangle"></i>
         <div>
-          <strong>Warning:</strong> FCN number is missing or invalid. Please verify your information before proceeding.
+          <strong>FAN Extraction Failed:</strong> The system couldn't extract a valid 16-digit FAN number from your ID card. 
+          Please manually enter the FAN number in the field below to generate the barcode.
+          <br><small style="margin-top: 0.5rem; display: block;">
+            <i class="fas fa-lightbulb"></i> 
+            The FAN (Federal Account Number) is typically found on the front of your ID card and consists of exactly 16 digits.
+          </small>
         </div>
       </div>
       {% endif %}
@@ -1188,8 +1209,25 @@
                 placeholder="Enter 12-digit FIN number">
             </div>
             <div class="detail-item">
-              <span class="detail-label">FAN Number (FCN)</span>
-              <div class="detail-value">{{ data.fcn_full or '—' }}</div>
+              <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                FAN Number (FCN) - 16 digits
+              </div>
+              <input type="text" name="fan" class="detail-input" value="{{ data.fan or data.fcn_full or '' }}"
+                style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; font-family: 'Courier New', monospace;"
+                onchange="updateFanField(this.value)"
+                placeholder="Enter 16-digit FAN number"
+                maxlength="16"
+                pattern="[0-9]{16}"
+                title="Please enter exactly 16 digits">
+              {% if data.fan and data.extraction_method == 'Manual' %}
+                <small style="color: var(--text-light); display: block; font-size: 0.8rem; margin-top: 0.25rem;">
+                  <i class="fas fa-keyboard" style="margin-right: 0.25rem;"></i>Manually entered
+                </small>
+              {% endif %}
+              <small id="fanValidation" style="color: var(--danger); display: none; font-size: 0.8rem; margin-top: 0.25rem;">
+                <i class="fas fa-exclamation-triangle" style="margin-right: 0.25rem;"></i>FAN must be exactly 16 digits
+              </small>
             </div>
 
             <!-- Address Section -->
@@ -2282,6 +2320,68 @@
       } catch (error) {
         console.error('Error updating field:', error);
         showToast(`Failed to update ${fieldName}`, 'error');
+      }
+    }
+
+    // Special function to update FAN field with validation and barcode regeneration
+    async function updateFanField(value) {
+      const fanValidation = document.getElementById('fanValidation');
+      
+      // Clean the input (remove non-digits)
+      const cleanValue = value.replace(/\D/g, '');
+      
+      // Validate length
+      if (cleanValue.length !== 16 && cleanValue.length !== 0) {
+        fanValidation.style.display = 'block';
+        return;
+      } else {
+        fanValidation.style.display = 'none';
+      }
+      
+      // Update the input field with cleaned value
+      const fanInput = document.querySelector('input[name="fan"]');
+      if (fanInput && fanInput.value !== cleanValue) {
+        fanInput.value = cleanValue;
+      }
+      
+      try {
+        const formData = new FormData();
+        formData.append('field_name', 'fan');
+        formData.append('value', cleanValue);
+
+        const response = await fetch('/update_field', {
+          method: 'POST',
+          body: formData
+        });
+
+        if (response.ok) {
+          const result = await response.json();
+          if (result.success) {
+            showToast('FAN number updated successfully', 'success');
+            
+            // If FAN is valid (16 digits), trigger barcode regeneration
+            if (cleanValue.length === 16) {
+              showToast('Regenerating barcode...', 'info');
+              // Reload the page to regenerate barcode
+              setTimeout(() => {
+                window.location.reload();
+              }, 1000);
+            }
+            
+            // Update the session data to reflect changes
+            if (window.sessionData) {
+              window.sessionData.fan = cleanValue;
+              window.sessionData.fcn_full = cleanValue;
+            }
+          } else {
+            showToast(`Failed to update FAN: ${result.error || 'Unknown error'}`, 'error');
+          }
+        } else {
+          showToast('Failed to update FAN', 'error');
+        }
+      } catch (error) {
+        console.error('Error updating FAN field:', error);
+        showToast('Failed to update FAN', 'error');
       }
     }
 

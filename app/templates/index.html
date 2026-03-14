@@ -305,6 +305,255 @@
     .hidden {
       display: none !important;
     }
+
+    /* Cropper Modal Styles */
+    .cropper-modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.9);
+      overflow: auto;
+    }
+
+    .cropper-modal.active {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cropper-container-wrapper {
+      background: white;
+      border-radius: 12px;
+      padding: 2rem;
+      width: 95vw;
+      max-width: 1400px;
+      max-height: 95vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .cropper-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 1rem;
+      padding-bottom: 1rem;
+      border-bottom: 2px solid var(--border);
+      flex-shrink: 0;
+    }
+
+    .cropper-title {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--primary);
+    }
+
+    .cropper-close {
+      background: var(--danger);
+      color: white;
+      border: none;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      font-size: 1.5rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: var(--transition);
+      flex-shrink: 0;
+    }
+
+    .cropper-close:hover {
+      background: #c0392b;
+      transform: rotate(90deg);
+    }
+
+    .cropper-image-container {
+      width: 100%;
+      height: calc(95vh - 200px);
+      min-height: 400px;
+      max-height: 700px;
+      margin-bottom: 1rem;
+      overflow: auto;
+      flex: 1;
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      background: #2c3e50;
+      position: relative;
+    }
+
+    .cropper-image-container canvas {
+      display: block;
+      cursor: crosshair;
+    }
+
+    .cropper-controls {
+      display: flex;
+      gap: 0.75rem;
+      flex-wrap: wrap;
+      justify-content: center;
+      margin-top: 1rem;
+    }
+
+    .cropper-btn {
+      padding: 0.75rem 1.5rem;
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: var(--transition);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      font-size: 0.95rem;
+    }
+
+    .cropper-btn-primary {
+      background: var(--primary);
+      color: white;
+    }
+
+    .cropper-btn-primary:hover {
+      background: var(--primary-dark);
+      transform: translateY(-2px);
+    }
+
+    .cropper-btn-secondary {
+      background: var(--text-light);
+      color: white;
+    }
+
+    .cropper-btn-secondary:hover {
+      background: var(--text);
+      transform: translateY(-2px);
+    }
+
+    .cropper-btn-danger {
+      background: var(--danger);
+      color: white;
+    }
+
+    .cropper-btn-danger:hover {
+      background: #c0392b;
+      transform: translateY(-2px);
+    }
+
+    /* Crop Toggle Switch */
+    .crop-toggle-container {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+    }
+
+    .crop-toggle {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+
+    .crop-toggle input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .crop-toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: 0.4s;
+      border-radius: 24px;
+    }
+
+    .crop-toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 18px;
+      width: 18px;
+      left: 3px;
+      bottom: 3px;
+      background-color: white;
+      transition: 0.4s;
+      border-radius: 50%;
+    }
+
+    .crop-toggle input:checked + .crop-toggle-slider {
+      background-color: var(--primary);
+    }
+
+    .crop-toggle input:checked + .crop-toggle-slider:before {
+      transform: translateX(26px);
+    }
+
+    .crop-toggle-label {
+      font-size: 0.9rem;
+      color: var(--text);
+      font-weight: 500;
+    }
+
+    .crop-btn-wrapper {
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    /* Button timer styles */
+    .btn-submit {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .btn-submit:disabled {
+      opacity: 0.8;
+      cursor: wait;
+    }
+
+    #btnTimer {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    #btnTimerValue {
+      font-family: 'Courier New', monospace;
+      font-weight: 700;
+      font-size: 1.1rem;
+    }
+
+    /* FAN input field styling */
+    .form-group {
+      position: relative;
+    }
+
+    .form-group small {
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+
+    .form-control[name="manual_fan"] {
+      font-family: 'Courier New', monospace;
+      font-size: 1.1rem;
+      letter-spacing: 1px;
+      text-align: center;
+    }
+
+    .form-control[name="manual_fan"]:focus {
+      background-color: var(--primary-light);
+    }
   </style>
 </head>
 
@@ -367,10 +616,22 @@
                 <h3 class="upload-title">
                   <i class="fas fa-id-card"></i> Front ID Card
                 </h3>
-                <button type="button" class="upload-btn" onclick="document.getElementById('frontInput').click()">
-                  <i class="fas fa-upload"></i> Upload
-                </button>
+                <div class="crop-btn-wrapper">
+                  <button type="button" class="upload-btn" onclick="document.getElementById('frontInput').click()">
+                    <i class="fas fa-upload"></i> Upload
+                  </button>
+                  <button type="button" class="upload-btn" id="cropFrontBtn" onclick="openCropper('front')" style="display: none;">
+                    <i class="fas fa-crop"></i> Crop
+                  </button>
+                </div>
                 <input type="file" id="frontInput" accept="image/*" style="display: none;">
+              </div>
+              <div class="crop-toggle-container">
+                <label class="crop-toggle">
+                  <input type="checkbox" id="frontCropToggle">
+                  <span class="crop-toggle-slider"></span>
+                </label>
+                <span class="crop-toggle-label">Enable Cropping</span>
               </div>
               <div class="preview-box" id="frontPreview" style="min-height: 400px;">
                 <div class="preview-placeholder">
@@ -392,10 +653,22 @@
                 <h3 class="upload-title">
                   <i class="fas fa-id-card-alt"></i> Back ID Card
                 </h3>
-                <button type="button" class="upload-btn" onclick="document.getElementById('backInput').click()">
-                  <i class="fas fa-upload"></i> Upload
-                </button>
+                <div class="crop-btn-wrapper">
+                  <button type="button" class="upload-btn" onclick="document.getElementById('backInput').click()">
+                    <i class="fas fa-upload"></i> Upload
+                  </button>
+                  <button type="button" class="upload-btn" id="cropBackBtn" onclick="openCropper('back')" style="display: none;">
+                    <i class="fas fa-crop"></i> Crop
+                  </button>
+                </div>
                 <input type="file" id="backInput" accept="image/*" style="display: none;">
+              </div>
+              <div class="crop-toggle-container">
+                <label class="crop-toggle">
+                  <input type="checkbox" id="backCropToggle">
+                  <span class="crop-toggle-slider"></span>
+                </label>
+                <span class="crop-toggle-label">Enable Cropping</span>
               </div>
               <div class="preview-box" id="backPreview" style="min-height: 400px;">
                 <div class="preview-placeholder">
@@ -413,15 +686,70 @@
           <input type="hidden" id="croppedFront" name="cropped_front">
           <input type="hidden" id="croppedBack" name="cropped_back">
 
+          <!-- Optional FAN Number Field -->
+          <div class="form-group" style="margin-top: 2rem;">
+            <label for="manualFan" class="form-label">
+              <i class="fas fa-id-badge"></i> FAN Number (Optional)
+            </label>
+            <input type="text" 
+                   id="manualFan" 
+                   name="manual_fan" 
+                   class="form-control" 
+                   placeholder="Enter 16-digit FAN number if extraction fails"
+                   maxlength="16"
+                   pattern="[0-9]{16}"
+                   title="Please enter exactly 16 digits">
+            <small style="color: var(--text-light); margin-top: 0.5rem; display: block;">
+              This will be used as a fallback if the system cannot extract the FAN from your ID card images.
+              <span id="fanCounter" style="float: right; font-family: 'Courier New', monospace;">0/16</span>
+            </small>
+          </div>
+
           <button type="submit" class="btn-submit" id="submitBtn">
-            <i class="fas fa-check-circle"></i> Generate Digital ID
+            <span id="btnText">
+              <i class="fas fa-check-circle"></i> Generate Digital ID
+            </span>
+            <span id="btnTimer" class="hidden">
+              <i class="fas fa-spinner fa-spin"></i> Processing... <span id="btnTimerValue">0.0s</span>
+            </span>
           </button>
         </form>
       </div>
     </div>
   </main>
 
+  <!-- Cropper Modal -->
+  <div id="cropperModal" class="cropper-modal">
+    <div class="cropper-container-wrapper">
+      <div class="cropper-header">
+        <h2 class="cropper-title" id="cropperTitle">Crop Image</h2>
+        <button class="cropper-close" onclick="closeCropper()">×</button>
+      </div>
+      <div class="cropper-image-container" id="cropperContainer">
+        <canvas id="cropperCanvas"></canvas>
+      </div>
+      <div class="cropper-controls">
+        <button class="cropper-btn cropper-btn-primary" onclick="applyCrop()">
+          <i class="fas fa-check"></i> Use Full Image
+        </button>
+        <button class="cropper-btn cropper-btn-danger" onclick="closeCropper()">
+          <i class="fas fa-times"></i> Cancel
+        </button>
+      </div>
+    </div>
+  </div>
+
   <script>
+    // Cropper variables
+    let currentCropType = null;
+    let originalImageData = {};
+    let cropCanvas = null;
+    let cropCtx = null;
+    let cropImage = null;
+    let isDragging = false;
+    let startX, startY, endX, endY;
+    let cropSelection = { x: 0, y: 0, width: 0, height: 0 };
+
     // Prevent default drag behaviors on the whole document
     ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
       document.body.addEventListener(eventName, preventDefaults, false);
@@ -511,7 +839,39 @@
 
       const reader = new FileReader();
       reader.onload = function(e) {
-        compressAndStoreImage(e.target.result, type);
+        const imageData = e.target.result;
+        
+        // Store original image data (high quality for cropping)
+        originalImageData[type] = imageData;
+        
+        // Check if cropping is enabled for this type
+        const cropEnabled = (type === 'front' && document.getElementById('frontCropToggle').checked) ||
+                           (type === 'back' && document.getElementById('backCropToggle').checked);
+        
+        if (cropEnabled && type !== 'photoQr') {
+          // Show crop button
+          if (type === 'front') {
+            document.getElementById('cropFrontBtn').style.display = 'inline-block';
+          } else if (type === 'back') {
+            document.getElementById('cropBackBtn').style.display = 'inline-block';
+          }
+          
+          // Update preview with original image (no compression yet)
+          updatePreview(type, imageData);
+          
+          // Store the original image temporarily
+          if (type === 'front') {
+            document.getElementById('croppedFront').value = imageData;
+          } else if (type === 'back') {
+            document.getElementById('croppedBack').value = imageData;
+          }
+          
+          // Auto-open cropper
+          openCropper(type);
+        } else {
+          // No cropping, just compress and store
+          compressAndStoreImage(imageData, type);
+        }
       };
       reader.readAsDataURL(file);
     }
@@ -574,6 +934,17 @@
 
     // Form validation
     document.getElementById('uploadForm').addEventListener('submit', function(e) {
+      const fanInput = document.getElementById('manualFan');
+      const fanValue = fanInput.value.trim();
+      
+      // If FAN is provided, validate it's exactly 16 digits
+      if (fanValue && fanValue.length !== 16) {
+        e.preventDefault();
+        alert('FAN number must be exactly 16 digits');
+        fanInput.focus();
+        return false;
+      }
+      
       const photoQr = document.getElementById('croppedPhotoQr').value;
       const front = document.getElementById('croppedFront').value;
       const back = document.getElementById('croppedBack').value;
@@ -584,7 +955,259 @@
         return false;
       }
 
+      // Start timer on button
+      startButtonTimer();
+      
       return true;
+    });
+
+    // Timer functionality
+    let timerInterval;
+    let startTime;
+
+    function startButtonTimer() {
+      const submitBtn = document.getElementById('submitBtn');
+      const btnText = document.getElementById('btnText');
+      const btnTimer = document.getElementById('btnTimer');
+      const btnTimerValue = document.getElementById('btnTimerValue');
+      
+      // Disable button and show timer
+      submitBtn.disabled = true;
+      btnText.classList.add('hidden');
+      btnTimer.classList.remove('hidden');
+      
+      // Record start time
+      startTime = Date.now();
+      
+      // Update timer every 100ms
+      timerInterval = setInterval(function() {
+        const elapsed = (Date.now() - startTime) / 1000;
+        btnTimerValue.textContent = elapsed.toFixed(1) + 's';
+      }, 100);
+    }
+
+    function stopTimer() {
+      if (timerInterval) {
+        clearInterval(timerInterval);
+      }
+    }
+
+    // Store start time in sessionStorage for retrieval on result page
+    window.addEventListener('beforeunload', function() {
+      if (startTime) {
+        sessionStorage.setItem('extractionStartTime', startTime);
+      }
+    });
+
+    // Cropper functions
+    function openCropper(type) {
+      currentCropType = type;
+      const modal = document.getElementById('cropperModal');
+      cropCanvas = document.getElementById('cropperCanvas');
+      cropCtx = cropCanvas.getContext('2d');
+      const cropperTitle = document.getElementById('cropperTitle');
+      
+      // Set title
+      if (type === 'front') {
+        cropperTitle.textContent = 'Crop Front ID Card';
+      } else if (type === 'back') {
+        cropperTitle.textContent = 'Crop Back ID Card';
+      }
+      
+      // Load image
+      cropImage = new Image();
+      cropImage.onload = function() {
+        // Set canvas to image size
+        cropCanvas.width = cropImage.width;
+        cropCanvas.height = cropImage.height;
+        
+        // Draw image
+        drawCanvas();
+        
+        // Reset selection
+        cropSelection = { x: 0, y: 0, width: cropImage.width, height: cropImage.height };
+        
+        // Setup mouse events
+        setupCropEvents();
+      };
+      cropImage.src = originalImageData[type];
+      
+      // Show modal
+      modal.classList.add('active');
+    }
+
+    function drawCanvas() {
+      if (!cropImage || !cropCtx) return;
+      
+      // Clear canvas
+      cropCtx.clearRect(0, 0, cropCanvas.width, cropCanvas.height);
+      
+      // Draw image
+      cropCtx.drawImage(cropImage, 0, 0);
+      
+      // Draw selection overlay
+      if (cropSelection.width > 0 && cropSelection.height > 0) {
+        // Darken outside selection
+        cropCtx.fillStyle = 'rgba(0, 0, 0, 0.5)';
+        cropCtx.fillRect(0, 0, cropCanvas.width, cropCanvas.height);
+        
+        // Clear selection area
+        cropCtx.clearRect(cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+        cropCtx.drawImage(cropImage, cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height,
+                         cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+        
+        // Draw selection border
+        cropCtx.strokeStyle = '#07813a';
+        cropCtx.lineWidth = 2;
+        cropCtx.strokeRect(cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height);
+      }
+    }
+
+    function setupCropEvents() {
+      cropCanvas.onmousedown = function(e) {
+        const rect = cropCanvas.getBoundingClientRect();
+        startX = e.clientX - rect.left;
+        startY = e.clientY - rect.top;
+        isDragging = true;
+      };
+      
+      cropCanvas.onmousemove = function(e) {
+        if (!isDragging) return;
+        
+        const rect = cropCanvas.getBoundingClientRect();
+        endX = e.clientX - rect.left;
+        endY = e.clientY - rect.top;
+        
+        cropSelection = {
+          x: Math.min(startX, endX),
+          y: Math.min(startY, endY),
+          width: Math.abs(endX - startX),
+          height: Math.abs(endY - startY)
+        };
+        
+        drawCanvas();
+      };
+      
+      cropCanvas.onmouseup = function() {
+        isDragging = false;
+      };
+      
+      cropCanvas.onmouseleave = function() {
+        isDragging = false;
+      };
+    }
+
+    function closeCropper() {
+      const modal = document.getElementById('cropperModal');
+      modal.classList.remove('active');
+      currentCropType = null;
+      isDragging = false;
+      
+      // Remove events
+      if (cropCanvas) {
+        cropCanvas.onmousedown = null;
+        cropCanvas.onmousemove = null;
+        cropCanvas.onmouseup = null;
+        cropCanvas.onmouseleave = null;
+      }
+    }
+
+    function applyCrop() {
+      if (!currentCropType || !cropImage) return;
+      
+      // Create a new canvas for the cropped image
+      const croppedCanvas = document.createElement('canvas');
+      const croppedCtx = croppedCanvas.getContext('2d');
+      
+      // Set canvas size to selection size
+      croppedCanvas.width = cropSelection.width;
+      croppedCanvas.height = cropSelection.height;
+      
+      // Draw cropped portion
+      croppedCtx.drawImage(cropImage, 
+        cropSelection.x, cropSelection.y, cropSelection.width, cropSelection.height,
+        0, 0, cropSelection.width, cropSelection.height);
+      
+      // Convert to base64
+      const croppedData = croppedCanvas.toDataURL('image/png');
+      
+      // Update preview and store
+      updatePreview(currentCropType, croppedData);
+      
+      if (currentCropType === 'front') {
+        document.getElementById('croppedFront').value = croppedData;
+      } else if (currentCropType === 'back') {
+        document.getElementById('croppedBack').value = croppedData;
+      }
+      
+      // Close cropper
+      closeCropper();
+    }
+
+    // Toggle crop feature
+    document.getElementById('frontCropToggle').addEventListener('change', function(e) {
+      const cropBtn = document.getElementById('cropFrontBtn');
+      if (e.target.checked) {
+        // If image already uploaded, show crop button
+        if (originalImageData['front']) {
+          cropBtn.style.display = 'inline-block';
+        }
+      } else {
+        cropBtn.style.display = 'none';
+        // If toggled off and image exists, use original compressed version
+        if (originalImageData['front']) {
+          compressAndStoreImage(originalImageData['front'], 'front');
+        }
+      }
+    });
+
+    document.getElementById('backCropToggle').addEventListener('change', function(e) {
+      const cropBtn = document.getElementById('cropBackBtn');
+      if (e.target.checked) {
+        // If image already uploaded, show crop button
+        if (originalImageData['back']) {
+          cropBtn.style.display = 'inline-block';
+        }
+      } else {
+        cropBtn.style.display = 'none';
+        // If toggled off and image exists, use original compressed version
+        if (originalImageData['back']) {
+          compressAndStoreImage(originalImageData['back'], 'back');
+        }
+      }
+    });
+
+    // Close cropper on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape' && currentCropType) {
+        closeCropper();
+      }
+    });
+
+    // FAN number input formatting
+    document.getElementById('manualFan').addEventListener('input', function(e) {
+      // Remove any non-digit characters
+      let value = e.target.value.replace(/\D/g, '');
+      
+      // Limit to 16 digits
+      if (value.length > 16) {
+        value = value.substring(0, 16);
+      }
+      
+      e.target.value = value;
+      
+      // Update counter
+      const counter = document.getElementById('fanCounter');
+      counter.textContent = `${value.length}/16`;
+      
+      // Change color based on length
+      if (value.length === 16) {
+        counter.style.color = 'var(--success)';
+      } else if (value.length > 0) {
+        counter.style.color = 'var(--warning)';
+      } else {
+        counter.style.color = 'var(--text-light)';
+      }
     });
   </script>
 </body>
