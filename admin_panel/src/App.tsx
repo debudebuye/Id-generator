@@ -1,187 +1,307 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
-import { BrowserRouter, Link, NavLink, Route, Routes, useLocation } from 'react-router-dom'
-import { AuthProvider, ProtectedRoute, useAuth } from './auth/AuthContext'
-import Login from './pages/Login'
-import Settings from './pages/Settings'
-import Approvals from './pages/Approvals'
-import Approved from './pages/Approved'
-import Allowlist from './pages/Allowlist'
-import NewComer from './pages/NewComer'
-import DailyReport from './pages/DailyReport'
+import { BrowserRouter, Routes, Route, Navigate, NavLink } from 'react-router-dom';
+import { AuthProvider, ProtectedRoute, useAuth } from './auth/AuthContext';
+import Login from './pages/Login';
+import Approvals from './pages/Approvals';
+import Approved from './pages/Approved';
+import Rejected from './pages/Rejected';
+import Users from './pages/Users';
+import Allowlist from './pages/Allowlist';
+import NewComer from './pages/NewComer';
+import DailyReport from './pages/DailyReport';
+import Logs from './pages/Logs';
+import Settings from './pages/Settings';
+import './App.css';
 
-function Nav() {
-  const { user, signOutUser } = useAuth()
-  return (
-    <nav style={{ display: 'flex', gap: 12, padding: 12, borderBottom: '1px solid #eee' }}>
-      <Link to="/">Settings</Link>
-      <Link to="/approvals">Approvals</Link>
-      <Link to="/allowlist">Allowlist</Link>
-      <Link to="/logs">Logs</Link>
-      <div style={{ marginLeft: 'auto' }}>
-        {user && (
-          <>
-            <span style={{ marginRight: 8 }}>{user.email}</span>
-            <button onClick={signOutUser}>Sign out</button>
-          </>
-        )}
-      </div>
-    </nav>
-  )
-}
+function Layout({ children }: { children: React.ReactNode }) {
+  const { user, signOutUser } = useAuth();
 
-function AppRoutes() {
   return (
-    <Routes>
-      <Route path="/login" element={<Login />} />
-      <Route
-        path="/"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Settings />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/approvals"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Approvals />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/approved"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Approved />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/allowlist"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Allowlist />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/new-comer"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <NewComer />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/daily-report"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <DailyReport />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-    </Routes>
-  )
+    <div style={{ display: 'flex', minHeight: '100vh', background: '#f8fafc' }}>
+      <nav style={{
+        width: 240,
+        background: '#0f172a',
+        color: 'white',
+        padding: '24px 16px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: 8,
+      }}>
+        <h1 style={{ margin: '0 0 24px 0', fontSize: 20, fontWeight: 700 }}>Admin Panel</h1>
+        
+        <NavLink 
+          to="/approvals"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Approvals
+        </NavLink>
+        <NavLink 
+          to="/approved"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Approved
+        </NavLink>
+        <NavLink 
+          to="/rejected"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Rejected
+        </NavLink>
+        <NavLink 
+          to="/users"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Users
+        </NavLink>
+        <NavLink 
+          to="/allowlist"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Allowlist
+        </NavLink>
+        <NavLink 
+          to="/newcomer"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          New Comer
+        </NavLink>
+        <NavLink 
+          to="/daily-report"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Daily Report
+        </NavLink>
+        <NavLink 
+          to="/logs"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Logs
+        </NavLink>
+        <NavLink 
+          to="/settings"
+          style={({ isActive }) => ({
+            padding: '10px 16px',
+            borderRadius: 8,
+            textDecoration: 'none',
+            color: 'white',
+            fontSize: 14,
+            fontWeight: 500,
+            background: isActive ? '#1e293b' : 'transparent',
+            display: 'block',
+          })}
+        >
+          Settings
+        </NavLink>
+
+        <div style={{ marginTop: 'auto', paddingTop: 24, borderTop: '1px solid #334155' }}>
+          <div style={{ fontSize: 14, marginBottom: 12, color: '#94a3b8' }}>
+            {user?.email}
+          </div>
+          <button
+            onClick={signOutUser}
+            style={{
+              width: '100%',
+              padding: '10px 16px',
+              background: '#1e293b',
+              color: 'white',
+              border: 0,
+              borderRadius: 8,
+              cursor: 'pointer',
+              fontSize: 14,
+              fontWeight: 500,
+            }}
+          >
+            Sign Out
+          </button>
+        </div>
+      </nav>
+
+      <main style={{ flex: 1, padding: 32 }}>
+        {children}
+      </main>
+    </div>
+  );
 }
 
 export default function App() {
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
-    </AuthProvider>
-  )
-}
-
-function AuthGate({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth()
-  if (!user) return null
-  return <>{children}</>
-}
-
-function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { user, signOutUser } = useAuth()
-  const location = useLocation()
-
-  const title = (() => {
-    const path = location.pathname
-    if (path.startsWith('/new-comer')) return 'New Comer'
-    if (path.startsWith('/approvals')) return 'Approvals'
-    if (path.startsWith('/approved')) return 'Approved'
-    if (path.startsWith('/daily-report')) return 'Daily Report'
-    if (path.startsWith('/allowlist')) return 'Allowlist'
-    if (path.startsWith('/')) return 'Settings'
-    return 'Settings'
-  })()
-  return (
-    <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', height: '100vh', background: '#0b1220' }}>
-      {/* Sidebar */}
-      <aside style={{ background: 'linear-gradient(180deg, #0b1220 0%, #0f172a 100%)', color: 'white', padding: 16, borderRight: '1px solid rgba(255,255,255,0.06)' }}>
-        <div style={{ fontWeight: 800, letterSpacing: 0.5, marginBottom: 20 }}>Admin Dashboard</div>
-        <nav style={{ display: 'grid', gap: 6 }}>
-          <SidebarLink to="/new-comer" label="New Comer" />
-          <SidebarLink to="/approvals" label="Approvals" />
-          <SidebarLink to="/approved" label="Approved" />
-          <SidebarLink to="/daily-report" label="Daily Report" />
-          <SidebarLink to="/allowlist" label="Allowlist" />
-          <SidebarLink to="/" label="Settings" />
-        </nav>
-      </aside>
-
-      {/* Main */}
-      <div style={{ display: 'grid', gridTemplateRows: '64px 1fr', background: 'linear-gradient(180deg, #0b1220 0%, #0e1526 100%)' }}>
-        <header style={{ position: 'sticky', top: 0, zIndex: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 20px', background: 'rgba(15,23,42,0.75)', backdropFilter: 'blur(8px)', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ color: 'white', fontWeight: 700 }}>{title}</div>
-          {user && (
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <span style={{ color: 'white', fontSize: 14, opacity: 0.9 }}>{user.email}</span>
-              <button onClick={signOutUser} style={{ background: 'white', color: '#0f172a', border: 0, borderRadius: 8, padding: '8px 12px', fontWeight: 600, cursor: 'pointer' }}>Sign out</button>
-            </div>
-          )}
-        </header>
-        <main style={{ padding: 24 }}>
-          <div style={{ maxWidth: 1200, margin: '0 auto', padding: 16 }}>
-            <div style={{ background: 'white', borderRadius: 14, padding: 20, boxShadow: '0 10px 30px rgba(0,0,0,0.08)', border: '1px solid #e5e7eb', minHeight: 'calc(100vh - 64px - 48px)' }}>
-              {children}
-            </div>
-          </div>
-        </main>
-      </div>
-    </div>
-  )
-}
-
-function SidebarLink({ to, label }: { to: string, label: string }) {
-  return (
-    <NavLink
-      to={to}
-      style={({ isActive }) => ({
-        padding: '10px 12px',
-        borderRadius: 10,
-        color: 'white',
-        textDecoration: 'none',
-        background: isActive ? 'rgba(255,255,255,0.12)' : 'transparent',
-        borderLeft: isActive ? '3px solid #93c5fd' : '3px solid transparent'
-      })}
-    >
-      {label}
-    </NavLink>
-  )
+    <BrowserRouter>
+      <AuthProvider>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Navigate to="/approvals" replace />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/approvals"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Approvals />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/approved"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Approved />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/rejected"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Rejected />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/users"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Users />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/allowlist"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Allowlist />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/newcomer"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <NewComer />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/daily-report"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <DailyReport />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/logs"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Logs />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <ProtectedRoute>
+                <Layout>
+                  <Settings />
+                </Layout>
+              </ProtectedRoute>
+            }
+          />
+        </Routes>
+      </AuthProvider>
+    </BrowserRouter>
+  );
 }

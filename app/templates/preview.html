@@ -9,10 +9,12 @@
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
     :root {
-      --primary: #07813a; /* Ethiopian green */
+      --primary: #07813a;
+      /* Ethiopian green */
       --primary-dark: #056830;
       --primary-light: #e6f4ea;
-      --accent: #f0b429; /* Ethiopian yellow */
+      --accent: #f0b429;
+      /* Ethiopian yellow */
       --danger: #e74c3c;
       --warning: #f39c12;
       --success: #2ecc71;
@@ -160,7 +162,7 @@
       border-color: var(--primary);
     }
 
-    .checkbox-label .styled-checkbox:checked ~ .checkmark {
+    .checkbox-label .styled-checkbox:checked~.checkmark {
       background-color: var(--primary);
       border-color: var(--primary);
     }
@@ -171,7 +173,7 @@
       display: none;
     }
 
-    .checkbox-label .styled-checkbox:checked ~ .checkmark:after {
+    .checkbox-label .styled-checkbox:checked~.checkmark:after {
       display: block;
     }
 
@@ -214,6 +216,7 @@
         opacity: 0;
         transform: translateY(-10px);
       }
+
       to {
         opacity: 1;
         transform: translateY(0);
@@ -221,6 +224,8 @@
     }
 
     /* Enhanced checkbox styling for ID type selection */
+    .checkbox-container:has(input[name="generate_front_only"]:checked),
+    .checkbox-container:has(input[name="generate_reverse_only"]:checked),
     .checkbox-container:has(input[name="generate_mini_id"]:checked),
     .checkbox-container:has(input[name="generate_old_id"]:checked) {
       background-color: var(--primary-light);
@@ -234,6 +239,34 @@
       color: var(--primary);
       width: 18px;
       text-align: center;
+    }
+
+    /* Automatic address format selection styles */
+    #autoFormatIndicator {
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0% {
+        opacity: 0.8;
+      }
+
+      50% {
+        opacity: 1;
+      }
+
+      100% {
+        opacity: 0.8;
+      }
+    }
+
+    .checkbox-container:has(input[name="city_type"]:checked) {
+      background-color: var(--primary-light);
+      border-radius: 8px;
+      padding: 0.5rem;
+      margin: 0.5rem 0;
+      border: 1px solid var(--primary);
+      transition: all 0.3s ease;
     }
 
     /* ID Preview Container */
@@ -530,7 +563,7 @@
       cursor: not-allowed;
     }
 
-    #photoUpload {
+    #photoUpload, #qrUpload, #barcodeUpload {
       display: none;
     }
 
@@ -760,8 +793,15 @@
 
     /* Animations */
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      from {
+        opacity: 0;
+        transform: translateY(10px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
 
     .fade-in {
@@ -780,7 +820,9 @@
     }
 
     @keyframes spin {
-      to { transform: rotate(360deg); }
+      to {
+        transform: rotate(360deg);
+      }
     }
   </style>
 </head>
@@ -788,11 +830,18 @@
 <body>
 
   <!-- Page transition/loading spinner -->
-  <div id="pageLoadSpinner" style="position:fixed;top:0;left:0;width:100vw;height:4px;z-index:9999;background:linear-gradient(90deg,#34a853 0%,#1a73e8 100%);box-shadow:0 2px 8px rgba(26,115,232,0.12);animation:loadBar 1.2s cubic-bezier(.4,0,.2,1) infinite alternate;"></div>
+  <div id="pageLoadSpinner"
+    style="position:fixed;top:0;left:0;width:100vw;height:4px;z-index:9999;background:linear-gradient(90deg,#34a853 0%,#1a73e8 100%);box-shadow:0 2px 8px rgba(26,115,232,0.12);animation:loadBar 1.2s cubic-bezier(.4,0,.2,1) infinite alternate;">
+  </div>
   <style>
     @keyframes loadBar {
-      0% { width: 0vw; }
-      100% { width: 100vw; }
+      0% {
+        width: 0vw;
+      }
+
+      100% {
+        width: 100vw;
+      }
     }
   </style>
 
@@ -843,31 +892,34 @@
       </div>
       {% endif %}
 
-      <form id="generateForm" action="{{ url_for('main.confirm_generate') }}" method="POST" class="bg-removal-form fade-in">
-       
-        <!-- City selection and confirmation row -->
+      <form id="generateForm" action="{{ url_for('main.confirm_generate') }}" method="POST"
+        class="bg-removal-form fade-in">
+
+        <!-- Options row -->
         <div class="form-row">
           <!-- First column: Background options -->
           <div class="form-column">
             <div class="form-card">
               <h3 class="form-card-title">
-                <i class="fas fa-image"></i> Background Options
+                <i class="fas fa-image"></i> Background (BG) Options
               </h3>
+
               <div class="checkbox-container">
                 <label class="checkbox-label">
-                  <input type="checkbox" name="remove_white_bg" value="1" class="styled-checkbox">
+                  <input type="checkbox" name="remove_white_bg" value="1" class="styled-checkbox" id="removeWhiteBgCheckbox">
                   <span class="checkmark"></span>
                   <span class="option-text">
-                    <i class="fas fa-snowflake"></i> Remove White Background
+                    <i class="fas fa-eraser"></i> Remove White BG
                   </span>
                 </label>
               </div>
+
               <div class="checkbox-container">
                 <label class="checkbox-label">
-                  <input type="checkbox" name="remove_black_bg" value="1" class="styled-checkbox">
+                  <input type="checkbox" name="use_onnx_bg" value="1" class="styled-checkbox" id="onnxBgCheckbox" checked>
                   <span class="checkmark"></span>
                   <span class="option-text">
-                    <i class="fas fa-moon"></i> Remove Black Background
+                    <i class="fas fa-robot"></i> AI BG Removal
                   </span>
                 </label>
               </div>
@@ -882,10 +934,28 @@
               </h3>
               <div class="checkbox-container">
                 <label class="checkbox-label">
+                  <input type="checkbox" name="generate_front_only" value="1" class="styled-checkbox" id="frontOnlyCheckbox">
+                  <span class="checkmark"></span>
+                  <span class="option-text">
+                    <i class="fas fa-address-card"></i> Front Only
+                  </span>
+                </label>
+              </div>
+              <div class="checkbox-container">
+                <label class="checkbox-label">
+                  <input type="checkbox" name="generate_reverse_only" value="1" class="styled-checkbox" id="reverseOnlyCheckbox">
+                  <span class="checkmark"></span>
+                  <span class="option-text">
+                    <i class="fas fa-id-card-alt"></i> Reverse Only
+                  </span>
+                </label>
+              </div>
+              <div class="checkbox-container">
+                <label class="checkbox-label">
                   <input type="checkbox" name="generate_mini_id" value="1" class="styled-checkbox" id="miniIdCheckbox">
                   <span class="checkmark"></span>
                   <span class="option-text">
-                    <i class="fas fa-id-badge"></i>  Mini ID Cards
+                    <i class="fas fa-id-badge"></i> Mini ID
                   </span>
                 </label>
               </div>
@@ -894,19 +964,20 @@
                   <input type="checkbox" name="generate_old_id" value="1" class="styled-checkbox" id="oldIdCheckbox">
                   <span class="checkmark"></span>
                   <span class="option-text">
-                    <i class="fas fa-id-card"></i>  Old ID Cards
+                    <i class="fas fa-id-card"></i> Old ID
                   </span>
                 </label>
               </div>
-              
+
               <!-- Template Info -->
-              <div id="templateInfo" style="margin-top: 1rem; padding: 0.75rem; background-color: var(--bg-light); border-radius: 8px; border-left: 3px solid var(--primary); display: none;">
+              <div id="templateInfo"
+                style="margin-top: 1rem; padding: 0.75rem; background-color: var(--bg-light); border-radius: 8px; border-left: 3px solid var(--primary); display: none;">
                 <div style="font-size: 0.85rem; color: var(--text); font-weight: 500;">
                   <i class="fas fa-info-circle" style="color: var(--primary); margin-right: 0.5rem;"></i>
                   <span id="templateInfoText">Template information will appear here</span>
                 </div>
               </div>
-            </div>
+            </div>""
           </div>
 
           <!-- Third column: City selection -->
@@ -914,26 +985,44 @@
             <div class="form-card">
               <h3 class="form-card-title">
                 <i class="fas fa-city"></i> Address Format
+                <span id="autoFormatIndicator"
+                  style="font-size: 0.75rem; color: var(--primary); margin-left: 8px; opacity: 0.8;">
+                  <i class="fas fa-magic"></i> Auto
+                </span>
               </h3>
-              <div class="checkbox-container">
+
+              <!-- Automatic detection message
+              <div
+                style="background-color: var(--primary-light); border-radius: 6px; padding: 0.75rem; margin-bottom: 1rem; border-left: 3px solid var(--primary);">
+                <div style="font-size: 0.8rem; color: var(--primary-dark); font-weight: 500; line-height: 1.3;">
+                  <i class="fas fa-info-circle" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                  Automatic format detection and FIN extraction for 1-2 MB PDFs only - Other PDF sizes require
+                  manual FIN entry
+                </div>
+              </div> -->
+
+              <!-- Selected format display removed for cleaner UI -->
+
+              <!-- Manual selection: Default vs Sheger City -->
+              <div class="checkbox-container" style="margin-top: 0.75rem;">
                 <label class="checkbox-label">
                   <input type="checkbox" name="city_type" value="default" class="styled-checkbox" checked>
                   <span class="checkmark"></span>
                   <span class="option-text">
                     <i class="fas fa-home"></i> Default Address
-                  </span>
+                    </span>
                 </label>
-              </div>
-              <div class="checkbox-container">
                 <label class="checkbox-label">
                   <input type="checkbox" name="city_type" value="shger" class="styled-checkbox">
                   <span class="checkmark"></span>
                   <span class="option-text">
-                    <i class="fas fa-building"></i> Sheger City Address
+                    <i class="fas fa-building"></i> Sheger City (Long SubCity)
                   </span>
                 </label>
               </div>
-              
+
+              <!-- Hidden inputs to maintain form functionality -->
+              <input type="hidden" name="city_type" value="default">
             </div>
           </div>
 
@@ -945,11 +1034,11 @@
                   <i class="fas fa-check-circle"></i> Confirmation
                 </h3>
                 <p style="font-size: 0.95rem; color: var(--text-light); margin-bottom: 1rem; line-height: 1.6;">
-                  Review all options before generating your ID card. Ensure all information is correct before final submission.
+                  Review all options before generating your ID card.
                 </p>
               </div>
               <button type="submit" class="btn btn-primary confirm-btn" id="generateBtn">
-                <i class="fas fa-check-circle"></i> Confirm & Generate ID
+                <i class="fas fa-check-circle"></i>Generate ID
               </button>
             </div>
           </div>
@@ -1002,14 +1091,56 @@
           {% if qr %}
           <div class="image-card">
             <h3>QR Code</h3>
-            <img src="{{ url_for('static', filename='qr_temp.png') }}" class="uniform-img" alt="QR Code">
+            <div class="photo-preview-container" id="qrDropZone">
+              <img id="userQr" src="{{ url_for('static', filename='qr_temp.png') }}?t={{ timestamp }}"
+                class="uniform-img" alt="QR Code">
+              <div id="qrLoading" class="photo-loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+              </div>
+              <!-- Drag and drop overlay -->
+              <div id="qrDragOverlay" class="drag-overlay">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drop QR code image here</p>
+              </div>
+            </div>
+
+            <div class="photo-actions">
+              <button class="photo-btn" onclick="downloadQr()">
+                <i class="fas fa-download"></i> Download
+              </button>
+              <button id="qrUploadBtn" class="photo-btn primary" onclick="document.getElementById('qrUpload').click()">
+                <i class="fas fa-upload"></i> Upload New
+              </button>
+              <input type="file" id="qrUpload" accept="image/*">
+            </div>
           </div>
           {% endif %}
 
           {% if data.fcn_barcode %}
           <div class="image-card">
             <h3>Barcode</h3>
-            <img src="{{ url_for('static', filename=data.fcn_barcode) }}" class="uniform-img" alt="FCN Barcode">
+            <div class="photo-preview-container" id="barcodeDropZone">
+              <img id="userBarcode" src="{{ url_for('static', filename=data.fcn_barcode) }}?t={{ timestamp }}"
+                class="uniform-img" alt="FCN Barcode">
+              <div id="barcodeLoading" class="photo-loading" style="display: none;">
+                <i class="fas fa-spinner fa-spin"></i>
+              </div>
+              <!-- Drag and drop overlay -->
+              <div id="barcodeDragOverlay" class="drag-overlay">
+                <i class="fas fa-cloud-upload-alt"></i>
+                <p>Drop barcode image here</p>
+              </div>
+            </div>
+
+            <div class="photo-actions">
+              <button class="photo-btn" onclick="downloadBarcode()">
+                <i class="fas fa-download"></i> Download
+              </button>
+              <button id="barcodeUploadBtn" class="photo-btn primary" onclick="document.getElementById('barcodeUpload').click()">
+                <i class="fas fa-upload"></i> Upload New
+              </button>
+              <input type="file" id="barcodeUpload" accept="image/*">
+            </div>
           </div>
           {% endif %}
         </div>
@@ -1020,24 +1151,32 @@
             <span class="id-status">VALID</span>
           </div>
 
-                      <div class="alert alert-info" style="margin-bottom: 1.5rem;">
-              <i class="fas fa-save"></i>
-              <div>
-                <strong>Auto-Save Enabled:</strong> All changes to Address, Nationality, and Personal Information fields are saved automatically. No need to click a save button!
-              </div>
+          <div class="alert alert-info" style="margin-bottom: 1.5rem;">
+            <i class="fas fa-save"></i>
+            <div>
+              <strong>Auto-Save Enabled:</strong> All changes to Address, Nationality, and Personal Information fields
+              are saved automatically. No need to click a save button!
             </div>
+          </div>
 
           <div class="details-grid">
             <!-- FIN and FAN Numbers -->
             <div class="detail-item">
-              <span class="detail-label">FIN Number</span>
-              <div class="detail-value">{{ data.fin or '—' }}</div>
+              <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
+                <i class="fas fa-edit"
+                  style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                FIN Number
+              </div>
+              <input type="text" name="fin" class="detail-input" value="{{ data.fin or '' }}"
+                style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                onchange="updateField('fin', this.value)"
+                placeholder="Enter 12-digit FIN number">
             </div>
             <div class="detail-item">
               <span class="detail-label">FAN Number (FCN)</span>
               <div class="detail-value">{{ data.fcn_full or '—' }}</div>
             </div>
-            
+
             <!-- Address Section -->
             <div class="detail-item" style="grid-column: 1 / -1;">
               <div id="addressNationalityForm">
@@ -1046,55 +1185,61 @@
                   <!-- Region -->
                   <div>
                     <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      <i class="fas fa-edit"
+                        style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                       Region (Amharic)
                     </div>
-                    <input type="text" name="region_am" class="detail-input" value="{{ data.region_am or '' }}" 
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                           onchange="updateField('region_am', this.value)">
+                    <input type="text" name="region_am" class="detail-input" value="{{ data.region_am or '' }}"
+                      style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                      onchange="updateField('region_am', this.value)">
                     <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      <i class="fas fa-edit"
+                        style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                       Region (English)
                     </div>
                     <input type="text" name="region_en" class="detail-input" value="{{ data.region_en or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                           onchange="updateField('region_en', this.value)">
+                      style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                      onchange="updateField('region_en', this.value)">
                   </div>
-                  
+
                   <!-- Sub City -->
                   <div>
                     <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      <i class="fas fa-edit"
+                        style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                       Sub City (Amharic)
                     </div>
                     <input type="text" name="subcity_am" class="detail-input" value="{{ data.subcity_am or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                           onchange="updateField('subcity_am', this.value)">
+                      style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                      onchange="updateField('subcity_am', this.value)">
                     <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      <i class="fas fa-edit"
+                        style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                       Sub City (English)
                     </div>
                     <input type="text" name="subcity_en" class="detail-input" value="{{ data.subcity_en or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                           onchange="updateField('subcity_en', this.value)">
+                      style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                      onchange="updateField('subcity_en', this.value)">
                   </div>
-                  
+
                   <!-- Woreda -->
                   <div>
                     <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      <i class="fas fa-edit"
+                        style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                       Woreda (Amharic)
                     </div>
                     <input type="text" name="woreda_am" class="detail-input" value="{{ data.woreda_am or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                           onchange="updateField('woreda_am', this.value)">
+                      style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                      onchange="updateField('woreda_am', this.value)">
                     <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      <i class="fas fa-edit"
+                        style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                       Woreda (English)
                     </div>
                     <input type="text" name="woreda_en" class="detail-input" value="{{ data.woreda_en or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                           onchange="updateField('woreda_en', this.value)">
+                      style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                      onchange="updateField('woreda_en', this.value)">
                   </div>
                 </div>
 
@@ -1104,21 +1249,25 @@
                   <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                     <div>
                       <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        <i class="fas fa-edit"
+                          style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                         Nationality (Amharic)
                       </div>
-                      <input type="text" name="nationality_am" class="detail-input" value="{{ data.nationality_am or '' }}"
-                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                             onchange="updateField('nationality_am', this.value)">
+                      <input type="text" name="nationality_am" class="detail-input"
+                        value="{{ data.nationality_am or '' }}"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                        onchange="updateField('nationality_am', this.value)">
                     </div>
                     <div>
                       <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        <i class="fas fa-edit"
+                          style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                         Nationality (English)
                       </div>
-                      <input type="text" name="nationality_en" class="detail-input" value="{{ data.nationality_en or '' }}"
-                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                             onchange="updateField('nationality_en', this.value)">
+                      <input type="text" name="nationality_en" class="detail-input"
+                        value="{{ data.nationality_en or '' }}"
+                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                        onchange="updateField('nationality_en', this.value)">
                     </div>
                   </div>
                 </div>
@@ -1129,33 +1278,36 @@
                   <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 1rem;">
                     <div>
                       <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        <i class="fas fa-edit"
+                          style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                         Name (Amharic)
                       </div>
                       <input type="text" name="name_am" class="detail-input" value="{{ data.name_am or '' }}"
-                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                             onchange="updateField('name_am', this.value)">
+                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                        onchange="updateField('name_am', this.value)">
                     </div>
                     <div>
                       <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                        <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                        <i class="fas fa-edit"
+                          style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                         Name (English)
                       </div>
                       <input type="text" name="name_en" class="detail-input" value="{{ data.name_en or '' }}"
-                             style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                             onchange="updateField('name_en', this.value)">
+                        style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                        onchange="updateField('name_en', this.value)">
                     </div>
                   </div>
-                  
+
                   <!-- Phone field in full width -->
                   <div style="margin-top: 1rem;">
                     <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
-                      <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
+                      <i class="fas fa-edit"
+                        style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                       Phone
                     </div>
                     <input type="text" name="phone" class="detail-input" value="{{ data.phone or '' }}"
-                           style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                           onchange="updateField('phone', this.value)">
+                      style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                      onchange="updateField('phone', this.value)">
                   </div>
                 </div>
               </div>
@@ -1170,19 +1322,19 @@
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
                     <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                     DOB (Amharic)
-            </div>
+                  </div>
                   <input type="text" name="dob_am" class="detail-input" value="{{ data.dob_am or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                         onchange="updateField('dob_am', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                    onchange="updateField('dob_am', this.value)">
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
                     <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                     DOB (English)
                   </div>
                   <input type="text" name="dob_en" class="detail-input" value="{{ data.dob_en or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                         onchange="updateField('dob_en', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                    onchange="updateField('dob_en', this.value)">
                 </div>
-                
+
                 <!-- Gender Section -->
                 <div>
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
@@ -1190,17 +1342,17 @@
                     Gender (Amharic)
                   </div>
                   <input type="text" name="gender_am" class="detail-input" value="{{ data.gender_am or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                         onchange="updateField('gender_am', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                    onchange="updateField('gender_am', this.value)">
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
                     <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                     Gender (English)
                   </div>
                   <input type="text" name="gender_en" class="detail-input" value="{{ data.gender_en or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                         onchange="updateField('gender_en', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                    onchange="updateField('gender_en', this.value)">
                 </div>
-                
+
                 <!-- FCN Section -->
                 <div>
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
@@ -1208,15 +1360,15 @@
                     FCN Formatted
                   </div>
                   <input type="text" name="fcn_formatted" class="detail-input" value="{{ data.fcn_formatted or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                         onchange="updateField('fcn_formatted', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                    onchange="updateField('fcn_formatted', this.value)">
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
                     <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                     Serial Number
                   </div>
                   <input type="text" name="serial_number" class="detail-input" value="{{ data.serial_number or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                         onchange="updateField('serial_number', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                    onchange="updateField('serial_number', this.value)">
                 </div>
               </div>
             </div>
@@ -1232,17 +1384,17 @@
                     Issue Date (Amharic)
                   </div>
                   <input type="text" name="issue_date_am" class="detail-input" value="{{ data.issue_date_am or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                         onchange="updateField('issue_date_am', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                    onchange="updateField('issue_date_am', this.value)">
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
                     <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                     Issue Date (English)
                   </div>
                   <input type="text" name="issue_date_en" class="detail-input" value="{{ data.issue_date_en or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                         onchange="updateField('issue_date_en', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                    onchange="updateField('issue_date_en', this.value)">
                 </div>
-                
+
                 <!-- Expiry Dates -->
                 <div>
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
@@ -1250,15 +1402,15 @@
                     Expiry Date (Amharic)
                   </div>
                   <input type="text" name="expiry_date_am" class="detail-input" value="{{ data.expiry_date_am or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
-                         onchange="updateField('expiry_date_am', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem; margin-bottom: 0.5rem;"
+                    onchange="updateField('expiry_date_am', this.value)">
                   <div class="detail-label" style="font-size: 0.85rem; margin-top: 0.5rem;">
                     <i class="fas fa-edit" style="color: var(--primary); margin-right: 0.5rem; font-size: 0.9rem;"></i>
                     Expiry Date (English)
                   </div>
                   <input type="text" name="expiry_date_en" class="detail-input" value="{{ data.expiry_date_en or '' }}"
-                         style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
-                         onchange="updateField('expiry_date_en', this.value)">
+                    style="width: 100%; padding: 0.5rem; border: 1px solid var(--border); border-radius: 6px; font-size: 1rem;"
+                    onchange="updateField('expiry_date_en', this.value)">
                 </div>
               </div>
             </div>
@@ -1313,8 +1465,90 @@
       showToast('Photo downloaded successfully');
     }
 
+    // Function to download the QR code
+    function downloadQr() {
+      const qr = document.getElementById('userQr');
+      if (!qr) return;
+      const link = document.createElement('a');
+      link.href = qr.src;
+      link.download = 'ethiopian-digital-id-qr.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('QR code downloaded successfully');
+    }
+
+    // Function to download the barcode
+    function downloadBarcode() {
+      const barcode = document.getElementById('userBarcode');
+      if (!barcode) return;
+      const link = document.createElement('a');
+      link.href = barcode.src;
+      link.download = 'ethiopian-digital-id-barcode.png';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      showToast('Barcode downloaded successfully');
+    }
+
+    // Utility: downscale and compress image to speed up upload/BG removal
+    async function downscaleAndCompressImage(file, maxWidth = 1024, maxHeight = 1280, quality = 0.9) {
+      try {
+        // Skip non-images
+        if (!file.type.startsWith('image/')) return file;
+
+        // Create bitmap or HTMLImageElement
+        const bitmap = (window.createImageBitmap)
+          ? await createImageBitmap(file)
+          : await new Promise((resolve, reject) => {
+              const img = new Image();
+              img.onload = () => resolve(img);
+              img.onerror = reject;
+              img.src = URL.createObjectURL(file);
+            });
+
+        const srcW = bitmap.width;
+        const srcH = bitmap.height;
+
+        // Compute target size while preserving aspect ratio
+        let targetW = srcW;
+        let targetH = srcH;
+        const scale = Math.min(maxWidth / srcW, maxHeight / srcH, 1); // never upscale
+        targetW = Math.round(srcW * scale);
+        targetH = Math.round(srcH * scale);
+
+        // If no need to resize and file already small (<1.5MB), keep original
+        if (scale === 1 && file.size <= 1.5 * 1024 * 1024) {
+          if (bitmap.close) try { bitmap.close(); } catch (e) {}
+          return file;
+        }
+
+        // Draw onto canvas
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'high';
+        ctx.drawImage(bitmap, 0, 0, targetW, targetH);
+        if (bitmap.close) try { bitmap.close(); } catch (e) {}
+
+        // Prefer JPEG for better size unless original is PNG and small
+        const outputType = 'image/jpeg';
+        const blob = await new Promise((resolve) => canvas.toBlob(resolve, outputType, quality));
+        if (!blob) return file;
+
+        return new File([blob], (file.name || 'photo') + '.jpg', { type: outputType });
+      } catch (e) {
+        // On any error, fallback to the original file
+        return file;
+      }
+    }
+
     // Function to handle photo upload (used by both file input and drag & drop)
-    function handlePhotoUpload(file) {
+    async function handlePhotoUpload(file) {
       if (!file) return;
 
       // Validate file type
@@ -1329,8 +1563,11 @@
         return;
       }
 
+      // Downscale/compress to speed up upload and server-side BG removal
+      const optimized = await downscaleAndCompressImage(file, 1024, 1280, 0.9);
+
       const formData = new FormData();
-      formData.append('photo', file);
+      formData.append('photo', optimized);
 
       // Show loading state
       const uploadBtn = document.getElementById('uploadBtn');
@@ -1372,55 +1609,244 @@
     }
 
     // Handle photo upload from file input
-    document.getElementById('photoUpload').addEventListener('change', function (e) {
-      const file = e.target.files[0];
-      handlePhotoUpload(file);
+    const photoUploadInput = document.getElementById('photoUpload');
+    if (photoUploadInput) {
+      photoUploadInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        handlePhotoUpload(file);
+      });
+    }
+
+    // Function to handle QR code upload (used by both file input and drag & drop)
+    function handleQrUpload(file) {
+      if (!file) return;
+
+      // Validate file type
+      if (!file.type.match('image.*')) {
+        showToast('Please select a valid image file (JPEG, PNG)', 'error');
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Image must be less than 10MB', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('qr', file);
+
+      // Show loading state
+      const uploadBtn = document.getElementById('qrUploadBtn');
+      const qrLoading = document.getElementById('qrLoading');
+      if (uploadBtn) {
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading';
+        uploadBtn.disabled = true;
+      }
+      if (qrLoading) {
+        qrLoading.style.display = 'flex';
+      }
+
+      fetch('/upload_qr', {
+        method: 'POST',
+        body: formData
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Upload failed');
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data.success) {
+            const qr = document.getElementById('userQr');
+            if (qr) {
+              // Add cache busting parameter to force reload
+              qr.src = data.qr_url + '?t=' + new Date().getTime();
+            }
+            showToast('QR code uploaded successfully and will be used for ID generation');
+          } else {
+            throw new Error(data.error || 'Upload failed');
+          }
+        })
+        .catch(error => {
+          console.error('Upload error:', error);
+          showToast(error.message, 'error');
+        })
+        .finally(() => {
+          // Reset button state
+          if (uploadBtn) {
+            uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload New';
+            uploadBtn.disabled = false;
+          }
+          if (qrLoading) {
+            qrLoading.style.display = 'none';
+          }
+        });
+    }
+
+    // Handle QR code upload from file input
+    const qrUploadInput = document.getElementById('qrUpload');
+    if (qrUploadInput) {
+      qrUploadInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        handleQrUpload(file);
+      });
+    }
+
+    // Function to handle barcode upload (used by both file input and drag & drop)
+    function handleBarcodeUpload(file) {
+      if (!file) return;
+
+      // Validate file type
+      if (!file.type.match('image.*')) {
+        showToast('Please select a valid image file (JPEG, PNG)', 'error');
+        return;
+      }
+
+      // Validate file size (max 10MB)
+      if (file.size > 10 * 1024 * 1024) {
+        showToast('Image must be less than 10MB', 'error');
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('barcode', file);
+
+      // Show loading state
+      const uploadBtn = document.getElementById('barcodeUploadBtn');
+      const barcodeLoading = document.getElementById('barcodeLoading');
+      if (uploadBtn) {
+        uploadBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading';
+        uploadBtn.disabled = true;
+      }
+      if (barcodeLoading) {
+        barcodeLoading.style.display = 'flex';
+      }
+
+      fetch('/upload_barcode', {
+        method: 'POST',
+        body: formData
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Upload failed');
+          }
+          return response.json();
+        })
+        .then(data => {
+          if (data.success) {
+            const barcode = document.getElementById('userBarcode');
+            if (barcode) {
+              // Add cache busting parameter to force reload
+              barcode.src = data.barcode_url + '?t=' + new Date().getTime();
+            }
+            showToast('Barcode uploaded successfully and will be used for ID generation');
+          } else {
+            throw new Error(data.error || 'Upload failed');
+          }
+        })
+        .catch(error => {
+          console.error('Upload error:', error);
+          showToast(error.message, 'error');
+        })
+        .finally(() => {
+          // Reset button state
+          if (uploadBtn) {
+            uploadBtn.innerHTML = '<i class="fas fa-upload"></i> Upload New';
+            uploadBtn.disabled = false;
+          }
+          if (barcodeLoading) {
+            barcodeLoading.style.display = 'none';
+          }
+        });
+    }
+
+    // Handle barcode upload from file input
+    const barcodeUploadInput = document.getElementById('barcodeUpload');
+    if (barcodeUploadInput) {
+      barcodeUploadInput.addEventListener('change', function (e) {
+        const file = e.target.files[0];
+        handleBarcodeUpload(file);
+      });
+    }
+
+    // Drag and Drop utilities
+    ['dragover', 'drop'].forEach(eventName => {
+      window.addEventListener(eventName, event => {
+        event.preventDefault();
+      }, { passive: false });
     });
 
-    // Drag and Drop functionality
-    const photoDropZone = document.getElementById('photoDropZone');
-    
-    if (photoDropZone) {
-      // Prevent default drag behaviors
-      ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
-        photoDropZone.addEventListener(eventName, preventDefaults, false);
-        document.body.addEventListener(eventName, preventDefaults, false);
-      });
+    function extractFileFromDataTransfer(dataTransfer) {
+      if (!dataTransfer) return null;
 
-      // Highlight drop zone when item is dragged over it
-      ['dragenter', 'dragover'].forEach(eventName => {
-        photoDropZone.addEventListener(eventName, highlight, false);
-      });
-
-      ['dragleave', 'drop'].forEach(eventName => {
-        photoDropZone.addEventListener(eventName, unhighlight, false);
-      });
-
-      // Handle dropped files
-      photoDropZone.addEventListener('drop', handleDrop, false);
-    }
-
-    function preventDefaults(e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-
-    function highlight(e) {
-      photoDropZone.classList.add('drag-over');
-    }
-
-    function unhighlight(e) {
-      photoDropZone.classList.remove('drag-over');
-    }
-
-    function handleDrop(e) {
-      const dt = e.dataTransfer;
-      const files = dt.files;
-
-      if (files.length > 0) {
-        handlePhotoUpload(files[0]);
+      if (dataTransfer.files && dataTransfer.files.length > 0) {
+        return dataTransfer.files[0];
       }
+
+      if (dataTransfer.items && dataTransfer.items.length > 0) {
+        for (const item of Array.from(dataTransfer.items)) {
+          if (item.kind === 'file') {
+            const file = item.getAsFile();
+            if (file) return file;
+          }
+        }
+      }
+
+      return null;
     }
+
+    function setupDropZone(zoneId, onFileDrop) {
+      const zone = document.getElementById(zoneId);
+      if (!zone || typeof onFileDrop !== 'function') {
+        return;
+      }
+
+      let dragDepth = 0;
+
+      const activate = () => zone.classList.add('drag-over');
+      const deactivate = () => {
+        dragDepth = 0;
+        zone.classList.remove('drag-over');
+      };
+
+      zone.addEventListener('dragenter', event => {
+        event.preventDefault();
+        dragDepth += 1;
+        activate();
+      });
+
+      zone.addEventListener('dragover', event => {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+        activate();
+      });
+
+      zone.addEventListener('dragleave', event => {
+        event.preventDefault();
+        dragDepth = Math.max(0, dragDepth - 1);
+        if (dragDepth === 0) {
+          deactivate();
+        }
+      });
+
+      zone.addEventListener('drop', event => {
+        event.preventDefault();
+        const file = extractFileFromDataTransfer(event.dataTransfer);
+        deactivate();
+
+        if (file) {
+          onFileDrop(file);
+        } else {
+          showToast('Unable to read dropped file', 'error');
+        }
+      });
+    }
+
+    setupDropZone('photoDropZone', handlePhotoUpload);
+    setupDropZone('qrDropZone', handleQrUpload);
+    setupDropZone('barcodeDropZone', handleBarcodeUpload);
 
     // Toast notification
     function showToast(message, type = 'success') {
@@ -1450,17 +1876,17 @@
     }
 
     // Form submission loading state and validation
-    document.getElementById('generateForm').addEventListener('submit', function(e) {
+    document.getElementById('generateForm').addEventListener('submit', function (e) {
       // Validate that only one ID type is selected
       const miniIdSelected = miniIdCheckbox.checked;
       const oldIdSelected = oldIdCheckbox.checked;
-      
+
       if (miniIdSelected && oldIdSelected) {
         e.preventDefault();
         showToast('Please select only one ID type (Mini ID or Old ID)', 'error');
         return;
       }
-      
+
       // Update template type before submission
       if (miniIdSelected) {
         templateInput.value = 'mini_front_default_reverse';
@@ -1469,7 +1895,7 @@
       } else {
         templateInput.value = 'default';
       }
-      
+
       const generateBtn = document.getElementById('generateBtn');
       generateBtn.innerHTML = '<span class="spinner"></span> Processing...';
       generateBtn.disabled = true;
@@ -1489,23 +1915,204 @@
       observer.observe(el);
     });
 
-    // Make address format checkboxes mutually exclusive
+    // Configuration for automatic address format selection based on subcity length
+    window.addressFormatThreshold = 40; // characters - adjust this value as needed
+    window.manualOverride = false; // tracks if user manually selected format
+
+    // Automatic address format selection based on English subcity length
+    function getSubCityEnLength() {
+      const subcityEn = document.querySelector('input[name="subcity_en"]')?.value || '';
+      return subcityEn.length; // includes spaces naturally
+    }
+
+    function updateAddressFormatAutomatically() {
+      const subcityEnLength = getSubCityEnLength();
+      const defaultCheckbox = document.querySelector('input[name="city_type"][value="default"]');
+      const shegerCheckbox = document.querySelector('input[name="city_type"][value="shger"]');
+
+      // Don't auto-update if user has manually selected
+      if (window.manualOverride) {
+        return;
+      }
+
+      // Threshold: 30 characters for English subcity field
+      const lengthThreshold = 30;
+
+      // Determine which format to use
+      const shouldUseSheger = subcityEnLength > lengthThreshold;
+      const currentlySheger = shegerCheckbox && shegerCheckbox.checked;
+
+      // Update format silently in background
+      if (shouldUseSheger && !currentlySheger) {
+        // Switch to Sheger City format for long subcity names
+        if (defaultCheckbox) defaultCheckbox.checked = false;
+        if (shegerCheckbox) shegerCheckbox.checked = true;
+        updateFormatDisplay('Sheger City', subcityEnLength, lengthThreshold);
+      } else if (!shouldUseSheger && currentlySheger) {
+        // Switch to Default format for shorter subcity names
+        if (shegerCheckbox) shegerCheckbox.checked = false;
+        if (defaultCheckbox) defaultCheckbox.checked = true;
+        updateFormatDisplay('Default', subcityEnLength, lengthThreshold);
+      } else if (!window.formatDisplayInitialized) {
+        // Initial display update
+        const currentFormat = currentlySheger ? 'Sheger City' : 'Default';
+        updateFormatDisplay(currentFormat, subcityEnLength, lengthThreshold);
+      }
+    }
+
+    function updateFormatDisplay(format, subcityLength, threshold) {
+      // Update the indicator in the title
+      const indicator = document.getElementById('autoFormatIndicator');
+      if (indicator) {
+        const status = subcityLength > threshold ? 'Long SubCity' : 'Short SubCity';
+        indicator.innerHTML = `<i class="fas fa-magic"></i> ${format} (${status})`;
+      }
+
+      // Update the format display in the card
+      updateFormatCardDisplay(format, subcityLength, threshold);
+      window.formatDisplayInitialized = true;
+    }
+
+    function updateFormatCardDisplay(format, subcityLength, threshold) {
+      // Update the visual display to show the selected format
+      const formatIcon = document.getElementById('selectedFormatIcon');
+      const formatText = document.getElementById('selectedFormatText');
+      const hiddenInput = document.querySelector('input[name="city_type"]');
+
+      if (format === 'Sheger City') {
+        // Update to Sheger City format
+        if (formatIcon) formatIcon.className = 'fas fa-building';
+        if (formatText) formatText.textContent = 'Sheger City Address';
+        if (hiddenInput) hiddenInput.value = 'shger';
+      } else {
+        // Update to Default format
+        if (formatIcon) formatIcon.className = 'fas fa-home';
+        if (formatText) formatText.textContent = 'Default Address';
+        if (hiddenInput) hiddenInput.value = 'default';
+      }
+
+      console.log(`Address format display updated to: ${format}`);
+    }
+
+    function resetAutoSelection() {
+      window.manualOverride = false;
+      showAddressFormatNotification('Auto-selection reset - format will be selected based on subcity length', 'info');
+      updateAddressFormatAutomatically();
+    }
+
+    function showAddressFormatNotification(message, type) {
+      // Only show notifications for manual actions, not automatic background changes
+      if (message.includes('manually') || message.includes('reset')) {
+        // Create or update notification element
+        let notification = document.getElementById('addressFormatNotification');
+        if (!notification) {
+          notification = document.createElement('div');
+          notification.id = 'addressFormatNotification';
+          notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 1000;
+            transition: all 0.3s ease;
+            max-width: 300px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+          `;
+          document.body.appendChild(notification);
+        }
+
+        // Set colors based on type
+        if (type === 'info') {
+          notification.style.backgroundColor = '#e3f2fd';
+          notification.style.color = '#1565c0';
+          notification.style.border = '1px solid #90caf9';
+        }
+
+        notification.innerHTML = `<i class="fas fa-info-circle" style="margin-right: 8px;"></i>${message}`;
+        notification.style.opacity = '1';
+        notification.style.transform = 'translateY(0)';
+
+        // Auto-hide after 3 seconds
+        setTimeout(() => {
+          notification.style.opacity = '0';
+          notification.style.transform = 'translateY(-20px)';
+        }, 3000);
+      }
+    }
+
+    // Add event listeners to English region field for automatic format detection
+    const subcityEnField = document.querySelector('input[name="subcity_en"]');
+    if (subcityEnField) {
+      // Add event listeners for real-time detection based on subcity length
+      subcityEnField.addEventListener('input', updateAddressFormatAutomatically);
+      subcityEnField.addEventListener('blur', updateAddressFormatAutomatically);
+    }
+
+    // Run initial check on page load
+    setTimeout(updateAddressFormatAutomatically, 500);
+
+    // Make address format checkboxes mutually exclusive (keep manual override capability)
     document.querySelectorAll('input[name="city_type"]').forEach(checkbox => {
-      checkbox.addEventListener('change', function() {
+      checkbox.addEventListener('change', function () {
         if (this.checked) {
+          // Set manual override flag
+          window.manualOverride = true;
+
           document.querySelectorAll('input[name="city_type"]').forEach(otherCheckbox => {
             if (otherCheckbox !== this) {
               otherCheckbox.checked = false;
             }
           });
+
+          // Show manual override notification
+          const formatType = this.value === 'shger' ? 'Sheger City' : 'Default';
+          showAddressFormatNotification(`${formatType} format selected manually (auto-selection disabled)`, 'info');
+
+          // Update display to show manual selection
+          const regionLength = getSubCityEnLength();
+          updateFormatDisplay(`${formatType} (Manual)`, regionLength, 30);
+
+          // Re-enable auto-selection after 10 seconds
+          setTimeout(() => {
+            window.manualOverride = false;
+            showAddressFormatNotification('Auto-selection re-enabled', 'info');
+            updateAddressFormatAutomatically();
+          }, 10000);
         }
       });
     });
 
+    // Make background removal options mutually exclusive (only active option retained)
+    const backgroundOptions = [ 'use_onnx_bg' ];
+
+    backgroundOptions.forEach(optionName => {
+      const checkbox = document.querySelector(`input[name="${optionName}"]`);
+      if (checkbox) {
+        checkbox.addEventListener('change', function () {
+          if (this.checked) {
+            // Uncheck other background removal options
+            backgroundOptions.forEach(otherOption => {
+              if (otherOption !== optionName) {
+                const otherCheckbox = document.querySelector(`input[name="${otherOption}"]`);
+                if (otherCheckbox) {
+                  otherCheckbox.checked = false;
+                }
+              }
+            });
+          }
+        });
+      }
+    });
+
     // Handle mini ID template selection
+    const frontOnlyCheckbox = document.querySelector('input[name="generate_front_only"]');
+    const reverseOnlyCheckbox = document.querySelector('input[name="generate_reverse_only"]');
     const miniIdCheckbox = document.querySelector('input[name="generate_mini_id"]');
     const oldIdCheckbox = document.querySelector('input[name="generate_old_id"]');
-    
+
     // Add hidden input for template selection
     const templateInput = document.createElement('input');
     templateInput.type = 'hidden';
@@ -1513,14 +2120,42 @@
     templateInput.value = 'default';
     document.getElementById('generateForm').appendChild(templateInput);
 
+    // Update template selection when front only is checked
+    frontOnlyCheckbox.addEventListener('change', function () {
+      if (this.checked) {
+        templateInput.value = 'front_only';
+        // Uncheck other options
+        if (reverseOnlyCheckbox.checked) reverseOnlyCheckbox.checked = false;
+        if (miniIdCheckbox.checked) miniIdCheckbox.checked = false;
+        if (oldIdCheckbox.checked) oldIdCheckbox.checked = false;
+      } else {
+        templateInput.value = 'default';
+      }
+      updateTemplateInfoDisplay();
+    });
+
+    // Update template selection when reverse only is checked
+    reverseOnlyCheckbox.addEventListener('change', function () {
+      if (this.checked) {
+        templateInput.value = 'reverse_only';
+        // Uncheck other options
+        if (frontOnlyCheckbox.checked) frontOnlyCheckbox.checked = false;
+        if (miniIdCheckbox.checked) miniIdCheckbox.checked = false;
+        if (oldIdCheckbox.checked) oldIdCheckbox.checked = false;
+      } else {
+        templateInput.value = 'default';
+      }
+      updateTemplateInfoDisplay();
+    });
+
     // Update template selection when mini ID is checked
-    miniIdCheckbox.addEventListener('change', function() {
+    miniIdCheckbox.addEventListener('change', function () {
       if (this.checked) {
         templateInput.value = 'mini_front_default_reverse';
-        // Uncheck old ID if mini ID is selected
-        if (oldIdCheckbox.checked) {
-          oldIdCheckbox.checked = false;
-        }
+        // Uncheck other options
+        if (frontOnlyCheckbox.checked) frontOnlyCheckbox.checked = false;
+        if (reverseOnlyCheckbox.checked) reverseOnlyCheckbox.checked = false;
+        if (oldIdCheckbox.checked) oldIdCheckbox.checked = false;
       } else {
         templateInput.value = 'default';
       }
@@ -1528,13 +2163,13 @@
     });
 
     // Update template selection when old ID is checked
-    oldIdCheckbox.addEventListener('change', function() {
+    oldIdCheckbox.addEventListener('change', function () {
       if (this.checked) {
         templateInput.value = 'old_front_default_reverse';
-        // Uncheck mini ID if old ID is selected
-        if (miniIdCheckbox.checked) {
-          miniIdCheckbox.checked = false;
-        }
+        // Uncheck other options
+        if (frontOnlyCheckbox.checked) frontOnlyCheckbox.checked = false;
+        if (reverseOnlyCheckbox.checked) reverseOnlyCheckbox.checked = false;
+        if (miniIdCheckbox.checked) miniIdCheckbox.checked = false;
       } else {
         templateInput.value = 'default';
       }
@@ -1545,13 +2180,31 @@
     function updateIdTypeSelection(selectedCheckbox) {
       const templateInfo = document.getElementById('templateInfo');
       const templateInfoText = document.getElementById('templateInfoText');
-      
-      if (selectedCheckbox === miniIdCheckbox) {
+
+      if (selectedCheckbox === frontOnlyCheckbox) {
+        reverseOnlyCheckbox.checked = false;
+        miniIdCheckbox.checked = false;
+        oldIdCheckbox.checked = false;
+        templateInput.value = 'front_only';
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Front Only:</strong> Generates only the front side of the normal ID card';
+      } else if (selectedCheckbox === reverseOnlyCheckbox) {
+        frontOnlyCheckbox.checked = false;
+        miniIdCheckbox.checked = false;
+        oldIdCheckbox.checked = false;
+        templateInput.value = 'reverse_only';
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Reverse Only:</strong> Generates only the reverse side of the normal ID card';
+      } else if (selectedCheckbox === miniIdCheckbox) {
+        frontOnlyCheckbox.checked = false;
+        reverseOnlyCheckbox.checked = false;
         oldIdCheckbox.checked = false;
         templateInput.value = 'mini_front_default_reverse';
         templateInfo.style.display = 'block';
         templateInfoText.innerHTML = '<strong>Mini ID Front:</strong> Uses mini template for front side<br><strong>Reverse:</strong> Uses default reverse template';
       } else if (selectedCheckbox === oldIdCheckbox) {
+        frontOnlyCheckbox.checked = false;
+        reverseOnlyCheckbox.checked = false;
         miniIdCheckbox.checked = false;
         templateInput.value = 'old_front_default_reverse';
         templateInfo.style.display = 'block';
@@ -1563,11 +2216,19 @@
       }
     }
 
-    miniIdCheckbox.addEventListener('change', function() {
+    frontOnlyCheckbox.addEventListener('change', function () {
       updateIdTypeSelection(this);
     });
 
-    oldIdCheckbox.addEventListener('change', function() {
+    reverseOnlyCheckbox.addEventListener('change', function () {
+      updateIdTypeSelection(this);
+    });
+
+    miniIdCheckbox.addEventListener('change', function () {
+      updateIdTypeSelection(this);
+    });
+
+    oldIdCheckbox.addEventListener('change', function () {
       updateIdTypeSelection(this);
     });
 
@@ -1579,12 +2240,12 @@
         const formData = new FormData();
         formData.append('field_name', fieldName);
         formData.append('value', value);
-        
+
         const response = await fetch('/update_field', {
           method: 'POST',
           body: formData
         });
-        
+
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
@@ -1605,12 +2266,12 @@
       }
     }
 
-    document.getElementById('generateForm').addEventListener('submit', function() {
+    document.getElementById('generateForm').addEventListener('submit', function () {
       sessionStorage.setItem('idGenStart', Date.now());
     });
 
     // Show PDF extraction time if available
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
       const start = sessionStorage.getItem('pdfExtractStart');
       if (start) {
         const elapsed = (Date.now() - parseInt(start, 10)) / 1000;
@@ -1639,10 +2300,10 @@
     });
 
     // Remove page load spinner when page is fully loaded
-    window.addEventListener('DOMContentLoaded', function() {
+    window.addEventListener('DOMContentLoaded', function () {
       const spinner = document.getElementById('pageLoadSpinner');
       if (spinner) spinner.remove();
-      
+
       // Initialize template info display
       updateTemplateInfoDisplay();
     });
@@ -1651,8 +2312,14 @@
     function updateTemplateInfoDisplay() {
       const templateInfo = document.getElementById('templateInfo');
       const templateInfoText = document.getElementById('templateInfoText');
-      
-      if (miniIdCheckbox.checked) {
+
+      if (frontOnlyCheckbox.checked) {
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Front Only:</strong> Generates only the front side of the normal ID card';
+      } else if (reverseOnlyCheckbox.checked) {
+        templateInfo.style.display = 'block';
+        templateInfoText.innerHTML = '<strong>Reverse Only:</strong> Generates only the reverse side of the normal ID card';
+      } else if (miniIdCheckbox.checked) {
         templateInfo.style.display = 'block';
         templateInfoText.innerHTML = '<strong>Mini ID Front:</strong> Uses mini template for front side<br><strong>Reverse:</strong> Uses default reverse template';
       } else if (oldIdCheckbox.checked) {
@@ -1661,7 +2328,7 @@
       } else {
         templateInfo.style.display = 'none';
       }
-      
+
       // Update generation summary
       updateGenerationSummary();
     }
@@ -1670,11 +2337,27 @@
     function updateGenerationSummary() {
       const generationSummary = document.getElementById('generationSummary');
       const summaryText = document.getElementById('summaryText');
-      
-      if (miniIdCheckbox.checked || oldIdCheckbox.checked) {
+
+      if (frontOnlyCheckbox.checked || reverseOnlyCheckbox.checked || miniIdCheckbox.checked || oldIdCheckbox.checked) {
         generationSummary.style.display = 'block';
-        
-        if (miniIdCheckbox.checked) {
+
+        if (frontOnlyCheckbox.checked) {
+          summaryText.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div><strong>Front Side:</strong> Normal ID Template</div>
+              <div><strong>Reverse Side:</strong> Not Generated</div>
+              <div><strong>Format:</strong> Front Only</div>
+            </div>
+          `;
+        } else if (reverseOnlyCheckbox.checked) {
+          summaryText.innerHTML = `
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
+              <div><strong>Front Side:</strong> Not Generated</div>
+              <div><strong>Reverse Side:</strong> Normal ID Template</div>
+              <div><strong>Format:</strong> Reverse Only</div>
+            </div>
+          `;
+        } else if (miniIdCheckbox.checked) {
           summaryText.innerHTML = `
             <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem;">
               <div><strong>Front Side:</strong> Mini ID Template</div>
@@ -1697,4 +2380,5 @@
     }
   </script>
 </body>
+
 </html>
