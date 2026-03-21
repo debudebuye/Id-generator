@@ -41,8 +41,8 @@
     "username": "Ffftwo",
     "firstName": "F2",
     "lastName": "",
-    "timestamp": "2025-10-09T20:07:41.819745Z",
-    "status": "approved"
+    "timestamp": "2025-10-20T19:36:31.008523Z",
+    "status": "pending"
   },
   {
     "id": "7386878548",
@@ -59,8 +59,8 @@
     "username": "Matchoftheman",
     "firstName": "Fayda | ፋይዳ",
     "lastName": "",
-    "timestamp": "2025-10-09T19:56:53.543045Z",
-    "status": "approved"
+    "timestamp": "2025-10-20T19:19:38.955922Z",
+    "status": "pending"
   },
   {
     "id": "555555555",
@@ -95,7 +95,43 @@
     "username": "T4ggg66",
     "firstName": "K",
     "lastName": "",
-    "timestamp": "2025-10-09T19:43:33.204330Z",
+    "timestamp": "2025-11-15T20:30:22.300455Z",
+    "status": "pending"
+  },
+  {
+    "id": "1929170431",
+    "telegramId": "1929170431",
+    "username": "Crypto_seller_man",
+    "firstName": "Duplex",
+    "lastName": "",
+    "timestamp": "2025-11-02T13:53:06.642477Z",
     "status": "approved"
+  },
+  {
+    "id": "349225322",
+    "telegramId": "349225322",
+    "username": "sisay04",
+    "firstName": "Sis",
+    "lastName": "",
+    "timestamp": "2025-10-26T20:51:48.830718Z",
+    "status": "pending"
+  },
+  {
+    "id": "7339202165",
+    "telegramId": "7339202165",
+    "username": "Exambanksupport",
+    "firstName": "Ethio Exam Bank Support",
+    "lastName": "",
+    "timestamp": "2025-10-14T17:48:47.638821Z",
+    "status": "pending"
+  },
+  {
+    "id": "7365774228",
+    "telegramId": "7365774228",
+    "username": "Tt23g",
+    "firstName": "Abu man",
+    "lastName": "",
+    "timestamp": "2025-11-14T10:47:48.369247Z",
+    "status": "pending"
   }
 ]

@@ -11,6 +11,8 @@ import Approved from './pages/Approved'
 import Allowlist from './pages/Allowlist'
 import NewComer from './pages/NewComer'
 import DailyReport from './pages/DailyReport'
+import Rejected from './pages/Rejected'
+import Users from './pages/Users'
 
 function Nav() {
   const { user, signOutUser } = useAuth()
@@ -41,37 +43,7 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <DashboardLayout>
-              <Settings />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/approvals"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Approvals />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/approved"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Approved />
-            </DashboardLayout>
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/allowlist"
-        element={
-          <ProtectedRoute>
-            <DashboardLayout>
-              <Allowlist />
+              <NewComer />
             </DashboardLayout>
           </ProtectedRoute>
         }
@@ -87,11 +59,72 @@ function AppRoutes() {
         }
       />
       <Route
+        path="/rejected"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Rejected />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/approved"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Approved />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/users"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Users />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/settings"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Settings />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
         path="/daily-report"
         element={
           <ProtectedRoute>
             <DashboardLayout>
               <DailyReport />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      {/* Legacy routes for backward compatibility */}
+      <Route
+        path="/approvals"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <NewComer />
+            </DashboardLayout>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/allowlist"
+        element={
+          <ProtectedRoute>
+            <DashboardLayout>
+              <Users />
             </DashboardLayout>
           </ProtectedRoute>
         }
@@ -123,12 +156,15 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
   const title = (() => {
     const path = location.pathname
     if (path.startsWith('/new-comer')) return 'New Comer'
-    if (path.startsWith('/approvals')) return 'Approvals'
+    if (path.startsWith('/rejected')) return 'Rejected'
     if (path.startsWith('/approved')) return 'Approved'
+    if (path.startsWith('/users')) return 'Users'
+    if (path.startsWith('/settings')) return 'Settings'
     if (path.startsWith('/daily-report')) return 'Daily Report'
-    if (path.startsWith('/allowlist')) return 'Allowlist'
-    if (path.startsWith('/')) return 'Settings'
-    return 'Settings'
+    if (path.startsWith('/approvals')) return 'New Comer' // Legacy redirect
+    if (path.startsWith('/allowlist')) return 'Users' // Legacy redirect
+    if (path === '/') return 'New Comer'
+    return 'New Comer'
   })()
   return (
     <div style={{ display: 'grid', gridTemplateColumns: '260px 1fr', height: '100vh', background: '#0b1220' }}>
@@ -137,11 +173,11 @@ function DashboardLayout({ children }: { children: React.ReactNode }) {
         <div style={{ fontWeight: 800, letterSpacing: 0.5, marginBottom: 20 }}>Admin Dashboard</div>
         <nav style={{ display: 'grid', gap: 6 }}>
           <SidebarLink to="/new-comer" label="New Comer" />
-          <SidebarLink to="/approvals" label="Approvals" />
+          <SidebarLink to="/rejected" label="Rejected" />
           <SidebarLink to="/approved" label="Approved" />
+          <SidebarLink to="/users" label="Users" />
+          <SidebarLink to="/settings" label="Settings" />
           <SidebarLink to="/daily-report" label="Daily Report" />
-          <SidebarLink to="/allowlist" label="Allowlist" />
-          <SidebarLink to="/" label="Settings" />
         </nav>
       </aside>
 
