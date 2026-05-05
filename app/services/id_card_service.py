@@ -89,6 +89,20 @@ class IDCardService:
             'phone': 8,
             'photo_img_index': 0, # Compact format image positioning
             'qr_img_index': 1 # Compact format QR positioning
+        },
+
+        'large_format': {
+            'fcn': 0,
+            'name': 1,
+            'dob': 2,
+            'gender': 3,
+            'nationality': 4,
+            'phone': 5,
+            'region': 6,
+            'subcity': 7,
+            'woreda': 8,
+            'photo_img_index': 0,
+            'qr_img_index': 1
         }
     }
 
@@ -3771,18 +3785,171 @@ class IDCardService:
             print(f"❌ Error extracting FIN from text: {str(e)}")
             return None
     
+    def _extract_large_format_pdf_data(self, doc: fitz.Document, lines: list, images: list, fin_number: str) -> dict:
+        """Extract data from large format PDF (~1.8 MB, filename with 3 capital letters).
+
+        Observed line structure (from logs):
+          line 43: name_en  (e.g. 'Hiwot Elias Mekonnen')
+          line 44: FCN      (16 digits)
+          line 45: dob_greg (YYYY/MM/DD)
+          line 46: dob_eth  (DD/MM/YYYY)
+          line 47: gender_en
+          line 48: nationality_en
+          line 49: phone
+          line 50: region_en
+          line 51: subcity_en
+          line 52: woreda_en
+          line 53: name_am
+          line 54: gender_am
+          line 55: nationality_am
+        """
+        import re as _re
+
+        def safe(idx):
+            return lines[idx].strip() if idx < len(lines) else ''
+
+        # --- FCN ---
+        fcn_raw = ''
+        for ln in lines:
+            digits = ''.join(c for c in ln if c.isdigit())
+            if len(digits) == self.config.FCN_LENGTH:
+                fcn_raw = digits
+                break
+        if not fcn_raw:
+            raise ValueError("large_format: FCN not found")
+        fcn_full = fcn_raw  # store raw 16 digits; formatting happens in generate_barcode
+
+        # Find the FCN line index to anchor all other fields
+        fcn_idx = next((i for i, ln in enumerate(lines)
+                        if ''.join(c for c in ln if c.isdigit()) == fcn_raw), None)
+        if fcn_idx is None:
+            raise ValueError("large_format: cannot anchor FCN line")
+
+        name_en        = safe(fcn_idx - 1)
+        dob_greg_raw   = safe(fcn_idx + 1)
+        dob_eth_raw    = safe(fcn_idx + 2)
+        gender_en      = safe(fcn_idx + 3)
+        nationality_en = safe(fcn_idx + 4)
+        phone_raw      = safe(fcn_idx + 5)
+        region_en      = safe(fcn_idx + 6)
+        subcity_en     = safe(fcn_idx + 7)
+        woreda_en      = safe(fcn_idx + 8)
+        name_am        = safe(fcn_idx + 9)
+        gender_am      = safe(fcn_idx + 10)
+        nationality_am = safe(fcn_idx + 11)
+        region_am      = safe(fcn_idx + 12)
+        subcity_am     = safe(fcn_idx + 13)
+        woreda_am      = safe(fcn_idx + 14)
+
+        valid_gender_en = {'male', 'female'}
+        valid_gender_am = {'ወንድ', 'ሴት'}
+        if gender_en.lower() not in valid_gender_en:
+            gender_en = ''
+        if gender_am not in valid_gender_am:
+            gender_am = ''
+
+        # Validate nationality — reject if it looks like a gender or label
+        def _bad_nat(v):
+            return not v or v.lower() in valid_gender_en or v in valid_gender_am
+        if _bad_nat(nationality_en):
+            nationality_en = ''
+        if _bad_nat(nationality_am):
+            nationality_am = ''
+
+        # Phone: keep only digit strings of 9-13 chars
+        phone = phone_raw if phone_raw.replace(' ', '').isdigit() and 9 <= len(phone_raw.replace(' ', '')) <= 13 else ''
+        if phone:
+            phone = self.format_phone_number(phone)
+
+        # DOB parsing
+        dob_en = ''
+        dob_am = ''
+        try:
+            if dob_greg_raw:
+                dob_en = datetime.strptime(dob_greg_raw, "%Y/%m/%d").strftime("%Y/%b/%d")
+        except Exception:
+            dob_en = dob_greg_raw
+        try:
+            if dob_eth_raw:
+                parts = dob_eth_raw.split('/')
+                if len(parts) == 3:
+                    d, m, y = parts
+                    dob_am = f"{int(d):02d}/{int(m):02d}/{int(y):04d}"
+        except Exception:
+            dob_am = dob_eth_raw
+
+        dates = get_id_dates()
+
+        extracted_data = {
+            'fcn_full':        fcn_full,
+            'name_en':         name_en,
+            'name_am':         name_am,
+            'dob_en':          dob_en,
+            'dob_am':          dob_am,
+            'gender_en':       gender_en,
+            'gender_am':       gender_am,
+            'nationality_en':  nationality_en,
+            'nationality_am':  nationality_am,
+            'phone':           phone,
+            'region_en':       region_en,
+            'region_am':       region_am,
+            'subcity_en':      subcity_en,
+            'subcity_am':      subcity_am,
+            'woreda_en':       woreda_en,
+            'woreda_am':       woreda_am,
+            'issue_date_en':   dates['issue_date_greg'],
+            'issue_date_am':   dates['issue_date_eth'],
+            'expiry_date_en':  dates['expiry_date_greg'],
+            'expiry_date_am':  dates['expiry_date_eth'],
+            'fin':             fin_number,
+            'serial_number':   self.generate_serial_number(),
+        }
+
+        # Extract photo and QR
+        photo_bytes, qr_bytes = self._detect_photo_and_qr(doc, images)
+        try:
+            if photo_bytes:
+                photo_img = Image.open(BytesIO(photo_bytes)).convert("RGBA")
+                photo_path = os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png')
+                photo_img.save(photo_path)
+                extracted_data['photo'] = 'static/photo_temp.png'
+        except Exception as e:
+            print(f"large_format: error extracting photo: {e}")
+        try:
+            if qr_bytes:
+                qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+                qr_path = os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png')
+                qr_img.save(qr_path)
+                extracted_data['qr_path'] = 'static/qr_temp.png'
+        except Exception as e:
+            print(f"large_format: error extracting QR: {e}")
+
+        print(f"large_format extraction results:")
+        print(f"  FCN: '{' '.join([fcn_full[i:i+4] for i in range(0,16,4)])}'")
+
+        print(f"  Name EN: '{name_en}' | AM: '{name_am}'")
+        print(f"  DOB: '{dob_en}' / '{dob_am}'")
+        print(f"  Gender: '{gender_en}' / '{gender_am}'")
+        print(f"  Nationality: '{nationality_en}' / '{nationality_am}'")
+        print(f"  Phone: '{phone}'")
+        print(f"  Region: '{region_en}' / '{region_am}' | Subcity: '{subcity_en}' / '{subcity_am}' | Woreda: '{woreda_en}' / '{woreda_am}'")
+
+        return extracted_data
+
     def extract_pdf_data(self, pdf_input, fin_number: str, pdf_format: str = 'auto') -> Dict:
         """Extract data from PDF file or stream with automatic format detection and fallback."""
         # Handle both file path and BytesIO input
         if isinstance(pdf_input, str):
             doc = fitz.open(pdf_input)
             file_size = os.path.getsize(pdf_input)
+            pdf_filename = os.path.basename(pdf_input)
         else:
             doc = fitz.open(stream=pdf_input, filetype="pdf")
             # Get file size from BytesIO
             pdf_input.seek(0, 2)  # Seek to end
             file_size = pdf_input.tell()
             pdf_input.seek(0)  # Reset to beginning
+            pdf_filename = getattr(pdf_input, 'name', '') or ''
             
         try:
             page = doc[0]
@@ -3795,10 +3962,26 @@ class IDCardService:
             
             # Check file size and prioritize compact format for 300KB-900KB PDFs
             file_size_kb = file_size / 1024
-            print(f"📄 PDF file size: {file_size_kb:.2f} KB")
-            
-            # Try formats in order based on file size
-            if 300 <= file_size_kb <= 900:
+            file_size_mb = file_size_kb / 1024
+            print(f"📄 PDF file size: {file_size_kb:.2f} KB ({file_size_mb:.2f} MB)")
+
+            # Detect large format: ~1.8 MB and filename has exactly 3 consecutive capital letters
+            import re as _re
+            basename_no_ext = os.path.splitext(os.path.basename(pdf_filename))[0]
+            has_three_caps = bool(_re.search(r'[A-Z]{3}', basename_no_ext))
+            is_large_size = 1500 <= file_size_kb <= 2100  # ~1.8 MB range
+
+            # Try formats in order based on file size / filename heuristics
+            if pdf_format == 'large_format':
+                print("🎯 User selected large_format explicitly")
+                formats_to_try = ['large_format', 'residential_sheger', 'default', 'demographic_format', 'compact_format']
+            elif pdf_format not in ('auto', None, '') and pdf_format in self.PDF_FORMAT_MAPPING:
+                print(f"🎯 User selected format: {pdf_format}")
+                formats_to_try = [pdf_format] + [f for f in ['default', 'residential_sheger', 'demographic_format', 'compact_format', 'large_format'] if f != pdf_format]
+            elif has_three_caps and is_large_size:
+                print(f"🎯 Filename '{pdf_filename}' has 3 capital letters and size ~1.8 MB, trying large_format first")
+                formats_to_try = ['large_format', 'residential_sheger', 'default', 'demographic_format', 'compact_format']
+            elif 300 <= file_size_kb <= 900:
                 print("🎯 File size in compact format range (300-900 KB), trying compact format first")
                 formats_to_try = ['compact_format', 'default', 'residential_sheger', 'demographic_format']
             else:
@@ -3814,10 +3997,12 @@ class IDCardService:
                         extracted_data = self._extract_demographic_format_pdf_data(doc, lines, images, fin_number)
                     elif format_type == 'compact_format':
                         extracted_data = self._extract_compact_format_pdf_data(doc, lines, images, fin_number)
+                    elif format_type == 'large_format':
+                        extracted_data = self._extract_large_format_pdf_data(doc, lines, images, fin_number)
                     
                     # Check if extraction was successful by validating key fields
-                    # For residential_sheger, accept FCN with at least one name present (EN or AM)
-                    if format_type == 'residential_sheger':
+                    # For residential_sheger and large_format, accept FCN with at least one name present (EN or AM)
+                    if format_type in ('residential_sheger', 'large_format'):
                         if (extracted_data.get('fcn_full') and 
                             (extracted_data.get('name_en') or extracted_data.get('name_am'))):
                             used_format = format_type
@@ -3849,7 +4034,7 @@ class IDCardService:
             extracted_data['used_format'] = used_format
             
             # Pattern-only mode: disable all cross-format fallbacks/merges
-            if used_format == 'residential_sheger':
+            if used_format in ('residential_sheger', 'large_format'):
                 pass
             
             # Common barcode generation after data is extracted

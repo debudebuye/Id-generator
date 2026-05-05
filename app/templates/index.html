@@ -1142,12 +1142,30 @@
 
               <div class="pdf-format-options">
                 <div class="pdf-format-title">Document Processing:</div>
-                <div class="pdf-format-info">
+                <div class="pdf-format-info" style="margin-bottom: 1rem;">
                   <i class="fas fa-magic" style="color: var(--primary); margin-right: 0.5rem;"></i>
                   <span>Automatic format detection and FIN extraction for 1-2 MB PDFs only - DOC/DOCX files and other
                     PDF sizes require manual FIN entry</span>
                 </div>
-                <input type="hidden" name="document_format" value="auto">
+
+                <!-- Large Format Checkbox -->
+                <div class="skip-preview-container" style="background: rgba(7,129,58,0.07); border-color: rgba(7,129,58,0.25);">
+                  <label class="skip-preview-label">
+                    <input type="checkbox" id="largeFormatCheck" class="skip-preview-checkbox">
+                    <span class="skip-preview-checkmark" style="border-color: var(--primary); box-shadow: 0 2px 4px rgba(7,129,58,0.2);"></span>
+                    <div class="skip-preview-content">
+                      <div class="skip-preview-title">
+                        <i class="fas fa-file-pdf" style="color: var(--primary); margin-right: 0.5rem;"></i>
+                        1.8 MB Format
+                      </div>
+                      <div class="skip-preview-description">
+                        Use this for PDFs with a 3-letter uppercase filename (~1.8 MB)
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                <input type="hidden" id="documentFormatInput" name="document_format" value="auto">
               </div>
 
               <div class="skip-preview-options">
@@ -1373,6 +1391,23 @@
         if (submitText && submitText.nodeType === Node.TEXT_NODE) {
           submitText.textContent = "Generate Digital ID ";
         }
+      }
+    });
+
+    // Large format checkbox
+    const largeFormatCheck = document.getElementById("largeFormatCheck");
+    const documentFormatInput = document.getElementById("documentFormatInput");
+    const largeFormatCheckmark = largeFormatCheck.nextElementSibling;
+
+    largeFormatCheck.addEventListener("change", function () {
+      if (this.checked) {
+        documentFormatInput.value = "large_format";
+        largeFormatCheckmark.style.backgroundColor = "var(--primary)";
+        largeFormatCheckmark.style.borderColor = "var(--primary)";
+      } else {
+        documentFormatInput.value = "auto";
+        largeFormatCheckmark.style.backgroundColor = "";
+        largeFormatCheckmark.style.borderColor = "";
       }
     });
 

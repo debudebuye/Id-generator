@@ -27,5 +27,40 @@
         "unpaid": 2
       }
     }
+  },
+  "7513043433": {
+    "username": "Dejay Sete Misgie",
+    "total_generated": 9,
+    "total_paid": 0,
+    "total_unpaid": 9,
+    "daily_counts": {
+      "2026-03-27": 7,
+      "2026-04-04": 2
+    },
+    "daily_payment_status": {
+      "2026-03-27": {
+        "paid": 0,
+        "unpaid": 7
+      },
+      "2026-04-04": {
+        "paid": 0,
+        "unpaid": 2
+      }
+    }
+  },
+  "7365774228": {
+    "username": "Haftamu Belay Nigus",
+    "total_generated": 4,
+    "total_paid": 0,
+    "total_unpaid": 4,
+    "daily_counts": {
+      "2026-04-02": 4
+    },
+    "daily_payment_status": {
+      "2026-04-02": {
+        "paid": 0,
+        "unpaid": 4
+      }
+    }
   }
 }

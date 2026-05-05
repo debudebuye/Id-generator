@@ -672,6 +672,7 @@ def generate_id():
         # Read document into memory
         document_bytes = document.read()
         document_stream = BytesIO(document_bytes)
+        document_stream.name = document.filename  # attach filename for format detection
         
         # Check if it's a PDF for data extraction
         if document.filename.lower().endswith('.pdf'):
