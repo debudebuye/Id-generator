@@ -1153,11 +1153,16 @@
           {% endif %}
 
           {% if data.fcn_barcode %}
-          <div class="image-card">
+          <div class="image-card" id="barcodeCard">
+          {% else %}
+          <div class="image-card" id="barcodeCard" style="display:none;">
+          {% endif %}
             <h3>Barcode</h3>
             <div class="photo-preview-container" id="barcodeDropZone">
-              <img id="userBarcode" src="{{ url_for('static', filename=data.fcn_barcode) }}?t={{ timestamp }}"
-                class="uniform-img" alt="FCN Barcode">
+              <img id="userBarcode"
+                src="{% if data.fcn_barcode %}{{ url_for('static', filename=data.fcn_barcode) }}?t={{ timestamp }}{% else %}{% endif %}"
+                class="uniform-img" alt="FCN Barcode"
+                {% if not data.fcn_barcode %}style="display:none;"{% endif %}>
               <div id="barcodeLoading" class="photo-loading" style="display: none;">
                 <i class="fas fa-spinner fa-spin"></i>
               </div>
@@ -1178,7 +1183,6 @@
               <input type="file" id="barcodeUpload" accept="image/*">
             </div>
           </div>
-          {% endif %}
         </div>
 
         <div class="id-details">
@@ -2357,18 +2361,31 @@
         if (response.ok) {
           const result = await response.json();
           if (result.success) {
-            showToast('FAN number updated successfully', 'success');
-            
-            // If FAN is valid (16 digits), trigger barcode regeneration
-            if (cleanValue.length === 16) {
-              showToast('Regenerating barcode...', 'info');
-              // Reload the page to regenerate barcode
-              setTimeout(() => {
-                window.location.reload();
-              }, 1000);
+            // If barcode was regenerated, swap the image in-place — no page reload
+            if (cleanValue.length === 16 && result.barcode_filename) {
+              const barcodeImg = document.getElementById('userBarcode');
+              const barcodeCard = document.getElementById('barcodeCard');
+
+              if (barcodeCard) {
+                barcodeCard.style.display = '';
+              }
+              if (barcodeImg) {
+                const newSrc = `/static/${result.barcode_filename}?t=${Date.now()}`;
+                barcodeImg.onload = () => showToast('Barcode updated', 'success');
+                barcodeImg.onerror = () => showToast('Barcode file not found', 'error');
+                barcodeImg.style.display = '';
+                barcodeImg.src = newSrc;
+              }
+
+              // Also update the fcn_formatted input if present
+              if (result.fcn_formatted) {
+                const fcnInput = document.querySelector('input[name="fcn_formatted"]');
+                if (fcnInput) fcnInput.value = result.fcn_formatted;
+              }
+            } else {
+              showToast('FAN number updated', 'success');
             }
-            
-            // Update the session data to reflect changes
+
             if (window.sessionData) {
               window.sessionData.fan = cleanValue;
               window.sessionData.fcn_full = cleanValue;
@@ -2497,6 +2514,94 @@
         generationSummary.style.display = 'none';
       }
     }
+
+    // ── Clipboard paste support for Photo and QR ──────────────────────────
+    // Shows a brief highlight on the target zone when it's focused/hovered
+    function flashZone(zoneId) {
+      const zone = document.getElementById(zoneId);
+      if (!zone) return;
+      zone.style.outline = '3px solid var(--primary)';
+      zone.style.borderRadius = '8px';
+      setTimeout(() => { zone.style.outline = ''; }, 800);
+    }
+
+    document.addEventListener('paste', function (e) {
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      let imageFile = null;
+
+      for (const item of items) {
+        if (item.type.startsWith('image/')) {
+          imageFile = item.getAsFile();
+          break;
+        }
+      }
+
+      if (!imageFile) return;
+
+      // Decide target: if QR drop zone is hovered/focused use QR, else photo
+      const qrZone = document.getElementById('qrDropZone');
+      const photoZone = document.getElementById('photoDropZone');
+
+      // Check which zone the mouse is currently over via a data attribute set on mouseover
+      const target = document.body.dataset.pasteTarget || 'photo';
+
+      if (target === 'qr' && qrZone) {
+        flashZone('qrDropZone');
+        handleQrUpload(imageFile);
+        showToast('QR pasted from clipboard', 'success');
+      } else if (photoZone) {
+        flashZone('photoDropZone');
+        handlePhotoUpload(imageFile);
+        showToast('Photo pasted from clipboard', 'success');
+      }
+    });
+
+    // Track which zone the cursor is over so paste knows where to go
+    ['photoDropZone', 'qrDropZone'].forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('mouseenter', () => {
+        document.body.dataset.pasteTarget = id === 'qrDropZone' ? 'qr' : 'photo';
+      });
+      el.addEventListener('mouseleave', () => {
+        delete document.body.dataset.pasteTarget;
+      });
+    });
+
+    // Also add a visible "Paste" button under each zone
+    (function addPasteButtons() {
+      const photoActions = document.querySelector('#photoDropZone')?.closest('.image-card')?.querySelector('.photo-actions');
+      const qrActions = document.querySelector('#qrDropZone')?.closest('.image-card')?.querySelector('.photo-actions');
+
+      function makePasteBtn(handler, label) {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'photo-btn';
+        btn.innerHTML = `<i class="fas fa-clipboard"></i> ${label}`;
+        btn.title = 'Paste image from clipboard (Ctrl+V)';
+        btn.addEventListener('click', async () => {
+          try {
+            const items = await navigator.clipboard.read();
+            for (const item of items) {
+              const imgType = item.types.find(t => t.startsWith('image/'));
+              if (imgType) {
+                const blob = await item.getType(imgType);
+                handler(new File([blob], 'pasted.png', { type: imgType }));
+                return;
+              }
+            }
+            showToast('No image found in clipboard', 'error');
+          } catch {
+            showToast('Paste with Ctrl+V while hovering over the image', 'error');
+          }
+        });
+        return btn;
+      }
+
+      if (photoActions) photoActions.appendChild(makePasteBtn(handlePhotoUpload, 'Paste'));
+      if (qrActions)    qrActions.appendChild(makePasteBtn(handleQrUpload, 'Paste'));
+    })();
+    // ─────────────────────────────────────────────────────────────────────
   </script>
 </body>
 

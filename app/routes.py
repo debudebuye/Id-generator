@@ -1688,6 +1688,14 @@ def update_field():
         session['extracted'] = extracted
         print(f"DEBUG: Session saved successfully")
         
+        # Return barcode info if FAN was updated
+        if field_name == 'fan' and extracted.get('fcn_barcode'):
+            return jsonify({
+                'success': True,
+                'barcode_filename': extracted['fcn_barcode'],
+                'fcn_formatted': extracted.get('fcn_formatted', '')
+            })
+        
         return jsonify({'success': True})
     except Exception as e:
         print(f"DEBUG: Error in update_field: {str(e)}")

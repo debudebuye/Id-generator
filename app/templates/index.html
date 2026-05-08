@@ -1209,6 +1209,94 @@
         counter.style.color = 'var(--text-light)';
       }
     });
+
+    // ── Clipboard paste support ───────────────────────────────────────────
+    const sectionToType = { photoQrSection: 'photoQr', frontSection: 'front', backSection: 'back' };
+
+    // Track which section the cursor is hovering over
+    Object.keys(sectionToType).forEach(id => {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.addEventListener('mouseenter', () => { document.body.dataset.pasteTarget = id; });
+      el.addEventListener('mouseleave', () => { delete document.body.dataset.pasteTarget; });
+    });
+
+    // Global Ctrl+V paste handler
+    document.addEventListener('paste', function(e) {
+      // Don't intercept paste inside text inputs
+      if (['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) return;
+
+      const items = (e.clipboardData || e.originalEvent.clipboardData).items;
+      let file = null;
+      for (const item of items) {
+        if (item.type.startsWith('image/')) { file = item.getAsFile(); break; }
+      }
+      if (!file) return;
+
+      const targetId = document.body.dataset.pasteTarget;
+      const type = sectionToType[targetId] || 'photoQr';
+      const resolvedId = targetId || 'photoQrSection';
+
+      handleImageUpload({ target: { files: [file] } }, type);
+      showPasteToast(resolvedId);
+    });
+
+    function showPasteToast(sectionId) {
+      const labels = { photoQrSection: 'Photo + QR', frontSection: 'Front ID', backSection: 'Back ID' };
+      const label = labels[sectionId] || 'Photo + QR';
+      const toast = document.createElement('div');
+      toast.textContent = `📋 Pasted into ${label}`;
+      toast.style.cssText = `
+        position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+        background:#07813a;color:white;padding:0.6rem 1.4rem;
+        border-radius:8px;font-weight:600;font-size:0.95rem;
+        box-shadow:0 4px 12px rgba(0,0,0,0.2);z-index:9999;
+        transition:opacity 0.3s;
+      `;
+      document.body.appendChild(toast);
+      setTimeout(() => { toast.style.opacity = '0'; setTimeout(() => toast.remove(), 300); }, 2200);
+    }
+
+    // Add "Paste" button to each section
+    Object.entries(sectionToType).forEach(([sectionId, type]) => {
+      const section = document.getElementById(sectionId);
+      if (!section) return;
+
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'upload-btn';
+      btn.title = 'Paste image from clipboard (or Ctrl+V while hovering)';
+      btn.innerHTML = '<i class="fas fa-clipboard"></i> Paste';
+      btn.style.background = '#6c757d';
+
+      btn.addEventListener('click', async () => {
+        try {
+          const clipItems = await navigator.clipboard.read();
+          for (const item of clipItems) {
+            const imgType = item.types.find(t => t.startsWith('image/'));
+            if (imgType) {
+              const blob = await item.getType(imgType);
+              handleImageUpload({ target: { files: [new File([blob], 'pasted.png', { type: imgType })] } }, type);
+              showPasteToast(sectionId);
+              return;
+            }
+          }
+          alert('No image found in clipboard. Copy an image first, then click Paste.');
+        } catch {
+          alert('Hover over this section and press Ctrl+V to paste.');
+        }
+      });
+
+      // Insert the paste button next to the upload button
+      const wrapper = section.querySelector('.crop-btn-wrapper');
+      if (wrapper) {
+        wrapper.appendChild(btn);
+      } else {
+        const uploadBtn = section.querySelector('.upload-btn');
+        if (uploadBtn) uploadBtn.after(btn);
+      }
+    });
+    // ─────────────────────────────────────────────────────────────────────
   </script>
 </body>
 </html>
