@@ -418,11 +418,16 @@
                 <div class="card-body">
                     <img src="{{ url_for('static', filename=reverse) }}" alt="ID Reverse Side" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=reverse) }}" data-title="Reverse Side - Color">
-                    <a href="{{ url_for('static', filename=reverse) }}" 
-                       download="{{ reverse }}" 
-                       class="btn btn-primary download-link">
-                        <i class="fas fa-download"></i> Download Reverse Color
-                    </a>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=reverse) }}" 
+                           download="{{ reverse }}" 
+                           class="btn btn-primary download-link">
+                            <i class="fas fa-download"></i> Download Reverse Color
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=reverse) }}', '{{ reverse }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -436,11 +441,16 @@
                 <div class="card-body">
                     <img src="{{ url_for('static', filename=reverse_bw) }}" alt="ID Reverse Side Grayscale" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=reverse_bw) }}" data-title="Reverse Side - Grayscale">
-                    <a href="{{ url_for('static', filename=reverse_bw) }}" 
-                       download="{{ reverse_bw }}" 
-                       class="btn btn-secondary download-link">
-                        <i class="fas fa-download"></i> Download Reverse Grayscale
-                    </a>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=reverse_bw) }}" 
+                           download="{{ reverse_bw }}" 
+                           class="btn btn-secondary download-link">
+                            <i class="fas fa-download"></i> Download Reverse Grayscale
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=reverse_bw) }}', '{{ reverse_bw }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -490,11 +500,16 @@
                 <div class="card-body">
                     <img src="{{ url_for('static', filename=old_reverse_color) }}" alt="Old ID Reverse Color" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=old_reverse_color) }}" data-title="Old Reverse Side - Color">
-                    <a href="{{ url_for('static', filename=old_reverse_color) }}" 
-                       download="{{ old_reverse_color }}" 
-                       class="btn btn-primary download-link">
-                        <i class="fas fa-download"></i> Download Old Reverse Color
-                    </a>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=old_reverse_color) }}" 
+                           download="{{ old_reverse_color }}" 
+                           class="btn btn-primary download-link">
+                            <i class="fas fa-download"></i> Download Old Reverse Color
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=old_reverse_color) }}', '{{ old_reverse_color }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -508,11 +523,16 @@
                 <div class="card-body">
                     <img src="{{ url_for('static', filename=old_reverse_bw) }}" alt="Old ID Reverse Grayscale" class="card-image preview-image"
                         data-src="{{ url_for('static', filename=old_reverse_bw) }}" data-title="Old Reverse Side - Grayscale">
-                    <a href="{{ url_for('static', filename=old_reverse_bw) }}" 
-                       download="{{ old_reverse_bw }}" 
-                       class="btn btn-secondary download-link">
-                        <i class="fas fa-download"></i> Download Old Reverse Grayscale
-                    </a>
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=old_reverse_bw) }}" 
+                           download="{{ old_reverse_bw }}" 
+                           class="btn btn-secondary download-link">
+                            <i class="fas fa-download"></i> Download Old Reverse Grayscale
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=old_reverse_bw) }}', '{{ old_reverse_bw }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
                 </div>
             </div>
             {% endif %}
@@ -799,6 +819,36 @@
                 });
             });
         });
+
+        // Flip image horizontally and download
+        function flipAndDownload(src, filename) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(img, 0, 0);
+                const parts = filename.split('.');
+                const ext = parts.pop();
+                const flippedName = parts.join('.') + '_flipped.' + ext;
+                const mimeType = ext.toLowerCase() === 'jpg' || ext.toLowerCase() === 'jpeg' ? 'image/jpeg' : 'image/png';
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = flippedName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, mimeType);
+            };
+            img.src = src;
+        }
 
         // Function to clear session and redirect to generate new ID
         function clearSessionAndRedirect() {
