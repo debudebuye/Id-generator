@@ -1,0 +1,306 @@
+{
+  "meta": {
+    "description": "Ethiopian Old ID Card Template",
+    "version": "1.0",
+    "dpi": 300,
+    "dimensions": [
+      900,
+      600
+    ],
+    "security_features": [
+      "watermark",
+      "security_patterns"
+    ]
+  },
+  "fields": [
+    {
+      "label": "ሙሉ ስም:",
+      "key": "name_am",
+      "position": [756, 348],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Full Name:",
+      "key": "name_en",
+      "position": [756, 420],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 44
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "የትውልድ ቀን:",
+      "key": "dob_am",
+      "position": [758, 575],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 44
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Date of Birth:",
+      "key": "dob_en",
+      "position": [1080, 575],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 44
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ጾታ:",
+      "key": "gender_am",
+      "position": [753, 703],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 44
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Gender:",
+      "key": "gender_en",
+      "position": [895, 703],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 44
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ዜግነት:",
+      "key": "nationality_am",
+      "position": [ 2045,
+      314],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Nationality:",
+      "key": "nationality_en",
+      "position": [ 2280,
+      314],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Phone:",
+      "key": "phone",
+      "position": [2045, 145],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+
+    {
+      "key": "issue_date_am",
+      "position": [40, 760],
+      "font": { 
+        "family": "am",
+        "weight": 800,
+        "size": 30 
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "key": "issue_date_en",
+      "position": [40, 270],
+      "font": { 
+        "family": "en",
+        "weight": 800,
+        "size": 30 
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Expires:",
+      "key": "expiry_date_am",
+      "position": [760, 827],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Expires:",
+      "key": "expiry_date_en",
+      "position": [1090, 827],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "key": "fcn",
+      "position": [830, 930],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 46
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "FIN:",
+      "key": "fin",
+      "position": [ 2280,
+      975],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 38
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ክልል:",
+      "key": "region_am",
+      "position": [2050, 450],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Region:",
+      "key": "region_en",
+      "position": [2050, 510],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ክፍለ ከተማ:",
+      "key": "subcity_am",
+      "position": [2050, 610],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Subcity:",
+      "key": "subcity_en",
+      "position": [2050, 660],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "ወረዳ:",
+      "key": "woreda_am",
+      "position": [2050, 760],
+      "font": {
+        "family": "am",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Woreda:",
+      "key": "woreda_en",
+      "position": [2050, 810],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 48
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    },
+    {
+      "label": "Serial:",
+      "key": "serial_number",
+      "position": [3550, 1080],
+      "font": {
+        "family": "en",
+        "weight": 800,
+        "size": 35
+      },
+      "color": [0, 0, 0],
+      "align": "left"
+    }
+  ],
+  "photo": {
+    "main": {
+      "position": [128, 250],
+      "size": [550, 700]
+    },
+    "small": {
+      "position": [1493, 860],
+      "size": [199, 205]
+    }
+  },
+  "qr": {
+    "position": [2875, 90],
+    "size": [934, 937]
+  },
+  "barcode": {
+    "position": [857, 980],
+    "size": [507, 93]
+  }
+  ,
+  "barcode_text": {
+    "position": [1110, 935],
+    "font": { "size": 38 },
+    "align": "center"
+  }
+}

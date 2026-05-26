@@ -1,0 +1,928 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fyda</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #1a73e8;
+            --primary-dark: #0d5bbc;
+            --accent: #34a853;
+            --danger: #ea4335;
+            --warning: #fbbc05;
+            --text: #202124;
+            --text-light: #5f6368;
+            --border: #dadce0;
+            --bg-light: #f5f7fa;
+            --card-shadow: 0 1px 2px 0 rgba(60, 64, 67, 0.1), 0 2px 6px 2px rgba(60, 64, 67, 0.15);
+            --transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-light);
+            color: var(--text);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 0 20px;
+        }
+
+        /* Header */
+        header {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            color: white;
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            margin-bottom: 2rem;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            margin-bottom: 1rem;
+        }
+
+        .logo img {
+            height: 40px;
+        }
+
+        .logo-text {
+            font-weight: 600;
+            font-size: 1.5rem;
+        }
+
+        .header-title {
+            font-size: 2rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+
+        .header-subtitle {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        /* Card Grid */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 2rem;
+            margin: 3rem 0;
+        }
+
+        .card {
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: var(--card-shadow);
+            transition: var(--transition);
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .card-header {
+            background-color: var(--primary);
+            color: white;
+            padding: 1rem;
+            text-align: center;
+            font-weight: 600;
+        }
+
+        .card-body {
+            padding: 1.5rem;
+            text-align: center;
+        }
+
+        .card-image {
+            width: 100%;
+            height: 250px;
+            object-fit: contain;
+            margin-bottom: 1.5rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            background-color: #f9f9f9;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .card-image:hover {
+            transform: scale(1.02);
+        }
+
+        .empty-state {
+            padding: 2rem;
+            text-align: center;
+            color: var(--text-light);
+        }
+
+        /* Buttons */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: var(--transition);
+            border: none;
+            gap: 8px;
+            text-decoration: none;
+            font-size: 0.95rem;
+        }
+
+        .btn-primary {
+            background-color: var(--primary);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background-color: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(26, 115, 232, 0.3);
+        }
+
+        .btn-secondary {
+            background-color: var(--accent);
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background-color: #2d8e47;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(52, 168, 83, 0.3);
+        }
+
+        .btn-outline {
+            background-color: transparent;
+            color: var(--primary);
+            border: 1px solid var(--primary);
+        }
+
+        .btn-outline:hover {
+            background-color: rgba(26, 115, 232, 0.08);
+        }
+
+        .btn-group {
+            display: flex;
+            justify-content: center;
+            gap: 1rem;
+            margin: 2rem 0;
+            flex-wrap: wrap;
+        }
+
+        /* Modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.9);
+            overflow: auto;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.show {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 1;
+        }
+
+        .modal-content {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            animation: zoomIn 0.3s ease;
+        }
+
+        @keyframes zoomIn {
+            from {
+                transform: scale(0.9);
+                opacity: 0;
+            }
+
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .close {
+            position: absolute;
+            top: 30px;
+            right: 35px;
+            color: white;
+            font-size: 40px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: var(--transition);
+        }
+
+        .close:hover {
+            color: #bbb;
+            transform: rotate(90deg);
+        }
+
+        .modal-caption {
+            position: absolute;
+            bottom: 30px;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: white;
+            padding: 10px;
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+
+        /* Footer */
+        footer {
+            text-align: center;
+            padding: 2rem 0;
+            color: var(--text-light);
+            font-size: 0.875rem;
+            margin-top: 2rem;
+            border-top: 1px solid var(--border);
+        }
+
+        /* Loading spinner */
+        .spinner {
+            display: inline-block;
+            width: 18px;
+            height: 18px;
+            border: 3px solid rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border-top-color: white;
+            animation: spin 1s ease-in-out infinite;
+            margin-right: 8px;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .header-title {
+                font-size: 1.5rem;
+            }
+
+            .header-subtitle {
+                font-size: 1rem;
+            }
+
+            .card-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .modal-content {
+                max-width: 95%;
+                max-height: 80%;
+            }
+
+            .close {
+                font-size: 30px;
+                top: 20px;
+                right: 20px;
+            }
+
+            .btn-group {
+                gap: 0.75rem;
+            }
+
+            .btn {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <div class="container">
+            <!-- Fyda logo and text removed for cleaner UI -->
+            <h1 class="header-title">Generated ID Cards</h1>
+            <p class="header-subtitle">Your ID cards have been generated successfully</p>
+            {% if data and data.name_en %}
+            <p class="header-subtitle">ID Cards for: {{ data.name_en }}</p>
+            {% endif %}
+        </div>
+    </header>
+
+    <div class="container">
+        <div class="card-grid">
+            {% if mini_front_color %}
+            <!-- Mini Front Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Mini Front Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=mini_front_color) }}" alt="Mini ID Front Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=mini_front_color) }}" data-title="Mini Front Side - Color">
+                    <a href="{{ url_for('static', filename=mini_front_color) }}" 
+                       download="{{ mini_front_color }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Mini Front Color
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if mini_front_bw %}
+            <!-- Mini Front Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Mini Front Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=mini_front_bw) }}" alt="Mini ID Front Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=mini_front_bw) }}" data-title="Mini Front Side - Grayscale">
+                    <a href="{{ url_for('static', filename=mini_front_bw) }}" 
+                       download="{{ mini_front_bw }}" 
+                       class="btn btn-secondary download-link">
+                        <i class="fas fa-download"></i> Download Mini Front Grayscale
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if front_color %}
+            <!-- Front Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Front Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=front_color) }}" alt="ID Front Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=front_color) }}" data-title="Front Side - Color">
+                    <a href="{{ url_for('static', filename=front_color) }}" 
+                       download="{{ front_color }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Front Color
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if front_bw %}
+            <!-- Front Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Front Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=front_bw) }}" alt="ID Front Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=front_bw) }}" data-title="Front Side - Grayscale">
+                    <a href="{{ url_for('static', filename=front_bw) }}" 
+                       download="{{ front_bw }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Front Grayscale
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if reverse %}
+            <!-- Reverse Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Reverse Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=reverse) }}" alt="ID Reverse Side" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=reverse) }}" data-title="Reverse Side - Color">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=reverse) }}" 
+                           download="{{ reverse }}" 
+                           class="btn btn-primary download-link">
+                            <i class="fas fa-download"></i> Download Reverse Color
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=reverse) }}', '{{ reverse }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if reverse_bw %}
+            <!-- Reverse Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Reverse Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=reverse_bw) }}" alt="ID Reverse Side Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=reverse_bw) }}" data-title="Reverse Side - Grayscale">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=reverse_bw) }}" 
+                           download="{{ reverse_bw }}" 
+                           class="btn btn-secondary download-link">
+                            <i class="fas fa-download"></i> Download Reverse Grayscale
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=reverse_bw) }}', '{{ reverse_bw }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_front_color %}
+            <!-- Old Front Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Front Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_front_color) }}" alt="Old ID Front Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_front_color) }}" data-title="Old Front Side - Color">
+                    <a href="{{ url_for('static', filename=old_front_color) }}" 
+                       download="{{ old_front_color }}" 
+                       class="btn btn-primary download-link">
+                        <i class="fas fa-download"></i> Download Old Front Color
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_front_bw %}
+            <!-- Old Front Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Front Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_front_bw) }}" alt="Old ID Front Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_front_bw) }}" data-title="Old Front Side - Grayscale">
+                    <a href="{{ url_for('static', filename=old_front_bw) }}" 
+                       download="{{ old_front_bw }}" 
+                       class="btn btn-secondary download-link">
+                        <i class="fas fa-download"></i> Download Old Front Grayscale
+                    </a>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_reverse_color %}
+            <!-- Old Reverse Color Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Reverse Side (Color)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_reverse_color) }}" alt="Old ID Reverse Color" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_reverse_color) }}" data-title="Old Reverse Side - Color">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=old_reverse_color) }}" 
+                           download="{{ old_reverse_color }}" 
+                           class="btn btn-primary download-link">
+                            <i class="fas fa-download"></i> Download Old Reverse Color
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=old_reverse_color) }}', '{{ old_reverse_color }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if old_reverse_bw %}
+            <!-- Old Reverse Grayscale Card -->
+            <div class="card">
+                <div class="card-header">
+                    Old Reverse Side (Grayscale)
+                </div>
+                <div class="card-body">
+                    <img src="{{ url_for('static', filename=old_reverse_bw) }}" alt="Old ID Reverse Grayscale" class="card-image preview-image"
+                        data-src="{{ url_for('static', filename=old_reverse_bw) }}" data-title="Old Reverse Side - Grayscale">
+                    <div style="display:flex;gap:0.5rem;flex-wrap:wrap;justify-content:center;">
+                        <a href="{{ url_for('static', filename=old_reverse_bw) }}" 
+                           download="{{ old_reverse_bw }}" 
+                           class="btn btn-secondary download-link">
+                            <i class="fas fa-download"></i> Download Old Reverse Grayscale
+                        </a>
+                        <button class="btn btn-outline" onclick="flipAndDownload('{{ url_for('static', filename=old_reverse_bw) }}', '{{ old_reverse_bw }}')">
+                            <i class="fas fa-arrows-alt-h"></i> Flip &amp; Download
+                        </button>
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <div class="btn-group">
+            <button class="btn btn-outline" onclick="window.history.back()">
+                <i class="fas fa-chevron-left"></i> Back
+            </button>
+            <button class="btn btn-secondary" id="downloadAllBtn" onclick="downloadAll()">
+                <span class="spinner" id="downloadSpinner" style="display: none;"></span>
+                <i class="fas fa-download"></i> Download All
+            </button>
+            <button class="btn btn-outline" id="generateNewIdBtn" onclick="clearSessionAndRedirect()">
+                <i class="fas fa-id-card"></i> Generate Another ID
+            </button>
+            <button class="btn btn-primary" onclick="previewAll()">
+                <i class="fas fa-eye"></i> Preview All
+            </button>
+        </div>
+    </div>
+
+    <!-- Image Modal -->
+    <div id="imageModal" class="modal">
+        <span class="close" onclick="closeModal()">&times;</span>
+        <img class="modal-content" id="modalImage">
+        <div id="modalCaption" class="modal-caption"></div>
+    </div>
+
+    <footer>
+        <p>Federal Democratic Republic of Ethiopia - Digital ID Authority &copy; 2025</p>
+    </footer>
+
+    <script>
+        // Modal functionality
+        const modal = document.getElementById("imageModal");
+        const modalImg = document.getElementById("modalImage");
+        const modalCaption = document.getElementById("modalCaption");
+
+        function openModal(imgSrc, title) {
+            if (imgSrc && !imgSrc.includes('None')) {
+                modalImg.src = imgSrc;
+                modalCaption.textContent = title;
+                modal.classList.add('show');
+                document.body.style.overflow = 'hidden';
+            }
+        }
+
+        function closeModal() {
+            modal.classList.remove('show');
+            document.body.style.overflow = 'auto';
+        }
+
+        // Close modal when clicking outside the image
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) {
+                closeModal();
+            }
+        });
+
+        // Close with Escape key
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
+
+        // Print all function
+        function previewAll() {
+            const previewContent = document.getElementById('previewContent');
+            const previewContainer = document.getElementById('previewContainer');
+            previewContent.innerHTML = '';
+
+            const images = [];
+            {% if front_color %}
+            images.push({
+                src: "{{ url_for('static', filename=front_color) }}",
+                title: "Front Side (Color)"
+            });
+            {% endif %}
+            {% if front_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=front_bw) }}",
+                title: "Front Side (Grayscale)"
+            });
+            {% endif %}
+            {% if reverse %}
+            images.push({
+                src: "{{ url_for('static', filename=reverse) }}",
+                title: "Reverse Side (Color)"
+            });
+            {% endif %}
+            {% if reverse_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=reverse_bw) }}",
+                title: "Reverse Side (Grayscale)"
+            });
+            {% endif %}
+            {% if mini_front_color %}
+            images.push({
+                src: "{{ url_for('static', filename=mini_front_color) }}",
+                title: "Mini Front Side (Color)"
+            });
+            {% endif %}
+            {% if mini_front_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=mini_front_bw) }}",
+                title: "Mini Front Side (Grayscale)"
+            });
+            {% endif %}
+            {% if old_front_color %}
+            images.push({
+                src: "{{ url_for('static', filename=old_front_color) }}",
+                title: "Old Front Side (Color)"
+            });
+            {% endif %}
+            {% if old_front_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=old_front_bw) }}",
+                title: "Old Front Side (Grayscale)"
+            });
+            {% endif %}
+            {% if old_reverse_color %}
+            images.push({
+                src: "{{ url_for('static', filename=old_reverse_color) }}",
+                title: "Old Reverse Side (Color)"
+            });
+            {% endif %}
+            {% if old_reverse_bw %}
+            images.push({
+                src: "{{ url_for('static', filename=old_reverse_bw) }}",
+                title: "Old Reverse Side (Grayscale)"
+            });
+            {% endif %}
+
+            const filteredImages = images.filter(img => img.src && !img.src.includes('None'));
+
+            if (filteredImages.length === 0) {
+                alert('No ID cards available to preview');
+                return;
+            }
+
+            filteredImages.forEach(img => {
+                const section = document.createElement('div');
+                section.style.marginBottom = '30px';
+                section.style.textAlign = 'center';
+
+                const title = document.createElement('h3');
+                title.textContent = img.title;
+                section.appendChild(title);
+
+                const image = document.createElement('img');
+                image.src = img.src;
+                image.style.maxWidth = '90%';
+                image.style.border = '1px solid #ccc';
+                image.style.borderRadius = '8px';
+                image.style.marginTop = '10px';
+                section.appendChild(image);
+
+                previewContent.appendChild(section);
+            });
+
+            previewContainer.style.display = 'block';
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closePreview() {
+            document.getElementById('previewContainer').style.display = 'none';
+            document.body.style.overflow = 'auto';
+        }
+
+        // Function to generate unique filename with timestamp
+        function getUniqueFilename(baseName) {
+            const timestamp = new Date().getTime();
+            const parts = baseName.split('.');
+            const ext = parts.pop();
+            return `${parts.join('.')}_${timestamp}.${ext}`;
+        }
+
+        // Download all function
+        function downloadAll() {
+            const links = [];
+            {% if front_color %}
+            links.push({
+                url: "{{ url_for('static', filename=front_color) }}",
+                name: "{{ front_color }}"
+            });
+            {% endif %}
+            {% if front_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=front_bw) }}",
+                name: "{{ front_bw }}"
+            });
+            {% endif %}
+            {% if reverse %}
+            links.push({
+                url: "{{ url_for('static', filename=reverse) }}",
+                name: "{{ reverse }}"
+            });
+            {% endif %}
+            {% if reverse_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=reverse_bw) }}",
+                name: "{{ reverse_bw }}"
+            });
+            {% endif %}
+            {% if mini_front_color %}
+            links.push({
+                url: "{{ url_for('static', filename=mini_front_color) }}",
+                name: "{{ mini_front_color }}"
+            });
+            {% endif %}
+            {% if mini_front_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=mini_front_bw) }}",
+                name: "{{ mini_front_bw }}"
+            });
+            {% endif %}
+            {% if old_front_color %}
+            links.push({
+                url: "{{ url_for('static', filename=old_front_color) }}",
+                name: "{{ old_front_color }}"
+            });
+            {% endif %}
+            {% if old_front_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=old_front_bw) }}",
+                name: "{{ old_front_bw }}"
+            });
+            {% endif %}
+            {% if old_reverse_color %}
+            links.push({
+                url: "{{ url_for('static', filename=old_reverse_color) }}",
+                name: "{{ old_reverse_color }}"
+            });
+            {% endif %}
+            {% if old_reverse_bw %}
+            links.push({
+                url: "{{ url_for('static', filename=old_reverse_bw) }}",
+                name: "{{ old_reverse_bw }}"
+            });
+            {% endif %}
+
+            const filteredLinks = links.filter(Boolean);
+
+            if (filteredLinks.length === 0) {
+                alert('No files to download');
+                return;
+            }
+
+            const downloadBtn = document.getElementById('downloadAllBtn');
+            const spinner = document.getElementById('downloadSpinner');
+            
+            downloadBtn.disabled = true;
+            spinner.style.display = 'inline-block';
+            downloadBtn.querySelector('i').style.display = 'none';
+
+            filteredLinks.forEach((link, index) => {
+                setTimeout(() => {
+                    const a = document.createElement('a');
+                    a.href = link.url;
+                    a.download = link.name;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                }, index * 500);
+            });
+
+            setTimeout(() => {
+                downloadBtn.disabled = false;
+                spinner.style.display = 'none';
+                downloadBtn.querySelector('i').style.display = 'inline-block';
+            }, filteredLinks.length * 500 + 1000);
+        }
+
+        // Add this after the modal initialization code
+        document.addEventListener('DOMContentLoaded', function() {
+            const previewImages = document.querySelectorAll('.preview-image');
+            previewImages.forEach(img => {
+                img.addEventListener('click', function() {
+                    const src = this.getAttribute('data-src');
+                    const title = this.getAttribute('data-title');
+                    openModal(src, title);
+                });
+            });
+        });
+
+        // Flip image horizontally and download
+        function flipAndDownload(src, filename) {
+            const img = new Image();
+            img.crossOrigin = 'anonymous';
+            img.onload = function() {
+                const canvas = document.createElement('canvas');
+                canvas.width = img.naturalWidth;
+                canvas.height = img.naturalHeight;
+                const ctx = canvas.getContext('2d');
+                ctx.translate(canvas.width, 0);
+                ctx.scale(-1, 1);
+                ctx.drawImage(img, 0, 0);
+                const parts = filename.split('.');
+                const ext = parts.pop();
+                const flippedName = parts.join('.') + '_flipped.' + ext;
+                const mimeType = ext.toLowerCase() === 'jpg' || ext.toLowerCase() === 'jpeg' ? 'image/jpeg' : 'image/png';
+                canvas.toBlob(function(blob) {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = flippedName;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, mimeType);
+            };
+            img.src = src;
+        }
+
+        // Function to clear session and redirect to generate new ID
+        function clearSessionAndRedirect() {
+            const btn = document.getElementById('generateNewIdBtn');
+            if (btn) {
+                btn.disabled = true;
+                btn.innerHTML = '<span class="spinner"></span> Clearing Session...';
+                
+                fetch('/reset_session', {method: 'POST'})
+                    .then(response => {
+                        if (response.status === 204) {
+                            // 204 No Content means success
+                            window.location.href = "{{ url_for('main.index') }}";
+                        } else {
+                            // Try to parse JSON for error details
+                            return response.json().then(data => {
+                                if (data.success) {
+                                    window.location.href = "{{ url_for('main.index') }}";
+                                } else {
+                                    throw new Error(data.error || 'Failed to clear session');
+                                }
+                            });
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error clearing session:', error);
+                        alert('Error clearing session. Please try again.');
+                        btn.disabled = false;
+                        btn.innerHTML = '<i class="fas fa-id-card"></i> Generate Another ID';
+                    });
+            }
+        }
+
+        // Show image generation time if available
+        document.addEventListener('DOMContentLoaded', function() {
+            const start = sessionStorage.getItem('idGenStart');
+            if (start) {
+                const elapsed = (Date.now() - parseInt(start, 10)) / 1000;
+                let timerDiv = document.createElement('div');
+                timerDiv.style = `
+                    display: flex;
+                    justify-content: center;
+                    align-items: center;
+                    margin: 2rem auto 1.5rem auto;
+                    padding: 0.7rem 1.5rem;
+                    background: linear-gradient(90deg, #34a853 0%, #1a73e8 100%);
+                    color: #fff;
+                    font-size: 1.1rem;
+                    font-weight: 700;
+                    border-radius: 14px;
+                    box-shadow: 0 4px 24px rgba(26, 115, 232, 0.12);
+                    letter-spacing: 0.5px;
+                    text-shadow: 0 2px 8px rgba(0,0,0,0.08);
+                    max-width: 320px;
+                `;
+                timerDiv.innerHTML = `<i class='fas fa-stopwatch' style='margin-right: 10px; font-size:1.2rem;'></i> <span style='font-weight:600;'>Image generation time:</span> <span style='margin-left:8px; font-weight:800;'>${elapsed.toFixed(1)}s</span>`;
+                const container = document.querySelector('.container');
+                if (container) container.insertBefore(timerDiv, container.firstChild);
+                sessionStorage.removeItem('idGenStart');
+            }
+        });
+    </script>
+
+    <!-- JSZip for creating zip files -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+
+    <div id="previewContainer"
+        style="display:none; position:fixed; top:0; left:0; width:100vw; height:100vh; background:white; overflow:auto; z-index:9999; padding:20px;">
+        <button onclick="closePreview()"
+            style="position:absolute; top:20px; right:20px; font-size:20px; background:#ea4335; color:white; border:none; border-radius:5px; padding:10px 15px; cursor:pointer;">
+            Close Preview
+        </button>
+        <div id="previewContent" style="margin-top:60px;"></div>
+    </div>
+</body>
+
+</html>
