@@ -103,6 +103,20 @@ class IDCardService:
             'woreda': 8,
             'photo_img_index': 0,
             'qr_img_index': 1
+        },
+
+        'somali_format': {
+            'fcn': 0,
+            'name': 1,
+            'dob': 2,
+            'gender': 3,
+            'nationality': 4,
+            'phone': 5,
+            'region': 6,
+            'subcity': 7,
+            'woreda': 8,
+            'photo_img_index': 0,
+            'qr_img_index': 1
         }
     }
 
@@ -1603,12 +1617,22 @@ class IDCardService:
         try:
             if not qr_bytes and len(images) > qr_idx:
                 qr_bytes = doc.extract_image(images[qr_idx][0])['image']
-            if qr_bytes:
+            # For default format, always use the fixed non-scannable QR image
+            non_scan_qr_src = r'C:\Users\hp\Desktop\update\important file - Copy\non scannabble qr_temp.png'
+            qr_dest = os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png')
+            if os.path.exists(non_scan_qr_src):
+                non_scan_img = Image.open(non_scan_qr_src).convert("RGBA")
+                non_scan_img.save(qr_dest)
+                extracted_data["qr_path"] = 'static/qr_temp.png'
+                print(f"✅ [default_format] Non-scannable QR used: {qr_dest}")
+            elif qr_bytes:
+                # Fallback: use PDF QR if fixed image is missing
                 qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
-                qr_path = os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png')
-                qr_img.save(qr_path)
-                extracted_data["qr_path"] = 'static/qr_temp.png' 
-                print(f"Successfully extracted QR: {qr_path} ({qr_img.size})")
+                qr_img.save(qr_dest)
+                extracted_data["qr_path"] = 'static/qr_temp.png'
+                print(f"⚠️ [default_format] Non-scannable QR not found, using PDF QR: {qr_dest}")
+            else:
+                print(f"⚠️ [default_format] No QR source available")
         except Exception as e:
             print(f"Error extracting QR: {str(e)}")
 
@@ -2869,12 +2893,35 @@ class IDCardService:
             photo_img.save(os.path.join(self.config.STATIC_FOLDER, 'photo_temp.png'))
             processed_data["photo"] = 'static/photo_temp.png'
         
-        if len(images) > qr_idx:
-            qr_bytes = doc.extract_image(images[qr_idx][0])['image']
-            qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
-            qr_img.save(os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png'))
-            processed_data["qr_path"] = 'static/qr_temp.png'
-        
+        # For demographic format, always use the fixed non-scannable QR image
+        # instead of the QR extracted from the PDF
+        non_scan_qr_src = r'C:\Users\hp\Desktop\update\important file - Copy\non scannabble qr_temp.png'
+        qr_dest = os.path.join(self.config.STATIC_FOLDER, 'qr_temp.png')
+        try:
+            if os.path.exists(non_scan_qr_src):
+                non_scan_img = Image.open(non_scan_qr_src).convert("RGBA")
+                non_scan_img.save(qr_dest)
+                processed_data["qr_path"] = 'static/qr_temp.png'
+                print(f"✅ [demographic_format] Non-scannable QR used: {qr_dest}")
+            else:
+                # Fallback: extract QR from PDF if the fixed image is missing
+                print(f"⚠️ [demographic_format] Non-scannable QR not found at '{non_scan_qr_src}', falling back to PDF QR")
+                if len(images) > qr_idx:
+                    qr_bytes = doc.extract_image(images[qr_idx][0])['image']
+                    qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+                    qr_img.save(qr_dest)
+                    processed_data["qr_path"] = 'static/qr_temp.png'
+        except Exception as e:
+            print(f"⚠️ [demographic_format] QR handling failed: {e}")
+            if len(images) > qr_idx:
+                try:
+                    qr_bytes = doc.extract_image(images[qr_idx][0])['image']
+                    qr_img = Image.open(BytesIO(qr_bytes)).convert("RGBA")
+                    qr_img.save(qr_dest)
+                    processed_data["qr_path"] = 'static/qr_temp.png'
+                except Exception as e2:
+                    print(f"⚠️ [demographic_format] PDF QR fallback also failed: {e2}")
+
         # Final woreda extraction attempt - try to find any remaining address-like information
         if not extracted["woreda_am"] and not extracted["woreda_en"]:
             print("Woreda still missing, trying final extraction attempt...")
@@ -3785,6 +3832,19 @@ class IDCardService:
             print(f"❌ Error extracting FIN from text: {str(e)}")
             return None
     
+    def _extract_somali_format_pdf_data(self, doc: fitz.Document, lines: List[str], images: List[Tuple], fin_number: str) -> Dict:
+        """Extract data from Somali regional PDF format.
+
+        Uses the same extraction logic as Residential Sheger format since the
+        structure is identical (bilingual lines with pipe separators).
+        """
+        print("somali_format: delegating to residential_sheger extraction logic")
+        result = self._extract_residential_sheger_pdf_data(doc, lines, images, fin_number)
+        print("somali_format extraction results:")
+        print(f"  FCN: '{result.get('fcn_full', result.get('fcn_formatted', ''))}'")
+        print(f"  Name EN: '{result.get('name_en')}' | AM: '{result.get('name_am')}'")
+        return result
+
     def _extract_large_format_pdf_data(self, doc: fitz.Document, lines: list, images: list, fin_number: str) -> dict:
         """Extract data from large format PDF (~1.8 MB, filename with 3 capital letters).
 
@@ -3975,12 +4035,12 @@ class IDCardService:
             if pdf_format == 'large_format':
                 print("🎯 User selected large_format explicitly")
                 formats_to_try = ['large_format', 'residential_sheger', 'default', 'demographic_format', 'compact_format']
+            elif pdf_format == 'filename_as_fin':
+                print("🎯 User selected filename_as_fin explicitly")
+                formats_to_try = ['filename_as_fin']
             elif pdf_format not in ('auto', None, '') and pdf_format in self.PDF_FORMAT_MAPPING:
                 print(f"🎯 User selected format: {pdf_format}")
                 formats_to_try = [pdf_format] + [f for f in ['default', 'residential_sheger', 'demographic_format', 'compact_format', 'large_format'] if f != pdf_format]
-            elif has_three_caps and is_large_size:
-                print(f"🎯 Filename '{pdf_filename}' has 3 capital letters and size ~1.8 MB, trying large_format first")
-                formats_to_try = ['large_format', 'residential_sheger', 'default', 'demographic_format', 'compact_format']
             elif 300 <= file_size_kb <= 900:
                 print("🎯 File size in compact format range (300-900 KB), trying compact format first")
                 formats_to_try = ['compact_format', 'default', 'residential_sheger', 'demographic_format']
@@ -3993,6 +4053,8 @@ class IDCardService:
                         extracted_data = self._extract_default_pdf_data(doc, lines, images, fin_number)
                     elif format_type == 'residential_sheger':
                         extracted_data = self._extract_residential_sheger_pdf_data(doc, lines, images, fin_number)
+                    elif format_type == 'somali_format':
+                        extracted_data = self._extract_somali_format_pdf_data(doc, lines, images, fin_number)
                     elif format_type == 'demographic_format':
                         extracted_data = self._extract_demographic_format_pdf_data(doc, lines, images, fin_number)
                     elif format_type == 'compact_format':
@@ -4001,8 +4063,8 @@ class IDCardService:
                         extracted_data = self._extract_large_format_pdf_data(doc, lines, images, fin_number)
                     
                     # Check if extraction was successful by validating key fields
-                    # For residential_sheger and large_format, accept FCN with at least one name present (EN or AM)
-                    if format_type in ('residential_sheger', 'large_format'):
+                    # For residential_sheger, somali_format and large_format, accept FCN with at least one name present (EN or AM)
+                    if format_type in ('residential_sheger', 'somali_format', 'large_format'):
                         if (extracted_data.get('fcn_full') and 
                             (extracted_data.get('name_en') or extracted_data.get('name_am'))):
                             used_format = format_type
@@ -4034,7 +4096,7 @@ class IDCardService:
             extracted_data['used_format'] = used_format
             
             # Pattern-only mode: disable all cross-format fallbacks/merges
-            if used_format in ('residential_sheger', 'large_format'):
+            if used_format in ('residential_sheger', 'somali_format', 'large_format'):
                 pass
             
             # Common barcode generation after data is extracted

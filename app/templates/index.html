@@ -1152,7 +1152,7 @@
                 <div class="skip-preview-container" style="background: rgba(7,129,58,0.07); border-color: rgba(7,129,58,0.25);">
                   <label class="skip-preview-label">
                     <input type="checkbox" id="largeFormatCheck" class="skip-preview-checkbox">
-                    <span class="skip-preview-checkmark" style="border-color: var(--primary); box-shadow: 0 2px 4px rgba(7,129,58,0.2);"></span>
+                    <span class="skip-preview-checkmark" style="border-color: var(--primary); box-shadow: 0 2px 4px rgba(7,129,58,0.2); background-color: var(--primary);"></span>
                     <div class="skip-preview-content">
                       <div class="skip-preview-title">
                         <i class="fas fa-file-pdf" style="color: var(--primary); margin-right: 0.5rem;"></i>
@@ -1160,6 +1160,23 @@
                       </div>
                       <div class="skip-preview-description">
                         Use this for PDFs with a 3-letter uppercase filename (~1.8 MB)
+                      </div>
+                    </div>
+                  </label>
+                </div>
+
+                <!-- Somali Format Checkbox -->
+                <div class="skip-preview-container" style="background: rgba(0,122,204,0.07); border-color: rgba(0,122,204,0.25); margin-top: 0.75rem;">
+                  <label class="skip-preview-label">
+                    <input type="checkbox" id="somaliFormatCheck" class="skip-preview-checkbox">
+                    <span class="skip-preview-checkmark" style="border-color: #007acc; box-shadow: 0 2px 4px rgba(0,122,204,0.2);"></span>
+                    <div class="skip-preview-content">
+                      <div class="skip-preview-title">
+                        <i class="fas fa-file-pdf" style="color: #007acc; margin-right: 0.5rem;"></i>
+                        Somali Format
+                      </div>
+                      <div class="skip-preview-description">
+                        Use this for Somali regional PDFs (same structure as Residential)
                       </div>
                     </div>
                   </label>
@@ -1396,20 +1413,52 @@
 
     // Large format checkbox
     const largeFormatCheck = document.getElementById("largeFormatCheck");
+    const somaliFormatCheck = document.getElementById("somaliFormatCheck");
     const documentFormatInput = document.getElementById("documentFormatInput");
     const largeFormatCheckmark = largeFormatCheck.nextElementSibling;
+    const somaliFormatCheckmark = somaliFormatCheck.nextElementSibling;
 
-    largeFormatCheck.addEventListener("change", function () {
-      if (this.checked) {
-        documentFormatInput.value = "large_format";
+    function syncFormatCheckmarks() {
+      // Large format (green)
+      if (largeFormatCheck.checked) {
         largeFormatCheckmark.style.backgroundColor = "var(--primary)";
         largeFormatCheckmark.style.borderColor = "var(--primary)";
       } else {
-        documentFormatInput.value = "auto";
         largeFormatCheckmark.style.backgroundColor = "";
         largeFormatCheckmark.style.borderColor = "";
       }
+      // Somali format (blue)
+      if (somaliFormatCheck.checked) {
+        somaliFormatCheckmark.style.backgroundColor = "#007acc";
+        somaliFormatCheckmark.style.borderColor = "#007acc";
+      } else {
+        somaliFormatCheckmark.style.backgroundColor = "";
+        somaliFormatCheckmark.style.borderColor = "#007acc";
+      }
+    }
+
+    largeFormatCheck.addEventListener("change", function () {
+      if (this.checked) {
+        somaliFormatCheck.checked = false;
+        documentFormatInput.value = "large_format";
+      } else {
+        documentFormatInput.value = "auto";
+      }
+      syncFormatCheckmarks();
     });
+
+    somaliFormatCheck.addEventListener("change", function () {
+      if (this.checked) {
+        largeFormatCheck.checked = false;
+        documentFormatInput.value = "somali_format";
+      } else {
+        documentFormatInput.value = "auto";
+      }
+      syncFormatCheckmarks();
+    });
+
+    // Initialize checkmark states
+    syncFormatCheckmarks();
 
     // Form submission
     form.addEventListener("submit", function (e) {
@@ -1529,9 +1578,19 @@
           `;
         }
 
-        // Extract FIN from document if not already filled (only works for PDFs)
-        if (!finInput.value || finInput.value.length !== 12) {
-          extractFinFromPdf(file);
+        // If filename is all digits, use it as FIN automatically
+        const filenameNoExt = file.name.replace(/\.[^/.]+$/, "");
+        const filenameDigits = filenameNoExt.replace(/[^0-9]/g, "");
+        if (filenameDigits.length === 12) {
+          finInput.value = filenameDigits;
+          finInput.dispatchEvent(new Event('input'));
+          showStatus(`✅ FIN auto-filled from filename: ${filenameDigits}`, "success");
+          updateSubmitButton();
+        } else {
+          // Extract FIN from document if not already filled (only works for PDFs)
+          if (!finInput.value || finInput.value.length !== 12) {
+            extractFinFromPdf(file);
+          }
         }
 
         // Enable submit button if FIN is valid

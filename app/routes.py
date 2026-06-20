@@ -637,7 +637,7 @@ def generate_id():
           name: document_format
           type: string
           required: false
-          enum: [default, residential_sheger]
+          enum: [default, residential_sheger, somali_format]
           description: Document format type (only applies to PDF files)
         - in: formData
           name: skip_preview
