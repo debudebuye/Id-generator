@@ -1104,6 +1104,17 @@
               </div>
             </div>
 
+            {% if data.used_format in ('default', 'demographic_format', 'filename_as_fin') %}
+            <div style="text-align:center; margin-top:0.4rem;">
+              <span style="display:inline-flex; align-items:center; gap:0.35rem;
+                           background:#fff3cd; color:#856404; border:1px solid #ffc107;
+                           border-radius:6px; padding:0.3rem 0.75rem; font-size:0.82rem; font-weight:600;">
+                <i class="fas fa-ban" style="font-size:0.78rem;"></i>
+                Non-Scannable QR
+              </span>
+            </div>
+            {% endif %}
+
             <div class="photo-actions">
               <button class="photo-btn" onclick="downloadQr()">
                 <i class="fas fa-download"></i> Download
