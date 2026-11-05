@@ -1,0 +1,38 @@
+# VCS / IDE
+.git
+.gitignore
+.vscode
+.idea
+
+# Python caches and virtual envs
+__pycache__
+**/__pycache__
+*.py[cod]
+.venv
+venv
+env
+
+# Secrets (injected at runtime via compose env_file)
+.env
+telegram_bot/.env
+
+# Runtime data (mounted as volumes via docker-compose)
+uploads/
+logs/
+temp/
+
+# Not needed inside the Flask image
+admin_panel/
+node_modules/
+**/node_modules/
+package-lock.json
+docs/
+scripts/
+tests/
+deployment/
+
+# Stray artifacts
+temp_*.png
+temp_fcn_barcode_region.png
+non scannabble qr_temp.png
+cls

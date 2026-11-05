@@ -4,8 +4,56 @@ from .config.production import ProductionConfig
 import os
 from dotenv import load_dotenv
 
+class _SafeStream:
+    """Wraps stdout/stderr so console failures can never crash the app.
+
+    When the terminal that launched the server is closed (or the parent
+    process exits while the Flask reloader child keeps running), stdout
+    becomes a pipe with no reader on the other end. Any print()/log write
+    then raises OSError [WinError 233] 'No process is on the other end of
+    the pipe' from inside request handlers, which surfaces to users as the
+    'Failed to extract data: [WinError 233] ...' page. This wrapper swallows
+    those errors while remaining transparent to everything else.
+    """
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, data):
+        try:
+            return self._stream.write(data)
+        except OSError:
+            return len(data)
+
+    def flush(self):
+        try:
+            self._stream.flush()
+        except OSError:
+            pass
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
+def _harden_stdio():
+    """Make console output UTF-8 safe and immune to broken-pipe errors."""
+    import sys
+
+    for name in ("stdout", "stderr"):
+        stream = getattr(sys, name, None)
+        if stream is None:
+            continue
+        # Emoji/Amharic log lines crash on cp1252 consoles/pipes; force UTF-8.
+        try:
+            stream.reconfigure(encoding="utf-8", errors="replace")
+        except (AttributeError, ValueError, OSError):
+            pass
+        if not isinstance(stream, _SafeStream):
+            setattr(sys, name, _SafeStream(stream))
+
 def create_app(config_name=None):
     """Application factory pattern"""
+    _harden_stdio()
     # Load environment variables from telegram_bot/.env
     telegram_bot_env_path = os.path.join(os.path.dirname(__file__), '..', 'telegram_bot', '.env')
     if os.path.exists(telegram_bot_env_path):
