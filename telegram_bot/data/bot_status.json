@@ -1,7 +1,7 @@
 {
-  "paused": true,
-  "paused_by": "admin",
-  "paused_at": "2025-10-13T22:34:11.685015+03:00",
+  "paused": false,
+  "paused_by": null,
+  "paused_at": null,
   "resumed_by": "admin",
   "resumed_at": "2025-10-13T22:34:07.949275+03:00"
 }
