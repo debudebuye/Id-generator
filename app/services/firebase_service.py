@@ -6,8 +6,17 @@ import os
 import json
 from datetime import datetime
 from typing import List, Dict, Optional
-import firebase_admin
-from firebase_admin import credentials, firestore
+try:
+    import firebase_admin
+    from firebase_admin import credentials, firestore
+except ImportError:
+    # firebase-admin's dependency tree (grpc, protobuf, google-cloud-*) is heavy
+    # enough to blow past a free-tier disk quota on its own. When it's not
+    # installed, every call site here already tolerates self.db being None -
+    # same local-JSON fallback used when Firebase just isn't configured.
+    firebase_admin = None
+    credentials = None
+    firestore = None
 from dotenv import load_dotenv
 
 class FirebaseService:
@@ -15,7 +24,14 @@ class FirebaseService:
         """Initialize Firebase connection"""
         # Load environment variables
         load_dotenv('telegram_bot/.env')
-        
+
+        if firebase_admin is None:
+            print("⚠️ firebase-admin not installed - using local storage fallback")
+            self.db = None
+            self.collection_name = 'approved_users'
+            self.users_collection = 'users'
+            return
+
         # Try to initialize Firebase
         try:
             # Check if Firebase is already initialized

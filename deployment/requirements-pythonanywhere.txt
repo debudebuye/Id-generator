@@ -6,6 +6,16 @@
 # path, which only the web form's advanced option sets - the Telegram bot never
 # does. Each is wrapped in try/except at its import site, so skipping them here
 # degrades that one optional feature instead of crashing anything the bot uses.
+#
+# Also omits firebase-admin: its dependency tree (grpcio, protobuf,
+# google-cloud-firestore, google-cloud-storage, google-api-python-client,
+# cryptography...) is the single heaviest thing in the original requirements -
+# easily the actual cause of a "disk quota exceeded" install failure. Not
+# needed anyway for this host: PythonAnywhere runs one always-on process with
+# a persistent disk, so session_store.py/blob_store.py's local-file fallback
+# (what runs when firebase-admin isn't installed, per firebase_service.py's
+# ImportError guard) is already correct here - the multi-instance problem
+# Firestore solves on Cloud Run doesn't exist on this host.
 Flask>=2.2
 Flasgger>=0.9.7
 python-barcode>=0.14.0
@@ -17,6 +27,5 @@ python-telegram-bot==20.7
 python-dotenv==1.0.0
 pytz>=2023.3
 pytesseract>=0.3.10
-firebase-admin>=6.0.0
 requests>=2.31.0
 numpy
