@@ -17,7 +17,7 @@ import os
 from flask import Blueprint, request, abort
 from telegram import Bot, Update
 
-from telegram_bot.bot import build_bot_from_env
+from telegram_bot.bot import build_bot_from_env, build_telegram_client
 
 tg_bp = Blueprint('telegram_webhook', __name__)
 
@@ -43,8 +43,7 @@ def _get_bot_logic():
 def _get_bot_client() -> Bot:
     global _bot_client
     if _bot_client is None:
-        token = os.environ['TELEGRAM_BOT_TOKEN']
-        _bot_client = Bot(token)
+        _bot_client = build_telegram_client()
     return _bot_client
 
 

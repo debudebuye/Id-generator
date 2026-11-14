@@ -10,12 +10,13 @@ import requests
 import pytz
 from datetime import datetime
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
+from telegram import Bot, Update, InlineKeyboardButton, InlineKeyboardMarkup, InputFile
 from telegram.ext import (
     Application, CommandHandler, MessageHandler, CallbackQueryHandler,
     ContextTypes, ConversationHandler, filters
 )
 from telegram.constants import ParseMode
+from telegram.request import HTTPXRequest
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app.services.id_card_service import IDCardService
@@ -835,6 +836,25 @@ class FydaTelegramBot:
 
 
 # ── Shared factory (used by both polling entry point and the Cloud Run webhook) ─
+def build_telegram_client() -> Bot:
+    """A telegram.Bot that works on hosts which only allow outbound traffic
+    through an HTTP proxy (PythonAnywhere's free tier sets http_proxy/
+    https_proxy for exactly this). httpx's own env-based proxy detection
+    wasn't reliably picking these up - every call just hung until
+    telegram.error.TimedOut - so the proxy is passed through explicitly
+    instead of relying on that auto-detection.
+    """
+    token = os.environ['TELEGRAM_BOT_TOKEN']
+    proxy_url = (
+        os.environ.get('https_proxy') or os.environ.get('HTTPS_PROXY')
+        or os.environ.get('http_proxy') or os.environ.get('HTTP_PROXY')
+    )
+    if proxy_url:
+        request = HTTPXRequest(proxy=proxy_url, connect_timeout=20.0, read_timeout=20.0)
+        return Bot(token, request=request)
+    return Bot(token)
+
+
 def build_bot_from_env() -> 'FydaTelegramBot':
     token = os.getenv('TELEGRAM_BOT_TOKEN')
     if not token:

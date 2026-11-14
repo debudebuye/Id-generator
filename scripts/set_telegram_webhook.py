@@ -15,7 +15,9 @@ import os
 import sys
 
 from dotenv import load_dotenv
-from telegram import Bot
+
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+from telegram_bot.bot import build_telegram_client
 
 load_dotenv()
 
@@ -36,7 +38,7 @@ async def main():
 
     url = f"{public_url.rstrip('/')}/telegram/webhook/{secret}"
 
-    bot = Bot(token)
+    bot = build_telegram_client()
     async with bot:
         ok = await bot.set_webhook(url=url, secret_token=secret, drop_pending_updates=True)
         print(f"setWebhook -> {ok}\nurl -> {url}")
