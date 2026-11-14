@@ -53,21 +53,12 @@ def _apply_smart_address(data: dict) -> None:
             data[f'address_{lang}'] = ', '.join(parts)
 
 
-# ── PDF format detection: the web UI has a manual "1.8 MB Format" checkbox
-# (app/templates/index.html) whose own tooltip says "Use this for PDFs with a
-# 3-letter uppercase filename (~1.8 MB)" - a human has to notice and tick it.
-# The bot has no such checkbox and always passed 'auto', so a large_format PDF
-# that would work fine on the web (once someone ticks that box) silently fails
-# extraction through the bot. Detect the same two conditions automatically here
-# instead - same thresholds the web's own JS uses for its status messages
-# (app/templates/index.html extractFinFromPdf: fileSizeMB >= 1.7 and <= 2.0).
+# ── PDF format: the web UI's manual "1.8 MB Format" checkbox sets
+# document_format='large_format' (app/templates/index.html). The bot only
+# ever receives this one document type, so it's hardcoded here rather than
+# auto-detected - no checkbox to tick, no size/filename heuristic to get wrong.
 def _detect_pdf_format(pdf_bytes: bytes, filename: str) -> str:
-    file_size_mb = len(pdf_bytes) / (1024 * 1024)
-    basename_no_ext = os.path.splitext(os.path.basename(filename or ''))[0]
-    has_three_caps = bool(re.search(r'[A-Z]{3}', basename_no_ext))
-    if 1.7 <= file_size_mb <= 2.0 and has_three_caps:
-        return 'large_format'
-    return 'auto'
+    return 'large_format'
 
 
 class _SimpleContext:
