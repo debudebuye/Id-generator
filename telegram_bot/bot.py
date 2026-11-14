@@ -312,15 +312,23 @@ class FydaTelegramBot:
         session['pdf_ref'] = blob_store.save_pdf(user_id, pdf_bytes)
         session['pdf_name'] = doc.file_name
 
-        # Skipping extract_fin_from_pdf() here on purpose: for the 1.8MB PDFs
-        # this bot always receives, it renders the full first page at 2x zoom
-        # and runs up to 7 Tesseract OCR passes on it, every single upload -
-        # the heaviest operation in the whole flow, and avoidable since manual
-        # FIN entry (one text message) is a trivial fallback on a CPU-quota-
-        # constrained host (PythonAnywhere free tier throttles hard once the
-        # daily CPU allowance is used up).
-        await update.message.reply_text("✅ PDF received.\n\nPlease send your 12-digit FIN number.")
-        return WAITING_FOR_FIN
+        # Auto-extract FIN via OCR. This is the heaviest step in the flow (full
+        # first-page render + up to 7 Tesseract passes) and costs real CPU time
+        # on a quota-limited host, but skipping it means asking the user to
+        # type the FIN manually every time - not wanted, so it runs regardless
+        # of how long it takes.
+        await update.message.reply_text("⏳ Extracting FIN, this may take a moment...")
+        try:
+            auto_fin = self.id_service.extract_fin_from_pdf(BytesIO(pdf_bytes))
+        except Exception:
+            auto_fin = None
+
+        if auto_fin:
+            session['data']['fin'] = auto_fin
+            return await self._extract_and_preview(update, context, user_id, pdf_bytes, auto_fin)
+        else:
+            await update.message.reply_text("✅ PDF received.\n\nPlease send your 12-digit FIN number.")
+            return WAITING_FOR_FIN
 
     # ── Receive FIN ────────────────────────────────────────────────────────────
     async def receive_fin(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
