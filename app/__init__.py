@@ -94,6 +94,14 @@ def create_app(config_name=None):
     # Import routes after app initialization
     from .routes import bp
     app.register_blueprint(bp)
+
+    # Telegram webhook (Cloud Run) - only registered when a webhook secret is
+    # configured, so local/dev runs without TELEGRAM_WEBHOOK_SECRET set are
+    # unaffected and the bot keeps working via polling (scripts/run_telegram_bot.py).
+    if os.environ.get('TELEGRAM_WEBHOOK_SECRET'):
+        from telegram_bot.webhook import tg_bp
+        app.register_blueprint(tg_bp)
+        print("✅ Telegram webhook route registered")
     
     # Basic CORS support for admin_panel (Vite dev server and deployed origins)
     allowed_origins = os.environ.get('CORS_ORIGINS', 'http://localhost:5173').split(',')

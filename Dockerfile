@@ -26,10 +26,20 @@ RUN pip install --upgrade pip \
 COPY . .
 
 RUN useradd --uid 1000 --create-home appuser \
-    && mkdir -p /app/uploads /app/logs /app/temp /app/data \
+    && mkdir -p /app/uploads /app/logs /app/temp /app/data /app/telegram_bot/data \
     && chown -R appuser:appuser /app
 USER appuser
 
-EXPOSE 5000
+EXPOSE 8080
 
-CMD ["gunicorn", "-w", "3", "-b", "0.0.0.0:5000", "--timeout", "120", "app:app"]
+# Cloud Run sets $PORT (defaults to 8080) and expects the container to listen on
+# it, so this needs shell-form expansion rather than the exec-form array above.
+# Single worker: the ID-generation pipeline writes to fixed filenames
+# (photo_temp.png, qr_temp.png, fcn_barcode.png) on local disk rather than
+# per-request paths, so two requests running at once on the same container can
+# clobber each other's files - that's pre-existing, not introduced by the
+# webhook change. Pair this with `gcloud run deploy --concurrency=1` so Cloud
+# Run never sends a container a second request while the first is still
+# generating; scale out with --max-instances instead of in-container
+# concurrency until that pipeline is made per-request-safe.
+CMD exec gunicorn -w 1 -b 0.0.0.0:${PORT:-8080} --timeout 180 app:app

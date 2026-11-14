@@ -30,10 +30,20 @@ class FirebaseService:
                 if not os.path.isabs(service_account_path):
                     service_account_path = os.path.join(os.path.dirname(__file__), '..', '..', 'telegram_bot', service_account_path)
                 
+                storage_bucket = os.getenv('FIREBASE_STORAGE_BUCKET')
+                options = {'storageBucket': storage_bucket} if storage_bucket else {}
+
                 if os.path.exists(service_account_path):
                     cred = credentials.Certificate(service_account_path)
-                    firebase_admin.initialize_app(cred)
+                    firebase_admin.initialize_app(cred, options)
                     print("✅ Firebase initialized with service account key")
+                elif os.getenv('GOOGLE_CLOUD_PROJECT') or os.getenv('K_SERVICE'):
+                    # No key file baked into the image - use the identity Cloud Run
+                    # attaches to the container (Application Default Credentials)
+                    # instead of shipping a long-lived key as a secret.
+                    # K_SERVICE is set by Cloud Run on every revision.
+                    firebase_admin.initialize_app(credentials.ApplicationDefault(), options)
+                    print("✅ Firebase initialized with Application Default Credentials (Cloud Run)")
                 else:
                     print(f"⚠️ Firebase service account file not found: {service_account_path}")
                     print("Using local storage fallback")

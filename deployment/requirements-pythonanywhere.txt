@@ -1,0 +1,22 @@
+# Trimmed for the Telegram bot on PythonAnywhere's free tier (512MB disk quota).
+#
+# Omits easyocr, rembg, onnxruntime, opencv-python-headless, scipy from the root
+# requirements.txt: easyocr is never imported anywhere in the codebase, and the
+# other four are only reachable through the `use_onnx_bg=True` background-removal
+# path, which only the web form's advanced option sets - the Telegram bot never
+# does. Each is wrapped in try/except at its import site, so skipping them here
+# degrades that one optional feature instead of crashing anything the bot uses.
+Flask>=2.2
+Flasgger>=0.9.7
+python-barcode>=0.14.0
+python-dateutil>=2.8.2
+Pillow>=10.1.0
+PyMuPDF>=1.23.8
+qrcode==7.4.2
+python-telegram-bot==20.7
+python-dotenv==1.0.0
+pytz>=2023.3
+pytesseract>=0.3.10
+firebase-admin>=6.0.0
+requests>=2.31.0
+numpy

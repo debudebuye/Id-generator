@@ -21,6 +21,8 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from app.services.id_card_service import IDCardService
 from app.services.daily_report_service import DailyReportService
 from app.services.firebase_service import firebase_service
+from telegram_bot.session_store import SessionStore
+from telegram_bot import blob_store
 
 # ── Conversation states ────────────────────────────────────────────────────────
 WAITING_FOR_PDF   = 1
@@ -50,12 +52,30 @@ def _apply_smart_address(data: dict) -> None:
             data[f'address_{lang}'] = ', '.join(parts)
 
 
+class _SimpleContext:
+    """Minimal stand-in for telegram.ext.CallbackContext.
+
+    The handler methods below only ever touch `context.bot` (to send/receive
+    messages) - everything else they need lives in the session dict, not in
+    PTB's context. That means the webhook dispatcher doesn't need a full
+    `Application`/`ConversationHandler` just to build a context object.
+    """
+    def __init__(self, bot):
+        self.bot = bot
+        self.user_data: Dict[str, Any] = {}
+
+
 # ── Bot class ──────────────────────────────────────────────────────────────────
 class FydaTelegramBot:
     def __init__(self, token: str, allowed_user_ids: List[int] = None):
         self.token = token
         self.id_service = IDCardService()
         self.daily_service = DailyReportService()
+        self.session_store = SessionStore()
+        # Per-request/per-update working copy. In polling mode this is the only
+        # copy of the state (same as before). In webhook mode, dispatch_update()
+        # hydrates it from self.session_store before each update and flushes it
+        # back afterwards, so state survives across separate Cloud Run invocations.
         self.sessions: Dict[int, Dict[str, Any]] = {}
         self.allowed_user_ids: List[int] = allowed_user_ids or []
         self._env_allowed_ids: List[int] = list(self.allowed_user_ids)  # keep env IDs permanently
@@ -134,7 +154,7 @@ class FydaTelegramBot:
 
     # ── Session helpers ────────────────────────────────────────────────────────
     def _new_session(self, user_id: int) -> Dict:
-        self.sessions[user_id] = {'data': {}, 'pdf': None, 'edit_field': None}
+        self.sessions[user_id] = {'data': {}, 'pdf_ref': None, 'edit_field': None, 'state': WAITING_FOR_PDF}
         return self.sessions[user_id]
 
     def _session(self, user_id: int) -> Dict:
@@ -222,7 +242,9 @@ class FydaTelegramBot:
 
     # ── /cancel ────────────────────────────────────────────────────────────────
     async def cancel(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
-        self.sessions.pop(update.effective_user.id, None)
+        session = self.sessions.pop(update.effective_user.id, None)
+        if session:
+            blob_store.delete_pdf(session.get('pdf_ref'))
         await update.message.reply_text("❌ Cancelled. Send /start to begin again.")
         return ConversationHandler.END
 
@@ -274,7 +296,11 @@ class FydaTelegramBot:
             return WAITING_FOR_PDF
 
         session = self._new_session(user_id)
-        session['pdf'] = pdf_bytes
+        # Raw PDF bytes (up to 25 MB) don't fit a Firestore document, and may need
+        # to survive until a *separate* update (the FIN message) on possibly a
+        # different Cloud Run instance - so they go through blob storage, not the
+        # session dict itself.
+        session['pdf_ref'] = blob_store.save_pdf(user_id, pdf_bytes)
         session['pdf_name'] = doc.file_name
 
         # Try auto-extract FIN
@@ -308,7 +334,7 @@ class FydaTelegramBot:
             return WAITING_FOR_FIN
 
         session = self._session(user_id)
-        pdf_bytes = session.get('pdf')
+        pdf_bytes = blob_store.load_pdf(session.get('pdf_ref'))
         if not pdf_bytes:
             await update.message.reply_text("❌ No PDF found. Please upload your PDF first.")
             return WAITING_FOR_PDF
@@ -328,6 +354,12 @@ class FydaTelegramBot:
         session = self._session(user_id)
         session['data'].update(extracted)
         data = session['data']
+
+        # PDF bytes aren't needed past this point - drop the blob now rather
+        # than leaving it in Storage until the whole session is cleared.
+        pdf_ref = session.pop('pdf_ref', None)
+        if pdf_ref:
+            blob_store.delete_pdf(pdf_ref)
 
         # Smart address formatting
         _apply_smart_address(data)
@@ -373,12 +405,13 @@ class FydaTelegramBot:
 
         # Send photo preview if available
         photo_path = data.get('photo')
-        photo_bytes = data.get('photo_bytes')
-        if photo_bytes:
+        photo_b64 = data.get('photo_b64')
+        if photo_b64:
+            import base64
             try:
                 await context.bot.send_photo(
                     chat_id=user_id,
-                    photo=BytesIO(photo_bytes),
+                    photo=BytesIO(base64.b64decode(photo_b64)),
                     caption="📸 Photo preview"
                 )
             except Exception:
@@ -545,15 +578,14 @@ class FydaTelegramBot:
             raw = bytes(await f.download_as_bytearray())
             img = Image.open(BytesIO(raw)).convert('RGBA')
 
-            # Save to the exact filename the service uses as its default
-            photo_temp = os.path.join(self.id_service.config.STATIC_FOLDER, 'photo_temp.png')
-            img.save(photo_temp, format='PNG')
-
-            # Also store raw bytes in data so get_photo_data() picks it up directly
+            # Base64 text fits directly in the Firestore session document and
+            # survives to whichever instance handles the "Generate" tap later -
+            # unlike a local disk write, which only the current instance can see.
             buf = BytesIO()
             img.save(buf, format='PNG')
-            session['data']['photo_bytes'] = buf.getvalue()
-            # Clear any old photo path so the service uses photo_bytes
+            import base64
+            session['data']['photo_b64'] = base64.b64encode(buf.getvalue()).decode('ascii')
+            # Clear any old photo path so the service uses photo_b64
             session['data'].pop('photo', None)
 
             await update.message.reply_text("✅ Photo updated.")
@@ -646,7 +678,83 @@ class FydaTelegramBot:
             await context.bot.send_message(chat_id=user_id, text="🎉 ID generated! Send a new PDF to start again.")
 
         # Clear session but keep user in sessions dict
-        self.sessions.pop(user_id, None)
+        session = self.sessions.pop(user_id, None)
+        if session:
+            blob_store.delete_pdf(session.get('pdf_ref'))
+
+    # ── Webhook dispatch (Cloud Run) ────────────────────────────────────────────
+    # No ConversationHandler/Application here on purpose: ConversationHandler
+    # tracks "what state is this chat in" in the dispatcher's own memory, which
+    # is exactly the thing that doesn't survive between separate webhook calls
+    # on Cloud Run. Instead, the state (WAITING_FOR_PDF, CONFIRMING_DATA, ...) is
+    # just another field in the session dict that session_store persists, and
+    # this method does by hand what ConversationHandler normally does for you:
+    # look at the stored state, route the update to the matching handler, and
+    # store whatever state that handler returns.
+    async def dispatch_update(self, update: Update, bot) -> None:
+        message = update.message
+        callback = update.callback_query
+        if not message and not callback:
+            return
+
+        user_id = callback.from_user.id if callback else message.from_user.id
+        context = _SimpleContext(bot)
+
+        stored = self.session_store.load(user_id)
+        self.sessions[user_id] = stored if stored is not None else {
+            'data': {}, 'pdf_ref': None, 'edit_field': None, 'state': WAITING_FOR_PDF
+        }
+
+        try:
+            next_state = await self._route(update, context, message, callback, user_id)
+        except Exception as e:
+            print(f"⚠️ dispatch_update handler error for user {user_id}: {e}")
+            next_state = self.sessions.get(user_id, {}).get('state', WAITING_FOR_PDF)
+
+        session = self.sessions.pop(user_id, None)
+        if session is None or next_state == ConversationHandler.END:
+            self.session_store.delete(user_id)
+        else:
+            session['state'] = next_state if next_state is not None else session.get('state', WAITING_FOR_PDF)
+            self.session_store.save(user_id, session)
+
+    async def _route(self, update, context, message, callback, user_id: int) -> int:
+        text = (message.text or '') if message else ''
+
+        if callback:
+            return await self.handle_callback(update, context)
+        if text.startswith('/start'):
+            return await self.start(update, context)
+        if text.startswith('/cancel'):
+            return await self.cancel(update, context)
+        if text.startswith('/report'):
+            return await self.report(update, context)
+        if text.startswith('/help'):
+            return await self._help(update, context)
+
+        state = self.sessions[user_id].get('state', WAITING_FOR_PDF)
+
+        if state == WAITING_FOR_PDF:
+            if message.document:
+                return await self.receive_pdf(update, context)
+            context.user_data['_state'] = WAITING_FOR_PDF
+            return await self.wrong_input(update, context)
+
+        if state == WAITING_FOR_FIN:
+            if text:
+                return await self.receive_fin(update, context)
+            context.user_data['_state'] = WAITING_FOR_FIN
+            return await self.wrong_input(update, context)
+
+        if state == WAITING_FOR_PHOTO:
+            return await self.receive_photo(update, context)
+
+        if state in (CONFIRMING_DATA, WAITING_FOR_FIELD):
+            if text:
+                return await self.receive_field_value(update, context)
+            return state
+
+        return state
 
     # ── Wrong input helpers ────────────────────────────────────────────────────
     async def wrong_input(self, update: Update, context: ContextTypes.DEFAULT_TYPE) -> int:
@@ -726,15 +834,11 @@ class FydaTelegramBot:
         return ConversationHandler.END
 
 
-# ── Entry point ────────────────────────────────────────────────────────────────
-if __name__ == '__main__':
-    from dotenv import load_dotenv
-    load_dotenv()
-
-    TOKEN = os.getenv('TELEGRAM_BOT_TOKEN')
-    if not TOKEN:
-        print("❌ TELEGRAM_BOT_TOKEN not set.")
-        sys.exit(1)
+# ── Shared factory (used by both polling entry point and the Cloud Run webhook) ─
+def build_bot_from_env() -> 'FydaTelegramBot':
+    token = os.getenv('TELEGRAM_BOT_TOKEN')
+    if not token:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN not set.")
 
     raw_ids = os.getenv('ALLOWED_USER_IDS', '')
     allowed: List[int] = []
@@ -744,4 +848,11 @@ if __name__ == '__main__':
         except ValueError:
             pass
 
-    FydaTelegramBot(TOKEN, allowed_user_ids=allowed).run()
+    return FydaTelegramBot(token, allowed_user_ids=allowed)
+
+
+# ── Entry point (local/dev polling only - Cloud Run uses telegram_bot/webhook.py) ─
+if __name__ == '__main__':
+    from dotenv import load_dotenv
+    load_dotenv()
+    build_bot_from_env().run()
