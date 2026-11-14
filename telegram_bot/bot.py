@@ -695,6 +695,17 @@ class FydaTelegramBot:
                 sent += 1
             except Exception as e:
                 await context.bot.send_message(chat_id=user_id, text=f"❌ Send error: {e}")
+            finally:
+                # generate_id_card() writes each output to STATIC_FOLDER under a
+                # name-derived filename and never cleans it up - on a 512MB-quota
+                # host that fills the disk after a handful of generations (each
+                # output is multi-MB). The bot only ever needed this file long
+                # enough to read it into send_document above, so delete it now
+                # regardless of whether the send succeeded.
+                try:
+                    os.remove(path)
+                except OSError:
+                    pass
 
         if sent == 0:
             await context.bot.send_message(chat_id=user_id, text="❌ No output files generated.")
