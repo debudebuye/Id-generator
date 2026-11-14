@@ -405,9 +405,11 @@ class FydaTelegramBot:
 
         bg_on = data.get('remove_white_bg', False)
         bg_btn = "🖼 BG Remove: ON" if bg_on else "🚫 BG Remove: OFF"
+        side_btn = "🪪 Output: Front" if data.get('output_variant', 'reverse') == 'front' else "🪪 Output: Reverse (back)"
 
         keyboard = [
             [InlineKeyboardButton(bg_btn, callback_data="toggle_bg")],
+            [InlineKeyboardButton(side_btn, callback_data="toggle_side")],
             [InlineKeyboardButton("✏️ Edit Field", callback_data="edit_menu"),
              InlineKeyboardButton("🔁 Replace Photo", callback_data="photo_replace")],
             [InlineKeyboardButton("🚀 Generate ID", callback_data="generate")],
@@ -471,8 +473,30 @@ class FydaTelegramBot:
             data['remove_white_bg'] = not data.get('remove_white_bg', False)
             bg_on = data['remove_white_bg']
             bg_btn = "🖼 BG Remove: ON" if bg_on else "🚫 BG Remove: OFF"
+            side_btn = "🪪 Output: Front" if data.get('output_variant', 'reverse') == 'front' else "🪪 Output: Reverse (back)"
             keyboard = [
                 [InlineKeyboardButton(bg_btn, callback_data="toggle_bg")],
+                [InlineKeyboardButton(side_btn, callback_data="toggle_side")],
+                [InlineKeyboardButton("✏️ Edit Field", callback_data="edit_menu"),
+                 InlineKeyboardButton("🔁 Replace Photo", callback_data="photo_replace")],
+                [InlineKeyboardButton("🚀 Generate ID", callback_data="generate")],
+                [InlineKeyboardButton("❌ Cancel", callback_data="cancel")]
+            ]
+            try:
+                await query.edit_message_reply_markup(InlineKeyboardMarkup(keyboard))
+            except Exception:
+                pass
+            return CONFIRMING_DATA
+
+        # ── Toggle front/reverse output ─────────────────────────────────────────
+        elif choice == 'toggle_side':
+            data['output_variant'] = 'front' if data.get('output_variant', 'reverse') != 'front' else 'reverse'
+            bg_on = data.get('remove_white_bg', False)
+            bg_btn = "🖼 BG Remove: ON" if bg_on else "🚫 BG Remove: OFF"
+            side_btn = "🪪 Output: Front" if data['output_variant'] == 'front' else "🪪 Output: Reverse (back)"
+            keyboard = [
+                [InlineKeyboardButton(bg_btn, callback_data="toggle_bg")],
+                [InlineKeyboardButton(side_btn, callback_data="toggle_side")],
                 [InlineKeyboardButton("✏️ Edit Field", callback_data="edit_menu"),
                  InlineKeyboardButton("🔁 Replace Photo", callback_data="photo_replace")],
                 [InlineKeyboardButton("🚀 Generate ID", callback_data="generate")],
@@ -632,8 +656,8 @@ class FydaTelegramBot:
                         city_option=city_type,
                         remove_white=remove_white,
                         remove_black=False,
-                        generate_front_only=False,
-                        generate_reverse_only=(not generate_old and not generate_mini),
+                        generate_front_only=(not generate_old and not generate_mini and variant == 'front'),
+                        generate_reverse_only=(not generate_old and not generate_mini and variant != 'front'),
                         generate_old_id=generate_old,
                         generate_mini_id=generate_mini
                     )
@@ -647,11 +671,13 @@ class FydaTelegramBot:
             await context.bot.send_message(chat_id=user_id, text=f"❌ Generation error: {e}")
             return
 
-        # Determine which two files to send (color + grayscale reverse)
+        # Determine which two files to send (color + grayscale)
         if generate_old:
             to_send = ['old_reverse_color', 'old_reverse_bw']
         elif generate_mini:
             to_send = ['mini_front_color', 'mini_front_bw']
+        elif variant == 'front':
+            to_send = ['front_color', 'front_bw']
         else:
             to_send = ['reverse', 'reverse_bw']
 
